@@ -1,21 +1,29 @@
-require('dotenv').config();
-const { Telegraf } = require('telegraf');
+require("dotenv").config();
+const { Telegraf } = require("telegraf");
+const { askAI } = require("./ai");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 bot.start((ctx) => {
-  ctx.reply('Welcome to LifeOS 🚀\nYour personal productivity assistant.');
+  ctx.reply("AtharvaOS Activated.\nYour Second Brain is Online.");
 });
 
-bot.help((ctx) => {
-  ctx.reply('Send me anything. I will remember it soon 😎');
-});
+bot.on("text", async (ctx) => {
+  try {
+    const userMessage = ctx.message.text;
 
-bot.on('text', (ctx) => {
-  ctx.reply(`Saved (temporary): ${ctx.message.text}`);
+    ctx.reply("Thinking...");
+
+    const aiReply = await askAI(userMessage);
+
+    ctx.reply(aiReply);
+  } catch (error) {
+    console.error(error);
+    ctx.reply("AI error occurred.");
+  }
 });
 
 bot.launch();
 
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
+process.once("SIGINT", () => bot.stop("SIGINT"));
+process.once("SIGTERM", () => bot.stop("SIGTERM"));
