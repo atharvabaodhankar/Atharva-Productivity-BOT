@@ -12,6 +12,7 @@
   "type": "commonjs",
   "dependencies": {
     "dotenv": "^17.2.4",
+    "groq-sdk": "^0.37.0",
     "telegraf": "^4.16.3"
   }
 }
