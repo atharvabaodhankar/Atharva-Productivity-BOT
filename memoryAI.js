@@ -11,15 +11,15 @@ async function classifyMemory(message) {
       {
         role: "system",
         content: `
-You are an AI that extracts important memories.
+You are an AI that extracts important memories for a productivity assistant.
 
-Return JSON only.
+Return ONLY valid JSON.
 
 Fields:
 store (true/false)
 type (task, assignment, exam, project, goal, idea, reminder, note)
 content
-date (optional)
+date (optional ISO format)
 
 If not important, set store false.
         `,
