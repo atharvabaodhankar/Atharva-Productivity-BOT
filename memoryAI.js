@@ -5,27 +5,23 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-async function classifyMemory(message, history = "") {
+async function classifyMemory(message) {
   const completion = await groq.chat.completions.create({
     messages: [
       {
         role: "system",
         content: `
-You are an AI that extracts important memories for a productivity assistant.
-Use the conversation history if provided to understand context (e.g., if the user says "and this too", look at what "this" refers to).
+You are an AI that extracts important memories.
 
-Return ONLY valid JSON.
+Return JSON only.
 
 Fields:
 store (true/false)
-type (task, assignment, exam, project, goal, idea, reminder, note, reflection)
+type (task, assignment, exam, project, goal, idea, reminder, note)
 content
-date (optional ISO format)
+date (optional)
 
 If not important, set store false.
-
-CONVERSATION HISTORY:
-${history}
         `,
       },
       {
