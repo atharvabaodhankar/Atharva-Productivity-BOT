@@ -43,7 +43,9 @@ ${memoryText}
     max_completion_tokens: 800,
   });
 
-  return completion.choices[0].message.content;
+  return completion.choices[0].message.content
+  .replace(/#/g, "")
+  .replace(/\*\*/g, "*");
 }
 
 module.exports = { askAI };
