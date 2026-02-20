@@ -49,9 +49,14 @@ bot.on("text", async (ctx) => {
     const classification = await classifyMemory(userMessage);
 
     if (classification.store) {
+      // Handle array content by converting to JSON string
+      const contentToStore = Array.isArray(classification.content)
+        ? JSON.stringify(classification.content)
+        : classification.content;
+
       await Memory.create({
         type: classification.type,
-        content: classification.content,
+        content: contentToStore,
         date: classification.date || null,
       });
     }
