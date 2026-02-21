@@ -64,7 +64,7 @@ bot.on("text", async (ctx) => {
     // 2. AI reply with memory context
     const reply = await askAI(userMessage);
 
-    ctx.replyWithMarkdown(reply);
+    ctx.reply(reply);
   } catch (error) {
     console.error(error);
     ctx.reply("Something went wrong.");

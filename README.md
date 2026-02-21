@@ -1,21 +1,9 @@
-# AtharvaOS — Your Energetic Productivity Buddy! 🚀
+# AtharvaOS — Personal Productivity & Second Brain Telegram Bot
 
-AtharvaOS is an AI-powered personal productivity assistant built as a Telegram bot with PERSONALITY!
-It's like having that friend who roasts you lovingly but always has your back - keeping you motivated, cracking jokes, and making sure you crush your goals! 💪
+AtharvaOS is an AI-powered personal productivity assistant built as a Telegram bot.
+It acts like a **Second Brain + Productivity Coach**, helping track tasks, remember important information, detect deadlines, and keep the user focused on execution.
 
-This isn't just another boring productivity tool. AtharvaOS is your **hype man, accountability partner, and second brain** all rolled into one energetic package!
-
----
-
-## What Makes AtharvaOS Different? 🔥
-
-* **Fun & Energetic** - Uses Hinglish, cracks jokes, and keeps things entertaining
-* **Roasts You (Lovingly)** - Calls out procrastination with humor, never mean
-* **Celebrates Wins** - Goes CRAZY when you complete tasks! 🎉
-* **Smart Memory** - Remembers everything automatically
-* **Actually Helpful** - Real productivity advice, not generic BS
-
-Think of it as your future, more disciplined self... but way more fun! 😎
+This project combines **AI, automation, memory systems, and reminders** into a single personal operating system.
 
 ---
 
@@ -44,66 +32,12 @@ inside a Telegram chat interface.
 
 ## Key Features
 
-## Personality Features 🎭
-
-### Energetic & Fun
-- Uses Hinglish (Hindi + English mix) - "bhai", "yaar", "chal", "arre"
-- Tons of emojis and energy! 🔥💪🚀
-- Gen-Z humor and meme references
-- Time-based greetings (morning/afternoon/evening)
-
-### Motivational Beast
-- Celebrates every win like it's the Super Bowl! 🎉
-- Provides instant motivation with `/motivate` command
-- Hypes you up when you're working hard
-- Reminds you of your "why" when you need it
-
-### Playful Roasting
-- Gently calls out procrastination with humor
-- `/roast` command for when you need tough love
-- Shows overdue tasks with funny warnings
-- Never mean, always supportive underneath
-
-### Smart & Helpful
-- Tracks pending task count for context
-- Shows days left on deadlines with urgency levels
-- Randomized responses keep it fresh
-- Actually useful productivity advice
-
----
-
-## Key Features
-
 ### AI Productivity Assistant
 
 * Powered by Groq LLM
 * Acts as a focused, practical productivity coach
 * Provides step-by-step plans instead of generic advice
 * Uses stored memory to give personalized responses
-
----
-
-### Task Management Commands
-
-**NEW!** Complete task management system:
-
-* `/tasks` - View all pending tasks with IDs
-* `/reminders` - View active reminders
-* `/goals` - View your goals
-* `/today` - Get today's summary
-* `/done <id>` - Mark task as complete
-* `/delete <id>` - Delete a task/reminder
-* `/help` - View all available commands
-
----
-
-### Daily Summary (Auto-Scheduled)
-
-**NEW!** Every morning at 8 AM, receive:
-
-* Tasks due today
-* Upcoming deadlines
-* Motivational message to start your day
 
 ---
 
@@ -238,29 +172,10 @@ Reminder Scheduler
 
 1. User sends message to bot
 2. AI classifies if message is important
-3. Important information is stored in MongoDB with user's chat ID
+3. Important information is stored in MongoDB
 4. Recent memory is injected into AI context
 5. AI generates a structured productivity response
 6. Scheduler monitors deadlines and sends reminders
-7. Daily summary sent automatically at 8 AM
-8. Users can manage tasks with commands (/tasks, /done, /delete)
-
----
-
-## Available Commands
-
-* `/start` - Wake up your productivity buddy! 🚀
-* `/tasks` - See what's pending (with spicy deadline warnings 🔥)
-* `/reminders` - Check active reminders
-* `/goals` - View your goals
-* `/today` - Get today's game plan with time-based greetings
-* `/done <id>` - Mark task complete (GET HYPED! 🎉)
-* `/delete <id>` - Delete a task/reminder
-* `/motivate` - Need a boost? Get instant motivation! 💪
-* `/roast` - Get playfully roasted (builds character 😂)
-* `/help` - View all commands
-
-**Pro Tip:** Just chat naturally! The bot understands context and will store important stuff automatically while keeping the conversation fun! 😎
 
 ---
 
@@ -331,18 +246,13 @@ atharvaos-bot
 
 ## Future Improvements
 
-* ~~Priority detection engine~~ ✅ Task completion tracking added
-* ~~Daily schedule generator~~ ✅ Daily summary at 8 AM added
-* ~~Task management~~ ✅ Mark done, delete commands added
-* Recurring reminders (every Monday, daily, etc.)
-* Focus mode system with Pomodoro timer
+* Priority detection engine
+* Daily schedule generator
+* Focus mode system
 * Web dashboard with analytics
 * Multi-device sync
 * Voice note transcription
 * Habit tracking
-* Natural language date parsing improvements
-* Snooze reminders
-* Priority levels (high/medium/low)
 
 ---
 
