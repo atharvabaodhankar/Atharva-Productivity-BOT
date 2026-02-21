@@ -44,6 +44,7 @@ bot.hears(/what are my tasks/i, async (ctx) => {
 bot.on("text", async (ctx) => {
   try {
     const userMessage = ctx.message.text;
+    const chatId = ctx.chat.id; // Get the user's chat ID
 
     // 1. Classify memory
     const classification = await classifyMemory(userMessage);
@@ -58,6 +59,7 @@ bot.on("text", async (ctx) => {
         type: classification.type,
         content: contentToStore,
         date: classification.date || null,
+        chatId: chatId, // Store the chat ID with the memory
       });
     }
 
