@@ -5,6 +5,7 @@ const memorySchema = new mongoose.Schema({
   content: String,
   date: Date,
   chatId: Number, // Store which user this memory belongs to
+  completed: { type: Boolean, default: false }, // Track if task is done
   createdAt: {
     type: Date,
     default: Date.now,
