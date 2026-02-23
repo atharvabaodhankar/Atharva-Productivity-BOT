@@ -26,10 +26,16 @@ function startReminderService(bot) {
           const chatId = item.chatId;
           
           if (chatId) {
-            await bot.telegram.sendMessage(
-              chatId,
-              `⏰ Reminder: ${item.content}\nDue: ${new Date(item.date).toLocaleString()}`
-            );
+            const funReminders = [
+              `⏰ YO! Time's up!\n\n🎯 ${item.content}\n\nLet's gooo! No excuses! 💪`,
+              `🔔 Ding ding ding!\n\n📌 ${item.content}\n\nChal bhai, time to shine! ✨`,
+              `⚡ REMINDER ALERT!\n\n🎯 ${item.content}\n\nYou got this, champ! 🔥`,
+              `🚨 Arre bhai!\n\n📋 ${item.content}\n\nDue: ${new Date(item.date).toLocaleString()}\n\nGet on it! 🚀`
+            ];
+            
+            const message = funReminders[Math.floor(Math.random() * funReminders.length)];
+            
+            await bot.telegram.sendMessage(chatId, message);
             
             // Mark as sent
             sentReminders.add(reminderId);
@@ -71,10 +77,17 @@ function startReminderService(bot) {
         }).sort({ date: 1 }).limit(5);
 
         if (todayItems.length > 0 || allPending.length > 0) {
-          let message = "🌅 Good Morning! Here's your daily summary:\n\n";
+          const greetings = [
+            "🌅 GOOD MORNING, CHAMPION! Rise and grind! ☕",
+            "🌞 Wakey wakey! Time to make today LEGENDARY! 🔥",
+            "☀️ Uth ja bhai! Opportunities wait for no one! 💪",
+            "🌄 New day, new chances to be AWESOME! Let's go! 🚀"
+          ];
+          
+          let message = greetings[Math.floor(Math.random() * greetings.length)] + "\n\n";
 
           if (todayItems.length > 0) {
-            message += "📌 Due Today:\n";
+            message += "🔥 DUE TODAY (Priority mode ON!):\n";
             todayItems.forEach((item) => {
               message += `• ${item.content}\n`;
             });
@@ -82,7 +95,7 @@ function startReminderService(bot) {
           }
 
           if (allPending.length > 0) {
-            message += "📋 Upcoming:\n";
+            message += "📋 Coming Up Soon:\n";
             allPending.forEach((item) => {
               message += `• ${item.content}`;
               if (item.date) {
@@ -92,7 +105,14 @@ function startReminderService(bot) {
             });
           }
 
-          message += "\n💪 Let's make today productive!";
+          const endings = [
+            "\n💪 Let's make today COUNT! You got this! 🎯",
+            "\n🚀 Time to show the world what you're made of! 💯",
+            "\n⚡ One step at a time, you'll conquer it all! 🏆",
+            "\n🔥 Today's the day! Let's CRUSH these goals! 💪"
+          ];
+
+          message += endings[Math.floor(Math.random() * endings.length)];
 
           await bot.telegram.sendMessage(chatId, message);
         }

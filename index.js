@@ -17,7 +17,15 @@ mongoose
 
 // Start command
 bot.start((ctx) => {
-  ctx.reply("AtharvaOS Activated.\nYour Second Brain is Online.");
+  const funGreetings = [
+    "Yo yo yo! AtharvaOS is LIVE! 🚀\nReady to crush some goals today? Let's goooo! 💪",
+    "Arre bhai! Your productivity buddy is here! 🔥\nBata kya karna hai aaj? Let's make it happen! 💯",
+    "LESSGOOO! 🎯 AtharvaOS activated!\nTime to turn those dreams into reality, champ! ⚡",
+    "Ayeee! What's good? 😎\nYour second brain is online and ready to help you dominate! 🏆"
+  ];
+  
+  const greeting = funGreetings[Math.floor(Math.random() * funGreetings.length)];
+  ctx.reply(greeting);
 });
 
 // List all tasks
@@ -30,17 +38,37 @@ bot.command("tasks", async (ctx) => {
   }).sort({ date: 1 });
 
   if (tasks.length === 0) {
-    return ctx.reply("✅ No pending tasks!");
+    const funMessages = [
+      "Woohoo! 🎉 No pending tasks! You're a productivity BEAST! Time to chill or set new goals? 😎",
+      "Arre wah! All clear! 🌟 Kya baat hai! Now go enjoy or plan something epic! 🚀",
+      "YOOO! Task list = EMPTY! 💯 You're crushing it! Time for some well-deserved fun! 🎮"
+    ];
+    return ctx.reply(funMessages[Math.floor(Math.random() * funMessages.length)]);
   }
 
-  let message = "📌 Your Tasks:\n\n";
+  let message = "📌 Alright boss, here's what's pending:\n\n";
   tasks.forEach((t, i) => {
     message += `${i + 1}. ${t.content}\n`;
     if (t.date) {
-      message += `   📅 ${new Date(t.date).toDateString()}\n`;
+      const daysLeft = Math.ceil((new Date(t.date) - new Date()) / (1000 * 60 * 60 * 24));
+      message += `   📅 ${new Date(t.date).toDateString()}`;
+      if (daysLeft < 0) {
+        message += ` ⚠️ OVERDUE! Bhai kya kar raha hai? 😅`;
+      } else if (daysLeft === 0) {
+        message += ` 🔥 DUE TODAY! Let's gooo!`;
+      } else if (daysLeft <= 2) {
+        message += ` ⏰ ${daysLeft} days left! Hurry up!`;
+      }
+      message += "\n";
     }
     message += `   ID: ${t._id}\n\n`;
   });
+
+  if (tasks.length > 3) {
+    message += "\n💪 That's a lot! But you got this, champ! One task at a time! 🔥";
+  } else {
+    message += "\n🎯 Looking good! Finish these and you're golden! ✨";
+  }
 
   ctx.reply(message);
 });
@@ -99,7 +127,7 @@ bot.command("goals", async (ctx) => {
 bot.command("done", async (ctx) => {
   const args = ctx.message.text.split(" ");
   if (args.length < 2) {
-    return ctx.reply("Usage: /done <task_id>\nGet task ID from /tasks command");
+    return ctx.reply("Arre bhai! Usage: /done <task_id>\nGet task ID from /tasks command 😊");
   }
 
   const taskId = args[1];
@@ -113,12 +141,18 @@ bot.command("done", async (ctx) => {
     );
 
     if (task) {
-      ctx.reply(`✅ Marked as done: ${task.content}`);
+      const celebrations = [
+        `🎉 BOOM! Task completed: ${task.content}\n\nYou're on FIRE today! 🔥 Keep going, champion! 💪`,
+        `✅ LESSGOOO! ${task.content} ✓\n\nKya baat hai! One down, let's crush the rest! 🚀`,
+        `🏆 YESSS! ${task.content} - DONE!\n\nYou're unstoppable! This is what I'm talking about! 💯`,
+        `⚡ SHABASH! ${task.content} complete!\n\nMomentum building! Don't stop now! 🎯`
+      ];
+      ctx.reply(celebrations[Math.floor(Math.random() * celebrations.length)]);
     } else {
-      ctx.reply("❌ Task not found or doesn't belong to you");
+      ctx.reply("Hmm... Task not found yaar 🤔 Check the ID with /tasks");
     }
   } catch (error) {
-    ctx.reply("❌ Invalid task ID");
+    ctx.reply("Oops! Invalid task ID bro 😅 Use /tasks to get the right one");
   }
 });
 
@@ -165,10 +199,16 @@ bot.command("today", async (ctx) => {
     completed: false,
   }).sort({ date: 1 }).limit(5);
 
-  let message = "🌅 Today's Summary\n\n";
+  const hour = new Date().getHours();
+  let greeting = "🌅 Good Morning";
+  if (hour >= 12 && hour < 17) greeting = "☀️ Good Afternoon";
+  if (hour >= 17 && hour < 21) greeting = "🌆 Good Evening";
+  if (hour >= 21 || hour < 5) greeting = "🌙 Still Awake";
+
+  let message = `${greeting}, champ! Here's the deal:\n\n`;
 
   if (todayItems.length > 0) {
-    message += "📌 Due Today:\n";
+    message += "� DUE TODAY (Get on it!):\n";
     todayItems.forEach((item) => {
       message += `• ${item.content}\n`;
     });
@@ -176,7 +216,7 @@ bot.command("today", async (ctx) => {
   }
 
   if (allPending.length > 0) {
-    message += "📋 Upcoming Tasks:\n";
+    message += "📋 Coming Up:\n";
     allPending.forEach((item) => {
       message += `• ${item.content}`;
       if (item.date) {
@@ -187,7 +227,11 @@ bot.command("today", async (ctx) => {
   }
 
   if (todayItems.length === 0 && allPending.length === 0) {
-    message += "✨ All clear! No pending tasks.";
+    message += "✨ All clear! No pending tasks!\n\nTime to set new goals or just vibe! 😎🎮";
+  } else if (todayItems.length > 0) {
+    message += "\n💪 Chal bhai, let's knock these out! You got this! 🚀";
+  } else {
+    message += "\n🎯 Looking solid! Stay ahead of the game! 💯";
   }
 
   ctx.reply(message);
@@ -196,29 +240,75 @@ bot.command("today", async (ctx) => {
 // Help command
 bot.command("help", (ctx) => {
   const helpText = `
-🤖 AtharvaOS Commands:
+🤖 AtharvaOS - Your Energetic Productivity Buddy!
 
-📋 Task Management:
-/tasks - View all pending tasks
-/reminders - View active reminders
-/goals - View your goals
-/today - Get today's summary
-/done <id> - Mark task as complete
-/delete <id> - Delete a task/reminder
+📋 Commands:
+/tasks - Check what's pending (with spicy deadlines 🔥)
+/reminders - Your active reminders
+/goals - See your goals
+/today - Today's game plan
+/done <id> - Mark task complete (celebrate! 🎉)
+/delete <id> - Delete a task
+/motivate - Need a boost? Get hyped! 💪
+/roast - Get roasted (lovingly 😂)
+/help - This menu
 
-💬 Natural Language:
-Just chat naturally! I'll automatically:
-• Store important tasks & reminders
-• Remember deadlines
-• Provide productivity advice
-• Answer your questions
+💬 Just Chat Naturally!
+I'll automatically remember:
+• Tasks & deadlines
+• Reminders
+• Goals & ideas
+• Important stuff
 
 Examples:
 "Remind me to call mom in 30 minutes"
 "I have a project due next Friday"
-"What should I focus on today?"
+"What should I work on?"
+"I'm feeling lazy" (I'll roast you 😏)
+
+Let's crush those goals together! 🚀
   `;
   ctx.reply(helpText);
+});
+
+// Motivational boost
+bot.command("motivate", (ctx) => {
+  const motivations = [
+    "🔥 YOU ARE A MACHINE! Nothing can stop you today! Let's GOOO! 💪",
+    "⚡ Bhai, you're literally ONE task away from being unstoppable! DO IT! 🚀",
+    "💯 Remember why you started! You got dreams to chase! Let's make it happen! 🎯",
+    "🏆 Champions aren't born, they're made! And you're making yourself one RIGHT NOW! 💪",
+    "🌟 Arre yaar, you've come so far! Don't stop now! Keep pushing! 🔥",
+    "⚡ Your future self is watching! Make them PROUD! Let's crush it! 💪",
+    "🚀 Small steps, BIG dreams! You're doing amazing! Keep going! 🌟",
+    "💪 Tough times don't last, tough people do! And you're TOUGH! Let's go! 🔥"
+  ];
+  ctx.reply(motivations[Math.floor(Math.random() * motivations.length)]);
+});
+
+// Roast command (playful)
+bot.command("roast", async (ctx) => {
+  const chatId = ctx.chat.id;
+  const pendingCount = await Memory.countDocuments({
+    chatId,
+    type: { $in: ["task", "assignment", "project"] },
+    completed: false,
+  });
+
+  const roasts = [
+    `Bhai ${pendingCount} tasks pending hain aur tu roast maang raha hai? 😂 Priorities set kar pehle! 📚`,
+    "Arre yaar, Netflix pe PhD kar raha hai kya? 😅 Chal laptop khol aur kuch productive kar! 💻",
+    "Procrastination level: EXPERT 😂 But seriously, let's get to work! Time's ticking! ⏰",
+    `${pendingCount} tasks pending... bhai tu toh legend hai! Ab legendary work bhi dikha de! 💪😂`,
+    "Instagram reels dekh ke degree nahi milegi bro 😂 Chal focus mode ON kar! 🎯",
+    "Arre champion, roast se zyada task complete kar! That's the real flex! 💯😎"
+  ];
+  
+  if (pendingCount === 0) {
+    ctx.reply("Roast? Bhai tu toh already crushing it! 🔥 All tasks done! I'm proud of you! 🎉");
+  } else {
+    ctx.reply(roasts[Math.floor(Math.random() * roasts.length)]);
+  }
 });
 
 // Legacy support for "what are my tasks"
@@ -272,7 +362,7 @@ bot.on("text", async (ctx) => {
     }
 
     // 2. AI reply with memory context
-    const reply = await askAI(userMessage);
+    const reply = await askAI(userMessage, chatId);
 
     ctx.reply(reply);
   } catch (error) {
