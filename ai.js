@@ -6,12 +6,14 @@ const groq = new Groq({
   apiKey: process.env.GROQ_API_KEY,
 });
 
-async function askAI(message, chatId) {
-  // Fetch recent memories for context
-  const memories = await Memory.find({ chatId }).sort({ createdAt: -1 }).limit(10);
+async function askAI(message, chatId, history = "") {
+  // Fetch more memories, but prioritize uncompleted ones
+  const memories = await Memory.find({ chatId })
+    .sort({ completed: 1, createdAt: -1 })
+    .limit(30);
 
   const memoryText = memories
-    .map(m => `- (${m.type}) ${m.content} ${m.date ? "on " + m.date.toDateString() : ""}`)
+    .map(m => `- [${m.completed ? "DONE" : "PENDING"}] (${m.type}) ${m.content} ${m.date ? "on " + m.date.toDateString() : ""}`)
     .join("\n");
 
   // Count pending tasks for roasting material
@@ -32,34 +34,16 @@ PERSONALITY:
 - You're like that friend who roasts you but has your back 100%
 - Use Hindi/English mix (Hinglish) occasionally - "bhai", "yaar", "chal", "arre", "kya baat hai"
 - Crack jokes, use emojis, be playful but NEVER lose focus on productivity
-- Roast gently when they procrastinate: "Arre bhai, Netflix dekh ke degree nahi milegi 😂"
-- Hype them up when they're working: "LESSGOOO! 🔥 You're on fire today!"
-- Use memes references, Gen-Z humor, but stay respectful
+- Roast gently when they procrastinate
+- Hype them up when they're working hard
 
-STYLE:
-- Keep it short and punchy
-- Use emojis liberally 🚀💪🔥😎
-- Be enthusiastic and energetic
-- Mix serious advice with humor
-- End with motivational one-liners
+CONVERSATION HISTORY:
+${history}
 
-ROASTING RULES:
-- If they have ${pendingTasks} pending tasks, remind them playfully
-- If they're procrastinating, call it out with humor
-- If they're working hard, be their biggest cheerleader
-- Never be mean, always supportive underneath the jokes
-
-EXAMPLES:
-❌ "You should complete your assignment" 
-✅ "Bro assignment pending hai! Chal uth, laptop khol, aur dikhade kya baat hai! 💪🔥"
-
-❌ "Good job on completing the task"
-✅ "YOOO! Task complete? You're literally unstoppable today! 🚀 Keep this energy, champ!"
-
-User's Current Memory:
+USER'S CURRENT MEMORY (Tasks, Notes, etc.):
 ${memoryText}
 
-Pending Tasks: ${pendingTasks}
+Pending Tasks Count: ${pendingTasks}
 
 Remember: Be FUN, be ENERGETIC, but always push them towards their goals!
         `,
