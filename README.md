@@ -41,6 +41,30 @@ inside a Telegram chat interface.
 
 ---
 
+### Task Management Commands
+
+**NEW!** Complete task management system:
+
+* `/tasks` - View all pending tasks with IDs
+* `/reminders` - View active reminders
+* `/goals` - View your goals
+* `/today` - Get today's summary
+* `/done <id>` - Mark task as complete
+* `/delete <id>` - Delete a task/reminder
+* `/help` - View all available commands
+
+---
+
+### Daily Summary (Auto-Scheduled)
+
+**NEW!** Every morning at 8 AM, receive:
+
+* Tasks due today
+* Upcoming deadlines
+* Motivational message to start your day
+
+---
+
 ### Automatic Memory System (Second Brain)
 
 The bot automatically detects and stores important information such as:
@@ -172,10 +196,27 @@ Reminder Scheduler
 
 1. User sends message to bot
 2. AI classifies if message is important
-3. Important information is stored in MongoDB
+3. Important information is stored in MongoDB with user's chat ID
 4. Recent memory is injected into AI context
 5. AI generates a structured productivity response
 6. Scheduler monitors deadlines and sends reminders
+7. Daily summary sent automatically at 8 AM
+8. Users can manage tasks with commands (/tasks, /done, /delete)
+
+---
+
+## Available Commands
+
+* `/start` - Activate the bot
+* `/tasks` - View all pending tasks
+* `/reminders` - View active reminders
+* `/goals` - View your goals
+* `/today` - Get today's summary
+* `/done <id>` - Mark task as complete
+* `/delete <id>` - Delete a task/reminder
+* `/help` - View all commands
+
+You can also just chat naturally - the bot will understand and store important information automatically!
 
 ---
 
@@ -246,13 +287,18 @@ atharvaos-bot
 
 ## Future Improvements
 
-* Priority detection engine
-* Daily schedule generator
-* Focus mode system
+* ~~Priority detection engine~~ ✅ Task completion tracking added
+* ~~Daily schedule generator~~ ✅ Daily summary at 8 AM added
+* ~~Task management~~ ✅ Mark done, delete commands added
+* Recurring reminders (every Monday, daily, etc.)
+* Focus mode system with Pomodoro timer
 * Web dashboard with analytics
 * Multi-device sync
 * Voice note transcription
 * Habit tracking
+* Natural language date parsing improvements
+* Snooze reminders
+* Priority levels (high/medium/low)
 
 ---
 
