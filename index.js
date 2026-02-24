@@ -5,6 +5,7 @@ const { getTasks } = require("./taskService");
 const { askAI } = require("./ai");
 const { classifyMemory } = require("./memoryAI");
 const Memory = require("./memoryModel");
+const History = require("./historyModel");
 const { startReminderService } = require("./reminderService");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
@@ -342,13 +343,16 @@ bot.hears(/what are my tasks/i, async (ctx) => {
 bot.on("text", async (ctx) => {
   try {
     const userMessage = ctx.message.text;
-    const chatId = ctx.chat.id; // Get the user's chat ID
+    const chatId = ctx.chat.id;
 
-    // 1. Classify memory
-    const classification = await classifyMemory(userMessage);
+    // Fetch recent history for context (last 5 messages)
+    const history = await History.find({ chatId }).sort({ createdAt: -1 }).limit(5);
+    const historyContext = history.reverse().map(h => `${h.role}: ${h.content}`).join("\n");
+
+    // 1. Classify memory with context
+    const classification = await classifyMemory(userMessage, historyContext);
 
     if (classification.store) {
-      // Handle array content by converting to JSON string
       const contentToStore = Array.isArray(classification.content)
         ? JSON.stringify(classification.content)
         : classification.content;
@@ -357,12 +361,18 @@ bot.on("text", async (ctx) => {
         type: classification.type,
         content: contentToStore,
         date: classification.date || null,
-        chatId: chatId, // Store the chat ID with the memory
+        chatId: chatId,
       });
     }
 
-    // 2. AI reply with memory context
-    const reply = await askAI(userMessage, chatId);
+    // 2. AI reply with memory context and history
+    const reply = await askAI(userMessage, chatId, historyContext);
+
+    // 3. Store conversation history
+    await History.create([
+      { chatId, role: "user", content: userMessage },
+      { chatId, role: "assistant", content: reply }
+    ]);
 
     ctx.reply(reply);
   } catch (error) {
