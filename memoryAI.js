@@ -18,7 +18,7 @@ Return ONLY valid JSON.
 
 Fields:
 store (true/false)
-type (task, assignment, exam, project, goal, idea, reminder, note)
+type (task, assignment, exam, project, goal, idea, reminder, note, reflection)
 content
 date (optional ISO format)
 

@@ -180,6 +180,32 @@ bot.command("delete", async (ctx) => {
   }
 });
 
+// List reflections
+bot.command("reflections", async (ctx) => {
+  const chatId = ctx.chat.id;
+  const sevenDaysAgo = new Date();
+  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+
+  const reflections = await Memory.find({
+    chatId,
+    type: "reflection",
+    createdAt: { $gte: sevenDaysAgo },
+  }).sort({ createdAt: -1 });
+
+  if (reflections.length === 0) {
+    return ctx.reply("📒 No reflections yet! Wait for the 10 PM prompt or just tell me what you achieved today!");
+  }
+
+  let message = "📒 Your Recent Growth (Last 7 Days):\n\n";
+  reflections.forEach((r) => {
+    message += `📅 ${new Date(r.createdAt).toDateString()}\n`;
+    message += `✨ ${r.content}\n\n`;
+  });
+
+  message += "Keep ukhad-ing stuff, champ! 🚀";
+  ctx.reply(message);
+});
+
 // Daily summary
 bot.command("today", async (ctx) => {
   const chatId = ctx.chat.id;
@@ -248,6 +274,7 @@ bot.command("help", (ctx) => {
 /reminders - Your active reminders
 /goals - See your goals
 /today - Today's game plan
+/reflections - Your growth log (Last 7 days) 📒
 /done <id> - Mark task complete (celebrate! 🎉)
 /delete <id> - Delete a task
 /motivate - Need a boost? Get hyped! 💪

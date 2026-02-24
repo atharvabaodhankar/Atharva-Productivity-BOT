@@ -122,6 +122,28 @@ function startReminderService(bot) {
     }
   });
 
+  // Nightly reflection at 10 PM
+  cron.schedule("0 22 * * *", async () => {
+    try {
+      const users = await Memory.distinct("chatId");
+      for (let chatId of users) {
+        if (!chatId) continue;
+        
+        const prompts = [
+          "Bhai, day end hone wala hai! 🌅 Aaj kya ukhada? 📒 Kuch seekha ya bas chill kiya? Batade, memory mein save kar leta hoon! 💪",
+          "Ayee! Time for nightly reflection! 🌙 Pure din mein sabse best cheez kya thi aaj? ✍️ Let's wrap up today like a champ!",
+          "Arre yaar, bed par jaane se pehle batade - what did you achieve today? 🏆 Chhota ho ya bada, win is a win! Let's log it! 🔥",
+          "Yooo! Today's mission update? 🚀 Aaj ka din kaisa raha? Key highlight batade bhai! 📒"
+        ];
+        
+        const message = prompts[Math.floor(Math.random() * prompts.length)];
+        await bot.telegram.sendMessage(chatId, message);
+      }
+    } catch (error) {
+      console.error("Error sending nightly prompt:", error.message);
+    }
+  });
+
   console.log("✅ Reminder service started");
   console.log("✅ Daily summary scheduled for 8:00 AM");
 }
