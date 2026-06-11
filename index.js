@@ -31,7 +31,8 @@ async function startApp() {
       bot.launch({
         webhook: {
           domain: process.env.WEBHOOK_DOMAIN, // your-app.onrender.com
-          port: PORT
+          port: PORT,
+          host: "0.0.0.0" // Bind to all interfaces so Render's port scan succeeds
         }
       });
       console.log("Telegram Bot Launched in Webhook Mode");
