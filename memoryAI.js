@@ -11,7 +11,10 @@ async function classifyMemory(message, history = "") {
       {
         role: "system",
         content: `
-You are an AI that extracts important memories for a productivity assistant.
+You are an AI that extracts important memories (like new tasks, assignments, exams, projects, goals, ideas, reminders, notes, and reflections) to store in the database.
+
+CRITICAL: Do NOT store messages that are queries, commands, or requests to list/show/delete/clear information (e.g., "show tasks", "what are my tasks", "list reminders", "clear all", "delete everything"). For these, set store to false.
+
 Use the conversation history if provided to understand context (e.g., if the user says "and this too", look at what "this" refers to).
 
 Return ONLY valid JSON.
@@ -22,7 +25,7 @@ type (task, assignment, exam, project, goal, idea, reminder, note, reflection)
 content
 date (optional ISO format)
 
-If not important, set store false.
+If not important or if it is a query/command, set store false.
 
 CONVERSATION HISTORY:
 ${history}

@@ -413,20 +413,29 @@ bot.on("text", async (ctx) => {
     const history = await History.find({ chatId }).sort({ createdAt: -1 }).limit(5);
     const historyContext = history.reverse().map(h => `${h.role}: ${h.content}`).join("\n");
 
-    // 1. Classify memory with context
-    const classification = await classifyMemory(userMessage, historyContext);
+    // Check if user is requesting to clear memories/tasks
+    const isClearRequest = /^\s*(clear|delete|wipe|remove)\s*(all|everything|tasks?|reminders?|goals?|notes?|it|them|it\s+also)?\s*(now)?\s*$/i.test(userMessage);
 
-    if (classification.store) {
-      const contentToStore = Array.isArray(classification.content)
-        ? JSON.stringify(classification.content)
-        : classification.content;
+    if (isClearRequest) {
+      // Delete all memories for this chat
+      await Memory.deleteMany({ chatId });
+      console.log(`Cleared all memories for chatId: ${chatId}`);
+    } else {
+      // 1. Classify memory with context (only if not clearing)
+      const classification = await classifyMemory(userMessage, historyContext);
 
-      await Memory.create({
-        type: classification.type,
-        content: contentToStore,
-        date: classification.date || null,
-        chatId: chatId,
-      });
+      if (classification.store) {
+        const contentToStore = Array.isArray(classification.content)
+          ? JSON.stringify(classification.content)
+          : classification.content;
+
+        await Memory.create({
+          type: classification.type,
+          content: contentToStore,
+          date: classification.date || null,
+          chatId: chatId,
+        });
+      }
     }
 
     // 2. AI reply with memory context and history
