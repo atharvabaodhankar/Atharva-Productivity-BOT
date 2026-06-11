@@ -27,14 +27,19 @@ async function startApp() {
     await mongoose.connect(process.env.MONGO_URI);
     console.log("MongoDB Connected Successfully");
 
-    // Start bot (Webhook Mode)
-    bot.launch({
-      webhook: {
-        domain: process.env.WEBHOOK_DOMAIN, // your-app.onrender.com
-        port: PORT
-      }
-    });
-    console.log("Telegram Bot Launched in Webhook Mode");
+    // Start bot
+    if (process.env.WEBHOOK_DOMAIN) {
+      bot.launch({
+        webhook: {
+          domain: process.env.WEBHOOK_DOMAIN, // your-app.onrender.com
+          port: PORT
+        }
+      });
+      console.log("Telegram Bot Launched in Webhook Mode");
+    } else {
+      bot.launch();
+      console.log("Telegram Bot Launched in Polling Mode (WEBHOOK_DOMAIN not set)");
+    }
 
     // Start reminder service
     startReminderService(bot);
