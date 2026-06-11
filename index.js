@@ -11,10 +11,34 @@ const { startReminderService } = require("./reminderService");
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
 // MongoDB connect
-mongoose
-  .connect(process.env.MONGO_URI)
-  .then(() => console.log("MongoDB Connected"))
-  .catch((err) => console.log(err));
+const PORT = process.env.PORT || 3000;
+
+async function startApp() {
+  try {
+    console.log("Connecting to MongoDB...");
+    await mongoose.connect(process.env.MONGO_URI);
+    console.log("MongoDB Connected Successfully");
+
+    // Start bot (Webhook Mode)
+    bot.launch({
+      webhook: {
+        domain: process.env.WEBHOOK_DOMAIN, // your-app.onrender.com
+        port: PORT
+      }
+    });
+    console.log("Telegram Bot Launched in Webhook Mode");
+
+    // Start reminder service
+    startReminderService(bot);
+
+  } catch (err) {
+    console.error("FAILED to start application:");
+    console.error(err);
+    process.exit(1);
+  }
+}
+
+startApp();
 
 // Start command
 bot.start((ctx) => {
@@ -408,8 +432,12 @@ bot.on("text", async (ctx) => {
   }
 });
 
-bot.launch();
-startReminderService(bot);
-
-process.once("SIGINT", () => bot.stop("SIGINT"));
-process.once("SIGTERM", () => bot.stop("SIGTERM"));
+// Stop services gracefully
+process.once("SIGINT", () => {
+  bot.stop("SIGINT");
+  process.exit(0);
+});
+process.once("SIGTERM", () => {
+  bot.stop("SIGTERM");
+  process.exit(0);
+});
