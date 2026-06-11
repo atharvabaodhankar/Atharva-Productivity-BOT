@@ -3,7 +3,6 @@ const { Telegraf } = require("telegraf");
 const mongoose = require("mongoose");
 const { getTasks } = require("./taskService");
 const { askAI } = require("./ai");
-const { classifyMemory } = require("./memoryAI");
 const Memory = require("./memoryModel");
 const History = require("./historyModel");
 const { startReminderService } = require("./reminderService");
@@ -304,32 +303,29 @@ bot.command("today", async (ctx) => {
 // Help command
 bot.command("help", (ctx) => {
   const helpText = `
-🤖 AtharvaOS - Your Energetic Productivity Buddy!
+🤖 AtharvaOS - Your AI Productivity Buddy!
+Now equipped with direct database control!
 
-📋 Commands:
-/tasks - Check what's pending (with spicy deadlines 🔥)
-/reminders - Your active reminders
-/goals - See your goals
-/today - Today's game plan
-/reflections - Your growth log (Last 7 days) 📒
-/done <id> - Mark task complete (celebrate! 🎉)
+💬 What you can ask the AI to do (Natural Chat):
+• Add Tasks & Deadlines: "I have a DSA exam next Monday", "Add project task"
+• Set Reminders: "Remind me to call mom in 30 minutes"
+• Save Goals & Ideas: "Set a goal to run 5km every day"
+• Mark Completed: "Mark task 6a2a396032f1b5... as done" or "I finished my DSA study"
+• Delete Tasks: "Delete my study task" or "Delete task 6a2a396032f1b5..."
+• Clear All Data: "clear all", "wipe everything" to start fresh!
+• Talk & Vibe: Ask for a roast ("roast me"), get hyped ("motivate me"), or just chat!
+
+📋 Quick Slash Commands:
+/tasks - List all pending tasks with deadline alerts 🔥
+/reminders - View your active reminders 🔔
+/goals - View your current goals 🎯
+/today - Get your daily game plan 🌅
+/reflections - View your growth log from the last 7 days 📒
+/done <id> - Mark a task as done (triggers celebration!)
 /delete <id> - Delete a task
-/motivate - Need a boost? Get hyped! 💪
-/roast - Get roasted (lovingly 😂)
-/help - This menu
-
-💬 Just Chat Naturally!
-I'll automatically remember:
-• Tasks & deadlines
-• Reminders
-• Goals & ideas
-• Important stuff
-
-Examples:
-"Remind me to call mom in 30 minutes"
-"I have a project due next Friday"
-"What should I work on?"
-"I'm feeling lazy" (I'll roast you 😏)
+/motivate - Get a sudden shot of hype 💪
+/roast - Get a friendly Hinglish roast 😂
+/help - Show this menu
 
 Let's crush those goals together! 🚀
   `;
@@ -413,35 +409,10 @@ bot.on("text", async (ctx) => {
     const history = await History.find({ chatId }).sort({ createdAt: -1 }).limit(5);
     const historyContext = history.reverse().map(h => `${h.role}: ${h.content}`).join("\n");
 
-    // Check if user is requesting to clear memories/tasks
-    const isClearRequest = /^\s*(clear|delete|wipe|remove)\s*(all|everything|tasks?|reminders?|goals?|notes?|it|them|it\s+also)?\s*(now)?\s*$/i.test(userMessage);
-
-    if (isClearRequest) {
-      // Delete all memories for this chat
-      await Memory.deleteMany({ chatId });
-      console.log(`Cleared all memories for chatId: ${chatId}`);
-    } else {
-      // 1. Classify memory with context (only if not clearing)
-      const classification = await classifyMemory(userMessage, historyContext);
-
-      if (classification.store) {
-        const contentToStore = Array.isArray(classification.content)
-          ? JSON.stringify(classification.content)
-          : classification.content;
-
-        await Memory.create({
-          type: classification.type,
-          content: contentToStore,
-          date: classification.date || null,
-          chatId: chatId,
-        });
-      }
-    }
-
-    // 2. AI reply with memory context and history
+    // Call askAI directly (database queries, creations, edits, and clears are handled internally via tool calling)
     const reply = await askAI(userMessage, chatId, historyContext);
 
-    // 3. Store conversation history
+    // Store conversation history
     await History.create([
       { chatId, role: "user", content: userMessage },
       { chatId, role: "assistant", content: reply }
