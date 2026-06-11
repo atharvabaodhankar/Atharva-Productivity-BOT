@@ -10,6 +10,14 @@ const { startReminderService } = require("./reminderService");
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 
+// Access control middleware
+bot.use((ctx, next) => {
+  if (ctx.chat && String(ctx.chat.id) !== process.env.CHAT_ID) {
+    return ctx.reply("its atharva's personal bot contact atharva to use it");
+  }
+  return next();
+});
+
 // MongoDB connect
 const PORT = process.env.PORT || 3000;
 
