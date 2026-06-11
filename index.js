@@ -305,9 +305,10 @@ bot.command("today", async (ctx) => {
 bot.command("help", (ctx) => {
   const helpText = `
 🤖 AtharvaOS - Your AI Productivity Buddy!
-Now equipped with direct database control!
+Now equipped with direct database control & Vision!
 
 💬 What you can ask the AI to do (Natural Chat):
+• Read Images: Send a photo/screenshot (e.g. todo checklist, notes) and say "Add these tasks"
 • Add Tasks & Deadlines: "I have a DSA exam next Monday", "Add project task"
 • Set Reminders: "Remind me to call mom in 30 minutes"
 • Save Goals & Ideas: "Set a goal to run 5km every day"
@@ -423,6 +424,47 @@ bot.on("text", async (ctx) => {
   } catch (error) {
     console.error(error);
     ctx.reply("Something went wrong.");
+  }
+});
+
+// Main photo handler (Vision Support)
+bot.on("photo", async (ctx) => {
+  try {
+    const chatId = ctx.chat.id;
+    const caption = ctx.message.caption || "";
+    
+    // Get the largest photo size
+    const photo = ctx.message.photo[ctx.message.photo.length - 1];
+    const fileId = photo.file_id;
+
+    ctx.reply("Reading your image, please wait... 🔎👀");
+
+    // Get file download link
+    const fileLink = await ctx.telegram.getFileLink(fileId);
+
+    // Download file and convert to base64
+    const response = await fetch(fileLink.href);
+    const arrayBuffer = await response.arrayBuffer();
+    const base64 = Buffer.from(arrayBuffer).toString("base64");
+    const base64ImageUrl = `data:image/jpeg;base64,${base64}`;
+
+    // Fetch recent history for context (last 5 messages)
+    const history = await History.find({ chatId }).sort({ createdAt: -1 }).limit(5);
+    const historyContext = history.reverse().map(h => `${h.role}: ${h.content}`).join("\n");
+
+    // Call askAI with image URL
+    const reply = await askAI(caption, chatId, historyContext, base64ImageUrl);
+
+    // Store conversation history
+    await History.create([
+      { chatId, role: "user", content: caption ? `[Photo] ${caption}` : "[Photo]" },
+      { chatId, role: "assistant", content: reply }
+    ]);
+
+    ctx.reply(reply);
+  } catch (error) {
+    console.error("Error in photo handler:", error);
+    ctx.reply("Arre yaar, I failed to process that image! 😅 Make sure it's not too large.");
   }
 });
 

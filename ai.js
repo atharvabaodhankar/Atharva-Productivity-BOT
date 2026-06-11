@@ -80,7 +80,7 @@ const tools = [
   }
 ];
 
-async function askAI(message, chatId, history = "") {
+async function askAI(message, chatId, history = "", base64ImageUrl = null) {
   // Fetch memories to put in context
   const memories = await Memory.find({ chatId })
     .sort({ completed: 1, createdAt: -1 })
@@ -116,13 +116,30 @@ Pending Tasks Count: ${pendingTasks}
 
 CRITICAL INSTRUCTIONS FOR TOOLS:
 - You have direct tools to add, complete, delete, or clear memories in MongoDB.
-- When the user asks to add/create a task, reminder, note, goal, etc., call the 'add_memory' tool.
+- You can also view images (e.g. photos of handwritten checklists, screenshots) that the user uploads. Analyze the image and extract tasks, goals, or reminders.
+- When the user asks to add/create a task, reminder, note, goal, etc. (either in text or from the uploaded image), call the 'add_memory' tool.
 - When the user asks to complete, check off, or mark a task as done, call the 'complete_memory' tool. Make sure to find the correct ID from the memory list provided above.
 - When the user asks to delete or remove a task, call the 'delete_memory' tool.
 - When the user asks to clear all, wipe everything, delete all tasks, etc., call the 'clear_all_memories' tool.
 - Always perform the appropriate tool call first, and then confirm to the user in your Hinglish persona that the action was successfully performed in the database.
 - If the user specifies a relative date/time (e.g. "tomorrow", "next Friday", "in 30 minutes"), parse it relative to the current local time: ${new Date().toString()}.
 `;
+
+  const model = base64ImageUrl ? "llama-3.2-11b-vision-preview" : "llama-3.3-70b-versatile";
+  const textPrompt = message || (base64ImageUrl ? "Analyze this image and perform necessary actions." : "");
+
+  let userContent = textPrompt;
+  if (base64ImageUrl) {
+    userContent = [
+      { type: "text", text: textPrompt },
+      {
+        type: "image_url",
+        image_url: {
+          url: base64ImageUrl
+        }
+      }
+    ];
+  }
 
   const messages = [
     {
@@ -131,13 +148,13 @@ CRITICAL INSTRUCTIONS FOR TOOLS:
     },
     {
       role: "user",
-      content: message
+      content: userContent
     }
   ];
 
   let response = await groq.chat.completions.create({
     messages: messages,
-    model: "llama-3.3-70b-versatile",
+    model: model,
     temperature: 0.9,
     max_completion_tokens: 800,
     tools: tools,
@@ -197,7 +214,7 @@ CRITICAL INSTRUCTIONS FOR TOOLS:
     // Call Groq again for final conversation
     const secondResponse = await groq.chat.completions.create({
       messages: messages,
-      model: "llama-3.3-70b-versatile"
+      model: model
     });
     responseMessage = secondResponse.choices[0].message;
   }
