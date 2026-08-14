@@ -19,7 +19,7 @@ jobs:
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: 20
+          node-version: 22
           cache: 'npm'
 
       - name: Install dependencies
@@ -46,6 +46,10 @@ jobs:
           aws lambda update-function-code \
             --function-name AtharvaOS-Bot \
             --zip-file fileb://function.zip
+
+          echo "Waiting for code update to complete..."
+          aws lambda wait function-updated \
+            --function-name AtharvaOS-Bot
 
           echo "Updating Lambda environment variables..."
           aws lambda update-function-configuration \
