@@ -1,0 +1,38 @@
+service: atharvaos-bot
+frameworkVersion: '3 || 4'
+
+provider:
+  name: aws
+  runtime: nodejs20.x
+  region: ${opt:region, 'ap-south-1'}
+  stage: ${opt:stage, 'prod'}
+  memorySize: 256
+  timeout: 30
+  environment:
+    BOT_TOKEN: ${env:BOT_TOKEN}
+    CHAT_ID: ${env:CHAT_ID}
+    MONGO_URI: ${env:MONGO_URI}
+    GROQ_API_KEY: ${env:GROQ_API_KEY}
+
+package:
+  patterns:
+    - '!function.zip'
+    - '!.git/**'
+    - '!.github/**'
+    - '!.env*'
+    - '!README.md'
+
+functions:
+  bot:
+    handler: lambda.handler
+    url:
+      cors: true
+
+  # Future Scope: Uncomment below to enable scheduled EventBridge reminders
+  # cronReminders:
+  #   handler: lambda.handler
+  #   events:
+  #     - schedule:
+  #         rate: rate(1 minute)
+  #         input:
+  #           task: checkReminders

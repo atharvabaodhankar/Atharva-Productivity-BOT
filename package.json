@@ -5,6 +5,7 @@
   "main": "index.js",
   "scripts": {
     "start": "node index.js",
+    "deploy": "serverless deploy",
     "set-webhook": "node setWebhook.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
@@ -18,5 +19,8 @@
     "mongoose": "^9.1.6",
     "node-cron": "^4.2.1",
     "telegraf": "^4.16.3"
+  },
+  "devDependencies": {
+    "serverless": "^4.41.0"
   }
 }

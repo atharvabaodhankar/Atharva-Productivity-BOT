@@ -1,2 +1,5 @@
 .env
 node_modules
+.serverless/
+function.zip
+*.log

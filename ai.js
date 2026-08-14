@@ -2,9 +2,58 @@ require("dotenv").config();
 const Groq = require("groq-sdk");
 const Memory = require("./memoryModel");
 
-const groq = new Groq({
-  apiKey: process.env.GROQ_API_KEY,
-});
+// Collect all Groq API keys dynamically from environment variable
+function getGroqKeys() {
+  const envKeyString = process.env.GROQ_API_KEY || "";
+  const parsedKeys = envKeyString
+    .split(",")
+    .map(k => k.trim())
+    .filter(Boolean);
+
+  if (parsedKeys.length === 0) {
+    throw new Error("GROQ_API_KEY environment variable is not defined");
+  }
+
+  return parsedKeys;
+}
+
+let groqKeys = [];
+let currentKeyIndex = 0;
+
+function getKeys() {
+  if (groqKeys.length === 0) {
+    groqKeys = getGroqKeys();
+  }
+  return groqKeys;
+}
+
+// Helper to get the next Groq client in round-robin order
+function getNextGroqClient() {
+  const keys = getKeys();
+  const key = keys[currentKeyIndex];
+  currentKeyIndex = (currentKeyIndex + 1) % keys.length;
+  return new Groq({ apiKey: key });
+}
+
+// Resilient completion caller with automatic fallback across all keys
+async function createGroqCompletion(params) {
+  const keys = getKeys();
+  let lastError = null;
+  const attempts = keys.length;
+
+  for (let i = 0; i < attempts; i++) {
+    const client = getNextGroqClient();
+    try {
+      return await client.chat.completions.create(params);
+    } catch (err) {
+      console.warn(`Groq API key attempt ${i + 1} failed (${err.message}). Trying next key in pool...`);
+      lastError = err;
+      // If error is 429 (rate limit) or 401 (auth), automatically try next key
+    }
+  }
+
+  throw lastError || new Error("All Groq API keys failed.");
+}
 
 const tools = [
   {
@@ -152,7 +201,7 @@ CRITICAL INSTRUCTIONS FOR TOOLS:
     }
   ];
 
-  let response = await groq.chat.completions.create({
+  let response = await createGroqCompletion({
     messages: messages,
     model: model,
     temperature: 0.9,
@@ -212,7 +261,7 @@ CRITICAL INSTRUCTIONS FOR TOOLS:
     }
 
     // Call Groq again for final conversation
-    const secondResponse = await groq.chat.completions.create({
+    const secondResponse = await createGroqCompletion({
       messages: messages,
       model: model
     });
