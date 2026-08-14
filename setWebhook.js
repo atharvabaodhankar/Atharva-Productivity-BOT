@@ -1,0 +1,33 @@
+require("dotenv").config();
+const { Telegraf } = require("telegraf");
+
+const webhookUrl = process.argv[2] || process.env.WEBHOOK_URL;
+
+if (!webhookUrl) {
+  console.error("\n❌ Error: Please provide your AWS Lambda Function URL!");
+  console.log("Usage: node setWebhook.js <YOUR_LAMBDA_FUNCTION_URL>\n");
+  process.exit(1);
+}
+
+if (!process.env.BOT_TOKEN) {
+  console.error("\n❌ Error: BOT_TOKEN is missing from .env!\n");
+  process.exit(1);
+}
+
+const bot = new Telegraf(process.env.BOT_TOKEN);
+
+async function setWebhook() {
+  try {
+    console.log(`Setting Telegram webhook to: ${webhookUrl} ...`);
+    const result = await bot.telegram.setWebhook(webhookUrl);
+    if (result) {
+      console.log("✅ Webhook successfully linked with Telegram!");
+      const info = await bot.telegram.getWebhookInfo();
+      console.log("Current Webhook Status:", info);
+    }
+  } catch (err) {
+    console.error("❌ Failed to set webhook:", err.message);
+  }
+}
+
+setWebhook();
