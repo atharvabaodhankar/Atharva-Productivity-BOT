@@ -32,10 +32,22 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
 
-      - name: Deploy with Serverless Framework
+      - name: Package & Deploy to AWS Lambda
         env:
           BOT_TOKEN: ${{ secrets.BOT_TOKEN }}
           CHAT_ID: ${{ secrets.CHAT_ID }}
           MONGO_URI: ${{ secrets.MONGO_URI }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-        run: npx serverless deploy --stage prod
+        run: |
+          echo "Packaging application..."
+          zip -rq function.zip . -x ".git/*" ".github/*" ".env*" "README.md" "*.log"
+          
+          echo "Updating Lambda function code..."
+          aws lambda update-function-code \
+            --function-name AtharvaOS-Bot \
+            --zip-file fileb://function.zip
+
+          echo "Updating Lambda environment variables..."
+          aws lambda update-function-configuration \
+            --function-name AtharvaOS-Bot \
+            --environment "Variables={BOT_TOKEN=\"$BOT_TOKEN\",CHAT_ID=\"$CHAT_ID\",MONGO_URI=\"$MONGO_URI\",GROQ_API_KEY=\"$GROQ_API_KEY\"}"
