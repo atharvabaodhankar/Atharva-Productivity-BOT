@@ -336,11 +336,12 @@ exports.handler = async (event, context) => {
         }
 
         const targetChatId = payload.targetChatId;
-        const text = payload.text || "";
+        const text = (payload.text || "").trim();
         const mediaBase64 = payload.mediaBase64 || null;
         const mediaType = payload.mediaType || "";
         const fileName = payload.fileName || "";
         const caption = payload.caption || text;
+        const hasSpoiler = Boolean(payload.hasSpoiler);
 
         if (!targetChatId) {
           return {
@@ -356,16 +357,6 @@ exports.handler = async (event, context) => {
           if (mediaBase64) {
             const cleanBase64 = mediaBase64.replace(/^data:[^;]+;base64,/, "");
             const buffer = Buffer.from(cleanBase64, "base64");
-            const {
-              ownerId,
-              targetChatId,
-              text,
-              mediaBase64,
-              mediaType = "",
-              fileName = "",
-              caption,
-              hasSpoiler = false,
-            } = body;
 
             const isVideo = mediaType.startsWith("video/") || /\.(mp4|mov|webm|mkv|avi)$/i.test(fileName);
             const isImage = mediaType.startsWith("image/") || /\.(png|jpg|jpeg|gif|webp)$/i.test(fileName);
