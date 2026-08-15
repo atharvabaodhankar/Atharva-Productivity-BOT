@@ -1,0 +1,154 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AtharvaOS // Bot POV Console</title>
+  
+  <!-- Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+  
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  
+  <!-- Styles -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <div class="app-layout">
+    
+    <!-- LEFT SIDEBAR: USER DIRECTORY -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="brand-row">
+          <div class="brand-badge">POV</div>
+          <div>
+            <h1 class="brand-title">ATHARVAOS</h1>
+            <span class="brand-subtitle">MISSION CONTROL // LOCAL</span>
+          </div>
+        </div>
+        <div class="bot-status-pill">
+          <span class="status-pulse"></span>
+          <span>BOT PROXY ACTIVE</span>
+        </div>
+      </div>
+
+      <!-- Search Users -->
+      <div class="search-box">
+        <i data-lucide="search" class="search-icon"></i>
+        <input type="text" id="userSearchInput" placeholder="Filter by name, @username, or ID..." autocomplete="off">
+      </div>
+
+      <!-- Users List -->
+      <div class="users-section-header">
+        <span>ACTIVE THREADS</span>
+        <button id="refreshUsersBtn" class="icon-btn-ghost" title="Refresh User List">
+          <i data-lucide="refresh-cw"></i>
+        </button>
+      </div>
+
+      <div class="users-list" id="usersListEl">
+        <div class="skeleton-row"></div>
+        <div class="skeleton-row"></div>
+        <div class="skeleton-row"></div>
+      </div>
+
+      <div class="sidebar-footer">
+        <div class="owner-pill">
+          <i data-lucide="shield-check" class="shield-icon"></i>
+          <span>AUTHENTICATED: ATHARVA (5275149287)</span>
+        </div>
+      </div>
+    </aside>
+
+    <!-- RIGHT MAIN CANVAS: BOT POV CHAT CONSOLE -->
+    <main class="chat-canvas">
+      
+      <!-- Chat Header -->
+      <header class="chat-header" id="chatHeaderEl">
+        <div class="chat-header-user">
+          <div class="chat-avatar" id="activeAvatar">?</div>
+          <div>
+            <div class="chat-name-row">
+              <h2 id="activeUserName" class="active-user-name">Select a Conversation</h2>
+              <span id="activeUserHandle" class="user-handle-pill">--</span>
+            </div>
+            <div class="chat-meta-row">
+              <span id="activeUserMeta" class="mono-meta">ID: --</span>
+              <span class="meta-separator">•</span>
+              <span id="liveClock" class="mono-meta">--:-- --</span>
+            </div>
+          </div>
+        </div>
+
+        <div class="header-actions">
+          <button id="autoPollToggleBtn" class="mono-btn active" title="Toggle Auto-Refresh">
+            <i data-lucide="activity"></i>
+            <span>AUTO-SYNC: ON</span>
+          </button>
+          <button id="manualRefreshBtn" class="mono-btn" title="Refresh Messages">
+            <i data-lucide="refresh-cw"></i>
+          </button>
+        </div>
+      </header>
+
+      <!-- Messages Stream -->
+      <div class="messages-stream" id="messagesStreamEl">
+        <div class="empty-state-canvas">
+          <i data-lucide="terminal" class="empty-icon"></i>
+          <h3>NO THREAD SELECTED</h3>
+          <p>Pick a user from the directory on the left to see live messages and chat as the bot.</p>
+        </div>
+      </div>
+
+      <!-- Media Preview Bar (Shown when a file is staged) -->
+      <div class="media-staging-bar" id="mediaStagingBar" style="display:none;">
+        <div class="media-preview-container">
+          <img id="mediaPreviewImg" src="" alt="Staged Preview">
+          <div class="media-info">
+            <span id="mediaFileName" class="mono-meta">image.jpg</span>
+            <span class="media-ready-tag">READY TO SEND</span>
+          </div>
+          <button id="clearMediaBtn" class="clear-media-btn" title="Remove attachment">
+            <i data-lucide="x"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Chat Input Deck -->
+      <footer class="input-deck">
+        <div class="input-container">
+          
+          <!-- Hidden File Input -->
+          <input type="file" id="mediaFileInput" accept="image/*" style="display:none;">
+
+          <!-- Attach Media Button -->
+          <button id="attachMediaBtn" class="deck-btn" title="Attach Image / Media">
+            <i data-lucide="paperclip"></i>
+          </button>
+
+          <!-- Textarea Input -->
+          <textarea id="chatMessageInput" placeholder="Type a message as AtharvaOS... (Enter to send, Shift+Enter for new line)" rows="1"></textarea>
+
+          <!-- Send Button -->
+          <button id="sendBtn" class="send-action-btn" title="Send Message (Enter)">
+            <i data-lucide="arrow-up"></i>
+          </button>
+        </div>
+        <div class="input-subtext">
+          <span>PROMPT MODE: MANUAL BOT PROXY</span>
+          <span class="mono-subtext">ENTER TO TRANSMIT // SHIFT+ENTER MULTILINE</span>
+        </div>
+      </footer>
+
+    </main>
+
+  </div>
+
+  <!-- Scripts -->
+  <script src="app.js"></script>
+</body>
+</html>

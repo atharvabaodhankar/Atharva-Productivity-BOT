@@ -283,6 +283,84 @@ exports.handler = async (event, context) => {
           }),
         };
       }
+
+      // POST /api/admin/send-message (Live Bot Proxy / Human Takeover with Media)
+      if (rawPath === "/api/admin/send-message" && httpMethod === "POST") {
+        const payload =
+          typeof event.body === "string" ? JSON.parse(event.body || "{}") : event.body || {};
+        const reqChatId = String(payload.chatId || payload.ownerId || "").trim();
+        const configuredAdminId = String(process.env.CHAT_ID || CHAT_ID || "5275149287").trim();
+
+        if (reqChatId !== "5275149287" && reqChatId !== configuredAdminId) {
+          return {
+            statusCode: 403,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ error: "Unauthorized access to admin proxy." }),
+          };
+        }
+
+        const targetChatId = payload.targetChatId;
+        const text = payload.text || "";
+        const mediaBase64 = payload.mediaBase64 || null;
+        const caption = payload.caption || text;
+
+        if (!targetChatId) {
+          return {
+            statusCode: 400,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ error: "targetChatId is required." }),
+          };
+        }
+
+        let sentMsg = null;
+        try {
+          if (mediaBase64) {
+            const cleanBase64 = mediaBase64.replace(/^data:[^;]+;base64,/, "");
+            const buffer = Buffer.from(cleanBase64, "base64");
+            sentMsg = await bot.telegram.sendPhoto(
+              targetChatId,
+              { source: buffer },
+              caption ? { caption } : undefined
+            );
+          } else if (text) {
+            sentMsg = await bot.telegram.sendMessage(targetChatId, text);
+          } else {
+            return {
+              statusCode: 400,
+              headers: CORS_HEADERS,
+              body: JSON.stringify({ error: "Either text or media is required." }),
+            };
+          }
+
+          const recordedContent = mediaBase64
+            ? `[Photo] ${caption || ""}`.trim()
+            : text;
+
+          const historyDoc = await History.create({
+            chatId: targetChatId,
+            role: "assistant",
+            content: recordedContent,
+          });
+
+          return {
+            statusCode: 200,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({
+              success: true,
+              message: "Delivered via Bot",
+              history: historyDoc,
+              telegramMessageId: sentMsg?.message_id,
+            }),
+          };
+        } catch (botErr) {
+          console.error("Failed to send message via bot:", botErr);
+          return {
+            statusCode: 500,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ error: `Bot delivery failed: ${botErr.message}` }),
+          };
+        }
+      }
     }
 
     // -------------------------------------------------------------
