@@ -46,17 +46,31 @@ async function askAI({ message, chatId, historyContext = "", base64ImageUrl = nu
     { role: "user", content: userContent },
   ];
 
-  let response = await executeWithFailover({
-    messages,
-    model,
-    temperature: 0.85,
-    max_completion_tokens: 800,
-    tools,
-    tool_choice: "auto",
-  });
+  let responseMessage;
 
-  let responseMessage = response.choices[0].message;
+  try {
+    const response = await executeWithFailover({
+      messages,
+      model,
+      temperature: 0.85,
+      max_completion_tokens: 800,
+      tools,
+      tool_choice: "auto",
+    });
+    responseMessage = response.choices[0].message;
+  } catch (err) {
+    // If tool parsing failed or Groq had a tool use error, gracefully execute standard chat completion without tools
+    console.warn("Tool calling attempt failed, falling back to direct chat:", err.message);
+    const fallbackResponse = await executeWithFailover({
+      messages,
+      model,
+      temperature: 0.85,
+      max_completion_tokens: 800,
+    });
+    responseMessage = fallbackResponse.choices[0].message;
+  }
 
+  // Handle tool calls if any
   if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
     messages.push(responseMessage);
 
@@ -75,13 +89,13 @@ async function askAI({ message, chatId, historyContext = "", base64ImageUrl = nu
         if (functionName === "add_memory") {
           const newMem = await Memory.create({
             chatId,
-            type: args.type,
+            type: args.type || "task",
             content: args.content,
             date: args.date ? new Date(args.date) : null,
             priority: args.priority || "medium",
             tags: args.tags || [],
           });
-          resultContent = `Successfully created ${newMem.type}: "${newMem.content}" (ID: ${newMem._id})`;
+          resultContent = `Created ${newMem.type}: "${newMem.content}" (ID: ${newMem._id})`;
         } else if (functionName === "complete_memory") {
           const updated = await Memory.findOneAndUpdate(
             { _id: args.id, chatId },
@@ -89,16 +103,16 @@ async function askAI({ message, chatId, historyContext = "", base64ImageUrl = nu
             { new: true }
           );
           resultContent = updated
-            ? `Marked task "${updated.content}" as complete.`
-            : `Task ID ${args.id} not found.`;
+            ? `Marked "${updated.content}" as COMPLETED.`
+            : `Item ${args.id} not found.`;
         } else if (functionName === "delete_memory") {
           const deleted = await Memory.findOneAndDelete({ _id: args.id, chatId });
           resultContent = deleted
             ? `Deleted item "${deleted.content}".`
-            : `Item ID ${args.id} not found.`;
+            : `Item ${args.id} not found.`;
         } else if (functionName === "clear_all_memories") {
           const res = await Memory.deleteMany({ chatId });
-          resultContent = `Cleared ${res.deletedCount} items. Slate is clean.`;
+          resultContent = `Cleared all ${res.deletedCount} items.`;
         }
       } catch (err) {
         console.error(`Tool execution error [${functionName}]:`, err);
@@ -113,16 +127,19 @@ async function askAI({ message, chatId, historyContext = "", base64ImageUrl = nu
       });
     }
 
-    const followUp = await executeWithFailover({
-      messages,
-      model,
-    });
-    responseMessage = followUp.choices[0].message;
+    try {
+      const followUp = await executeWithFailover({
+        messages,
+        model,
+      });
+      responseMessage = followUp.choices[0].message;
+    } catch (err) {
+      console.warn("Follow-up completion failed, using default confirmation:", err.message);
+    }
   }
 
-  return responseMessage.content
-    ? responseMessage.content.replace(/#/g, "").replace(/\*\*/g, "*")
-    : "Chal bhai, sorted! Anything else?";
+  const rawText = responseMessage.content || "Sorted bhai! ✅ Anything else?";
+  return rawText.replace(/#/g, "").replace(/\*\*/g, "*");
 }
 
 module.exports = { askAI };
