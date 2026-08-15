@@ -124,6 +124,41 @@ async function askAI({ message, chatId, historyContext = "", base64ImageUrl = nu
       try {
         if (functionName === "add_memory") {
           const parsedDate = parseUserDate(args.date, user ? user.timezone : "Asia/Kolkata");
+          let parentProjectId = null;
+          let parentProjectName = "";
+
+          if (args.projectName && args.type !== "project") {
+            const trimmedName = args.projectName.trim();
+            // Find existing project (case-insensitive)
+            let existingProj = await Memory.findOne({
+              chatId,
+              type: "project",
+              content: new RegExp(`^${trimmedName}$`, "i"),
+            });
+
+            if (!existingProj) {
+              // Partial search match
+              existingProj = await Memory.findOne({
+                chatId,
+                type: "project",
+                content: new RegExp(trimmedName, "i"),
+              });
+            }
+
+            if (!existingProj) {
+              // Automatically create the project container
+              existingProj = await Memory.create({
+                chatId,
+                type: "project",
+                content: trimmedName,
+                priority: "medium",
+              });
+            }
+
+            parentProjectId = existingProj._id;
+            parentProjectName = existingProj.content;
+          }
+
           const newMem = await Memory.create({
             chatId,
             type: args.type || "task",
@@ -131,8 +166,12 @@ async function askAI({ message, chatId, historyContext = "", base64ImageUrl = nu
             date: parsedDate,
             priority: args.priority || "medium",
             tags: args.tags || [],
+            projectId: parentProjectId,
+            projectName: parentProjectName,
           });
-          resultContent = `Successfully created ${newMem.type}: "${newMem.content}" (ID: ${newMem._id})`;
+
+          const parentNote = parentProjectName ? ` (inside project "${parentProjectName}")` : "";
+          resultContent = `Successfully created ${newMem.type}: "${newMem.content}"${parentNote} (ID: ${newMem._id})`;
         } else if (functionName === "complete_memory") {
           const updated = await Memory.findOneAndUpdate(
             { _id: args.id, chatId },

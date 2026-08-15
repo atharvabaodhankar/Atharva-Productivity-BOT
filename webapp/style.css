@@ -483,6 +483,13 @@ svg.lucide {
 .badge-medium { background: rgba(232, 154, 60, 0.12); color: var(--badge-med); border: 1px solid rgba(232, 154, 60, 0.25); }
 .badge-low { background: rgba(63, 163, 102, 0.12); color: var(--badge-low); border: 1px solid rgba(63, 163, 102, 0.25); }
 .badge-tag { background: var(--flo-lavender-light); color: var(--flo-lavender-dark); font-weight: 600; }
+.badge-project { background: var(--flo-lavender-dark); color: #FFFFFF; font-weight: 800; letter-spacing: 0.05em; }
+.badge-parent-project { background: var(--flo-lavender-light); color: var(--flo-lavender-dark); font-weight: 700; border: 1px solid var(--flo-lavender-border); }
+
+.project-card {
+  border-left: 4px solid var(--flo-lavender-dark);
+  background: linear-gradient(135deg, #FFFFFF, rgba(186, 171, 255, 0.08));
+}
 
 .due-indicator {
   font-size: 0.75rem;

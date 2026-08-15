@@ -80,6 +80,10 @@
         <span class="icon-chip"><i data-lucide="book-open"></i></span>
         <span>Study</span>
       </button>
+      <button class="pill-btn" data-filter="project">
+        <span class="icon-chip"><i data-lucide="folder-kanban"></i></span>
+        <span>Projects</span>
+      </button>
       <button class="pill-btn" data-filter="goal">
         <span class="icon-chip"><i data-lucide="target"></i></span>
         <span>Goals</span>
@@ -97,7 +101,7 @@
     <!-- Search Input -->
     <div class="search-wrapper">
       <i data-lucide="search" class="search-icon"></i>
-      <input type="text" id="searchInput" class="search-field" placeholder="Search tasks, goals, or tags..." aria-label="Search">
+      <input type="text" id="searchInput" class="search-field" placeholder="Search tasks, projects, or tags..." aria-label="Search">
     </div>
 
     <!-- Main View -->
@@ -131,8 +135,8 @@
       <div class="modal-sheet">
         <div class="modal-header">
           <div>
-            <span class="eyebrow">QUICK ACTION</span>
-            <h3 class="modal-title">Create New Item</h3>
+            <span class="eyebrow">NEW ENTRY</span>
+            <h3 class="modal-title">Create Action Item</h3>
           </div>
           <button class="close-btn" id="closeAddModalBtn" aria-label="Close">
             <i data-lucide="x"></i>
@@ -146,6 +150,10 @@
               <label class="category-radio">
                 <input type="radio" name="type" value="task" checked>
                 <span class="radio-pill"><i data-lucide="check-square"></i> Task</span>
+              </label>
+              <label class="category-radio">
+                <input type="radio" name="type" value="project">
+                <span class="radio-pill"><i data-lucide="folder"></i> Project</span>
               </label>
               <label class="category-radio">
                 <input type="radio" name="type" value="assignment">
@@ -164,7 +172,12 @@
 
           <div class="form-group">
             <label for="taskContentInput" class="form-label">TITLE / DESCRIPTION</label>
-            <input type="text" id="taskContentInput" class="form-input" placeholder="e.g. Complete DSA assignment by 8 PM" required>
+            <input type="text" id="taskContentInput" class="form-input" placeholder="e.g. Overview Plan or Blockchain Registry" required>
+          </div>
+
+          <div class="form-group" id="projectSelectGroup">
+            <label for="taskProjectInput" class="form-label">PARENT PROJECT (OPTIONAL)</label>
+            <input type="text" id="taskProjectInput" class="form-input" placeholder="e.g. Blockchain Land Registry or Schedule">
           </div>
 
           <div class="form-row">

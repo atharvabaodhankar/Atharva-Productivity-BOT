@@ -1,4 +1,4 @@
-// AtharvaOS Dual-Color (Flo 101) Mini App Controller with Real-Time Conversation Viewer
+// AtharvaOS Dual-Color (Flo 101) Mini App Controller with Project-Task Hierarchy Support
 
 const API_BASE_URL = "https://ged2lb24hngndlzk5b73dmvdqy0ydsmo.lambda-url.ap-south-1.on.aws/api";
 const OWNER_CHAT_ID = "5275149287";
@@ -49,6 +49,7 @@ const addModal = document.getElementById("addModal");
 const openAddModalBtn = document.getElementById("openAddModalBtn");
 const closeAddModalBtn = document.getElementById("closeAddModalBtn");
 const addTaskForm = document.getElementById("addTaskForm");
+const taskProjectInput = document.getElementById("taskProjectInput");
 
 // Conversation Modal Elements
 const convoModal = document.getElementById("convoModal");
@@ -125,14 +126,23 @@ async function fetchTasks() {
       allTasks = [
         {
           _id: "demo1",
-          type: "task",
-          content: "Welcome to AtharvaOS! Tap the checkbox to complete this task.",
+          type: "project",
+          content: "Blockchain Land Registry System",
           completed: false,
           priority: "high",
-          tags: ["quickstart"],
+          tags: ["web3"],
+        },
+        {
+          _id: "demo2",
+          type: "task",
+          content: "Create overview plan",
+          projectName: "Blockchain Land Registry System",
+          completed: false,
+          priority: "medium",
+          tags: ["planning"],
         },
       ];
-      updateProgress({ total: 1, completed: 0, progress: 0 });
+      updateProgress({ total: 2, completed: 0, progress: 0 });
       renderTasks();
     }
   }
@@ -153,16 +163,26 @@ function updateProgress(stats) {
   taskSummaryHeadline.textContent = `${completed} of ${total} Completed`;
 }
 
-// Render Tasks
+// Render Tasks with Project Badges & Grouping
 function renderTasks() {
   taskListEl.innerHTML = "";
 
   const filtered = allTasks.filter((task) => {
-    const matchesFilter = activeFilter === "all" || task.type === activeFilter;
+    let matchesFilter = false;
+    if (activeFilter === "all") {
+      matchesFilter = true;
+    } else if (activeFilter === "project") {
+      matchesFilter = task.type === "project" || Boolean(task.projectName);
+    } else {
+      matchesFilter = task.type === activeFilter;
+    }
+
     const matchesSearch =
       !searchQuery ||
       task.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (task.projectName && task.projectName.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (task.tags && task.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase())));
+
     return matchesFilter && matchesSearch;
   });
 
@@ -182,7 +202,8 @@ function renderTasks() {
 
   filtered.forEach((task) => {
     const card = document.createElement("div");
-    card.className = `item-card ${task.completed ? "completed" : ""}`;
+    const isProject = task.type === "project";
+    card.className = `item-card ${isProject ? "project-card" : ""} ${task.completed ? "completed" : ""}`;
     card.dataset.id = task._id;
 
     // Due date
@@ -209,6 +230,14 @@ function renderTasks() {
     const priorityLabel = priority === "high" ? "High" : priority === "low" ? "Low" : "Med";
     const priorityBadge = `<span class="badge badge-${priority}">${priorityLabel}</span>`;
 
+    // Type / Project Badge
+    let typeBadge = "";
+    if (isProject) {
+      typeBadge = `<span class="badge badge-project"><i data-lucide="folder" class="icon-inline"></i> PROJECT</span>`;
+    } else if (task.projectName) {
+      typeBadge = `<span class="badge badge-parent-project"><i data-lucide="folder-git-2" class="icon-inline"></i> ${escapeHtml(task.projectName)}</span>`;
+    }
+
     // Tags
     const tagsHtml = (task.tags || [])
       .map((tag) => `<span class="badge badge-tag">#${escapeHtml(tag)}</span>`)
@@ -224,6 +253,7 @@ function renderTasks() {
           </button>
         </div>
         <div class="card-meta-row">
+          ${typeBadge}
           ${priorityBadge}
           ${dueHtml}
           ${tagsHtml}
@@ -307,6 +337,7 @@ addTaskForm.addEventListener("submit", async (e) => {
 
   const type = document.querySelector('input[name="type"]:checked')?.value || "task";
   const content = document.getElementById("taskContentInput").value.trim();
+  const projectName = taskProjectInput ? taskProjectInput.value.trim() : "";
   const dateVal = document.getElementById("taskDateInput").value;
   const priority = document.getElementById("taskPriorityInput").value;
   const rawTags = document.getElementById("taskTagsInput").value;
@@ -321,6 +352,7 @@ addTaskForm.addEventListener("submit", async (e) => {
     _id: "temp_" + Date.now(),
     type,
     content,
+    projectName: type !== "project" ? projectName : "",
     date: dateVal ? new Date(dateVal).toISOString() : null,
     priority,
     tags,
@@ -344,6 +376,7 @@ addTaskForm.addEventListener("submit", async (e) => {
         chatId: currentUser.id,
         type,
         content,
+        projectName: type !== "project" ? projectName : "",
         date: dateVal || null,
         priority,
         tags,
@@ -352,6 +385,8 @@ addTaskForm.addEventListener("submit", async (e) => {
     const data = await res.json();
     if (data && data.task) {
       tempTask._id = data.task._id;
+      tempTask.projectId = data.task.projectId;
+      tempTask.projectName = data.task.projectName;
     }
   } catch (err) {
     console.error("Failed to create task:", err);

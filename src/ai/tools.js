@@ -40,6 +40,10 @@ const tools = [
             items: { type: "string" },
             description: "Optional list of tags e.g. ['work', 'study', 'dsa'].",
           },
+          projectName: {
+            type: "string",
+            description: "The name of the parent project this task belongs to (e.g. 'Blockchain Land Registry' or 'Schedule'). If specified, the task will be nested inside this project.",
+          },
         },
         required: ["type", "content"],
       },

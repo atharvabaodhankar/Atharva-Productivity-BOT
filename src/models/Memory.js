@@ -46,6 +46,17 @@ const memorySchema = new mongoose.Schema(
       enum: ["high", "medium", "low"],
       default: "medium",
     },
+    projectId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "Memory",
+      default: null,
+      index: true,
+    },
+    projectName: {
+      type: String,
+      default: "",
+      trim: true,
+    },
     tags: [
       {
         type: String,

@@ -111,6 +111,28 @@ exports.handler = async (event, context) => {
           };
         }
 
+        let parentProjectId = payload.projectId || null;
+        let parentProjectName = payload.projectName || "";
+
+        if (payload.projectName && payload.type !== "project" && !parentProjectId) {
+          const trimmed = payload.projectName.trim();
+          let p = await Memory.findOne({
+            chatId: payload.chatId,
+            type: "project",
+            content: new RegExp(`^${trimmed}$`, "i"),
+          });
+          if (!p) {
+            p = await Memory.create({
+              chatId: payload.chatId,
+              type: "project",
+              content: trimmed,
+              priority: "medium",
+            });
+          }
+          parentProjectId = p._id;
+          parentProjectName = p.content;
+        }
+
         const newTask = await Memory.create({
           chatId: payload.chatId,
           type: payload.type || "task",
@@ -118,6 +140,8 @@ exports.handler = async (event, context) => {
           date: payload.date ? new Date(payload.date) : null,
           priority: payload.priority || "medium",
           tags: Array.isArray(payload.tags) ? payload.tags : [],
+          projectId: parentProjectId,
+          projectName: parentProjectName,
         });
 
         return {
