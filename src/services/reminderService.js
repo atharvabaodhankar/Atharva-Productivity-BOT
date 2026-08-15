@@ -7,34 +7,33 @@ const sentReminders = new Set();
 async function checkUpcomingReminders(bot) {
   try {
     const now = new Date();
+    const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
+
     const upcoming = await Memory.find({
-      date: { $lte: now },
+      date: { $lte: now, $gte: oneDayAgo },
       type: { $in: ["reminder", "task", "assignment", "exam", "project"] },
       completed: false,
+      reminderSent: { $ne: true },
     });
 
     for (const item of upcoming) {
-      const reminderId = item._id.toString();
-
-      if (!sentReminders.has(reminderId) && item.chatId) {
+      if (item.chatId) {
         try {
           const user = await User.findOne({ telegramId: item.chatId });
           const name = user ? user.firstName : "Champ";
 
           const funReminders = [
-            `⏰ YO ${name.toUpperCase()}! Time's up!\n\n🎯 ${item.content}\n\nLet's gooo! No excuses! 💪`,
-            `🔔 Ding ding ding, ${name}!\n\n📌 ${item.content}\n\nChal bhai, time to shine! ✨`,
-            `⚡ REMINDER ALERT!\n\n🎯 ${item.content}\n\nYou got this, ${name}! 🔥`,
-            `🚨 Arre ${name}!\n\n📋 ${item.content}\n\nDue: ${new Date(item.date).toLocaleString()}\n\nGet on it! 🚀`,
+            `⏰ *REMINDER ALERT, ${name.toUpperCase()}!*\n\n📌 *${item.content}*\n\nTime's up! Let's get this done! 💪`,
+            `🔔 *Ding Ding, ${name}!*\n\n🎯 *${item.content}*\n\nDue now! Time to conquer it! ✨`,
+            `⚡ *DEADLINE ALERT!*\n\n📋 *${item.content}*\n\nYou got this, ${name}! Stay focused! 🔥`,
           ];
 
           const message = funReminders[Math.floor(Math.random() * funReminders.length)];
-          await bot.telegram.sendMessage(item.chatId, message);
+          await bot.telegram.sendMessage(item.chatId, message, { parse_mode: "Markdown" });
 
-          sentReminders.add(reminderId);
-          await Memory.findByIdAndUpdate(item._id, { completed: true });
+          await Memory.findByIdAndUpdate(item._id, { reminderSent: true });
         } catch (err) {
-          console.error(`Failed sending reminder ${reminderId}:`, err.message);
+          console.error(`Failed sending reminder ${item._id}:`, err.message);
         }
       }
     }

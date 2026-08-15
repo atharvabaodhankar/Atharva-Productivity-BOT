@@ -36,6 +36,11 @@ const memorySchema = new mongoose.Schema(
       default: false,
       index: true,
     },
+    reminderSent: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
     priority: {
       type: String,
       enum: ["high", "medium", "low"],

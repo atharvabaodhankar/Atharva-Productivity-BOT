@@ -55,3 +55,26 @@ jobs:
           aws lambda update-function-configuration \
             --function-name AtharvaOS-Bot \
             --environment "Variables={BOT_TOKEN=\"$BOT_TOKEN\",CHAT_ID=\"$CHAT_ID\",MONGO_URI=\"$MONGO_URI\",GROQ_API_KEY=\"$GROQ_API_KEY\"}"
+
+          echo "Waiting for configuration update to complete..."
+          aws lambda wait function-updated \
+            --function-name AtharvaOS-Bot
+
+          echo "Setting up Amazon EventBridge 5-minute reminder cron..."
+          aws events put-rule \
+            --name "AtharvaOS-ReminderCron" \
+            --schedule-expression "rate(5 minutes)" \
+            --region ap-south-1
+
+          aws lambda add-permission \
+            --function-name AtharvaOS-Bot \
+            --statement-id "EventBridgeReminderCron" \
+            --action "lambda:InvokeFunction" \
+            --principal "events.amazonaws.com" \
+            --source-arn "arn:aws:events:ap-south-1:308369305204:rule/AtharvaOS-ReminderCron" \
+            --region ap-south-1 || true
+
+          aws events put-targets \
+            --rule "AtharvaOS-ReminderCron" \
+            --targets "Id=1,Arn=arn:aws:lambda:ap-south-1:308369305204:function:AtharvaOS-Bot,Input='{\"cron\":true}'" \
+            --region ap-south-1
