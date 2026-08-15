@@ -2,6 +2,10 @@ const {
   triggerAlertAndNotify,
   getRandomResponse,
 } = require("../../utils/easterEggDetector");
+const {
+  requestOwnerMemeApproval,
+  handleMemeApprovalAction,
+} = require("../../services/memeService");
 const History = require("../../models/History");
 const { Markup } = require("telegraf");
 
@@ -113,26 +117,16 @@ module.exports = (bot) => {
     }
   });
 
-  // 3. User Confirmed "YES" to NSFW Memes
+  // 3. User Confirmed "YES" to NSFW Memes -> Request Owner Approval
   bot.action("nsfw_meme_yes", async (ctx) => {
     try {
-      await ctx.answerCbQuery("Request received! Please wait for the meme ⏳");
+      await ctx.answerCbQuery("Request received! Asking Atharva for approval... ⏳");
       const chatId = ctx.chat?.id || ctx.from?.id;
       const userName = ctx.from?.first_name || "Friend";
       const username = ctx.from?.username || "";
 
-      // Trigger High Priority Alert to Owner & Admin Console
-      await triggerAlertAndNotify({
-        chatId,
-        userName,
-        username,
-        type: "NSFW_TRIGGER",
-        trigger: "NSFW Meme Confirmed (YES!)",
-        text: `User ${userName} (@${username || "none"}) confirmed 18+ and is waiting for their meme!`,
-      });
-
       const waitMsg =
-        "Theek hai bhai, hold tight! ⏳ Finding/preparing the meme for you... Please wait for your meme, it's on the way! 🌶️👀\n\n*(Admin verification & delivery in progress...)*";
+        "Theek hai bhai, hold tight! ⏳ Finding the spiciest meme from Reddit for you...\n\nRequest sent to Atharva for verification! Tab tak wait karo! 🌶️👀";
 
       try {
         await ctx.editMessageText(waitMsg);
@@ -146,6 +140,9 @@ module.exports = (bot) => {
         content: waitMsg,
         telegramMessageId: ctx.callbackQuery?.message?.message_id || null,
       });
+
+      // Dispatch Approval Request with Preview to Atharva's Telegram
+      await requestOwnerMemeApproval(bot, { chatId, userName, username });
     } catch (err) {
       console.error("nsfw_meme_yes callback error:", err);
     }
@@ -171,6 +168,26 @@ module.exports = (bot) => {
       });
     } catch (err) {
       console.error("nsfw_meme_cancel callback error:", err);
+    }
+  });
+
+  // 5. Owner Telegram Callback: Approve Meme
+  bot.action(/^meme_appr_(.+)$/, async (ctx) => {
+    try {
+      const requestId = ctx.match[1];
+      await handleMemeApprovalAction(bot, ctx, requestId, true);
+    } catch (err) {
+      console.error("meme_appr error:", err);
+    }
+  });
+
+  // 6. Owner Telegram Callback: Reject Meme
+  bot.action(/^meme_rejc_(.+)$/, async (ctx) => {
+    try {
+      const requestId = ctx.match[1];
+      await handleMemeApprovalAction(bot, ctx, requestId, false);
+    } catch (err) {
+      console.error("meme_rejc error:", err);
     }
   });
 };
