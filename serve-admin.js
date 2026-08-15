@@ -378,6 +378,63 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // 7. GET /api/stats (Local User Directory Fetch)
+  if (req.url.startsWith("/api/stats") && req.method === "GET") {
+    try {
+      const User = require("./src/models/User");
+      const usersDocs = await User.find().lean();
+
+      const users = await Promise.all(
+        usersDocs.map(async (u) => {
+          const count = await History.countDocuments({ chatId: u.telegramId });
+          const lastMsg = await History.findOne({ chatId: u.telegramId }).sort({ createdAt: -1 });
+          return {
+            telegramId: u.telegramId,
+            firstName: u.firstName || "User",
+            username: u.username || "",
+            messageCount: count,
+            lastActive: u.updatedAt || u.createdAt,
+            lastMessageSnippet: lastMsg ? lastMsg.content : "No messages yet",
+          };
+        })
+      );
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ ok: true, users }));
+    } catch (err) {
+      console.error("Local stats fetch error:", err);
+      res.writeHead(500, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ ok: false, error: err.message }));
+    }
+  }
+
+  // 8. GET /api/admin/conversations (or /api/conversations)
+  if (
+    (req.url.startsWith("/api/admin/conversations") || req.url.startsWith("/api/conversations")) &&
+    req.method === "GET"
+  ) {
+    try {
+      const urlObj = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+      const targetChatId = urlObj.searchParams.get("targetChatId") || urlObj.searchParams.get("chatId");
+
+      if (!targetChatId) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        return res.end(JSON.stringify({ ok: false, error: "targetChatId is required." }));
+      }
+
+      const messages = await History.find({ chatId: Number(targetChatId) })
+        .sort({ createdAt: 1 })
+        .limit(200);
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ ok: true, messages }));
+    } catch (err) {
+      console.error("Local conversations fetch error:", err);
+      res.writeHead(500, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ ok: false, error: err.message }));
+    }
+  }
+
   // 5. Static File Server
   let filePath = path.join(ADMIN_DIR, req.url === "/" ? "index.html" : req.url.split("?")[0]);
   const ext = path.extname(filePath).toLowerCase();

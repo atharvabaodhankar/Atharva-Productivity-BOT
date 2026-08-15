@@ -1,7 +1,24 @@
 // AtharvaOS // Monochrome Bot POV Console Controller (Zero-Flicker Live Engine & Direct Media Uploader)
 
-const API_BASE_URL = "https://ged2lb24hngndlzk5b73dmvdqy0ydsmo.lambda-url.ap-south-1.on.aws/api";
+const IS_LOCAL_DEV =
+  window.location.hostname === "localhost" ||
+  window.location.hostname === "127.0.0.1" ||
+  window.location.hostname === "0.0.0.0" ||
+  window.location.port === "4000" ||
+  window.location.port === "5500";
+
+const REMOTE_API_BASE = "https://ged2lb24hngndlzk5b73dmvdqy0ydsmo.lambda-url.ap-south-1.on.aws/api";
 const OWNER_CHAT_ID = "5275149287";
+
+// Helper to resolve API endpoint seamlessly across Local Node Server (port 4000 / Live Server) & Production Lambda
+function getApiUrl(path) {
+  const cleanPath = path.startsWith("/") ? path : `/${path}`;
+  if (IS_LOCAL_DEV) {
+    const localHost = window.location.port === "4000" ? "" : "http://localhost:4000";
+    return `${localHost}${cleanPath.startsWith("/api") ? cleanPath : `/api${cleanPath}`}`;
+  }
+  return `${REMOTE_API_BASE}${cleanPath.replace(/^\/api/, "")}`;
+}
 
 // State
 let allUsers = [];
@@ -28,6 +45,22 @@ const activeUserMeta = document.getElementById("activeUserMeta");
 const liveClock = document.getElementById("liveClock");
 const autoPollToggleBtn = document.getElementById("autoPollToggleBtn");
 const manualRefreshBtn = document.getElementById("manualRefreshBtn");
+
+const messagesStreamEl = document.getElementById("messagesStreamEl");
+const chatMessageInput = document.getElementById("chatMessageInput");
+const sendBtn = document.getElementById("sendBtn");
+
+const attachMediaBtn = document.getElementById("attachMediaBtn");
+const mediaFileInput = document.getElementById("mediaFileInput");
+const mediaPreviewBar = document.getElementById("mediaPreviewBar");
+const mediaPreviewThumb = document.getElementById("mediaPreviewThumb");
+const mediaPreviewName = document.getElementById("mediaPreviewName");
+const mediaPreviewMeta = document.getElementById("mediaPreviewMeta");
+const removeMediaBtn = document.getElementById("removeMediaBtn");
+const toggleSpoilerBtn = document.getElementById("toggleSpoilerBtn");
+const dragDropOverlay = document.getElementById("dragDropOverlay");
+
+const toastContainer = document.getElementById("toastContainer");
 const alertsToggleBtn = document.getElementById("alertsToggleBtn");
 const alertsBadgeCount = document.getElementById("alertsBadgeCount");
 const alertsModalOverlay = document.getElementById("alertsModalOverlay");
@@ -35,88 +68,56 @@ const closeAlertsModalBtn = document.getElementById("closeAlertsModalBtn");
 const markAlertsReadBtn = document.getElementById("markAlertsReadBtn");
 const alertsListBody = document.getElementById("alertsListBody");
 
-const messagesStreamEl = document.getElementById("messagesStreamEl");
-const mediaStagingBar = document.getElementById("mediaStagingBar");
-const previewMediaWrapper = document.getElementById("previewMediaWrapper");
-const mediaPreviewImg = document.getElementById("mediaPreviewImg");
-const mediaPreviewVid = document.getElementById("mediaPreviewVid");
-const spoilerBadgeOverlay = document.getElementById("spoilerBadgeOverlay");
-const mediaFileName = document.getElementById("mediaFileName");
-const mediaReadyTag = document.getElementById("mediaReadyTag");
-const toggleSpoilerBtn = document.getElementById("toggleSpoilerBtn");
-const spoilerBtnText = document.getElementById("spoilerBtnText");
-const clearMediaBtn = document.getElementById("clearMediaBtn");
+// ------------------------------------------------------------------
+// HELPER FUNCTIONS & UI UTILITIES
+// ------------------------------------------------------------------
 
-const uploadProgressWrapper = document.getElementById("uploadProgressWrapper");
-const progressBarFill = document.getElementById("progressBarFill");
-const uploadStatusText = document.getElementById("uploadStatusText");
-const uploadPercentText = document.getElementById("uploadPercentText");
-const toastNotification = document.getElementById("toastNotification");
-const toastMsg = document.getElementById("toastMsg");
+// Toast Notification Engine
+function showToast(message, type = "info") {
+  const toast = document.createElement("div");
+  toast.className = `toast ${type}`;
 
-const mediaFileInput = document.getElementById("mediaFileInput");
-const attachMediaBtn = document.getElementById("attachMediaBtn");
-const chatMessageInput = document.getElementById("chatMessageInput");
-const sendBtn = document.getElementById("sendBtn");
+  const iconName = type === "success" ? "check-circle" : type === "error" ? "alert-triangle" : "info";
+  toast.innerHTML = `
+    <i data-lucide="${iconName}"></i>
+    <span>${escapeHtml(message)}</span>
+  `;
 
-// Helper: Refresh Lucide Icons
-function refreshIcons() {
-  if (window.lucide && typeof window.lucide.createIcons === "function") {
-    window.lucide.createIcons();
-  }
-}
+  toastContainer.appendChild(toast);
+  refreshIcons();
 
-// Toast Notifications
-function showToast(message, type = "success") {
-  if (!toastNotification || !toastMsg) return;
-  toastMsg.textContent = message;
-  toastNotification.className = `toast-notification ${type}`;
-  toastNotification.style.display = "flex";
   setTimeout(() => {
-    toastNotification.style.display = "none";
-  }, 4000);
+    toast.style.opacity = "0";
+    toast.style.transform = "translateY(-10px)";
+    setTimeout(() => toast.remove(), 300);
+  }, 3500);
 }
 
-// Upload Progress Helper
-function updateUploadProgress(percent, label) {
-  if (!uploadProgressWrapper) return;
-  uploadProgressWrapper.style.display = "flex";
-  progressBarFill.style.width = `${percent}%`;
-  uploadPercentText.textContent = `${percent}%`;
-  if (label) uploadStatusText.textContent = label;
-}
-
-function hideUploadProgress() {
-  if (uploadProgressWrapper) {
-    uploadProgressWrapper.style.display = "none";
-    progressBarFill.style.width = "0%";
+// Refresh Lucide Icons safely
+function refreshIcons() {
+  if (window.lucide) {
+    lucide.createIcons();
   }
 }
 
-// Live Clock Ticker
-function startLiveClock() {
-  function update() {
-    const now = new Date();
-    liveClock.textContent = now.toLocaleTimeString("en-US", {
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-      hour12: true,
-    });
-  }
-  update();
-  setInterval(update, 1000);
+// HTML Escaper to prevent XSS
+function escapeHtml(text) {
+  if (!text) return "";
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#039;");
 }
 
-// Escape HTML
-function escapeHtml(str) {
-  if (!str) return "";
-  const div = document.createElement("div");
-  div.textContent = String(str);
-  return div.innerHTML;
+// Time Formatting
+function formatTime(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  return d.toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true });
 }
 
-// Relative Time Formatter
 function formatRelativeTime(dateStr) {
   if (!dateStr) return "";
   const d = new Date(dateStr);
@@ -135,7 +136,7 @@ function formatRelativeTime(dateStr) {
 // 1. Fetch Users List (With Zero-Flicker Diff Check)
 async function fetchUsers() {
   try {
-    const res = await fetch(`${API_BASE_URL}/stats?chatId=${OWNER_CHAT_ID}`);
+    const res = await fetch(getApiUrl(`/stats?chatId=${OWNER_CHAT_ID}`));
     const data = await res.json();
 
     if (data && data.users) {
@@ -155,7 +156,7 @@ async function fetchUsers() {
   }
 }
 
-// 2. Render Users Directory (Handles Users With and Without Username)
+// 2. Render Users Directory
 function renderUsersList() {
   const query = userSearchInput.value.toLowerCase().trim();
   const filtered = allUsers.filter((u) => {
@@ -173,22 +174,21 @@ function renderUsersList() {
   usersListEl.innerHTML = filtered
     .map((u) => {
       const displayName = u.firstName || (u.username ? `@${u.username}` : `User #${u.telegramId}`);
-      const initial = displayName.replace(/^@/, "").charAt(0).toUpperCase() || "U";
-      const isActive = activeTargetUser && String(activeTargetUser.telegramId) === String(u.telegramId);
-      const handleTag = u.username ? `@${escapeHtml(u.username)}` : `ID:${u.telegramId}`;
-      const timeStr = formatRelativeTime(u.lastActive);
+      const handleDisplay = u.username ? `@${u.username}` : `ID: ${u.telegramId}`;
+      const isActive = activeTargetUser && activeTargetUser.telegramId === u.telegramId;
+      const initials = (u.firstName || "U").substring(0, 2).toUpperCase();
 
       return `
-        <div class="user-item ${isActive ? "active" : ""}" data-chat-id="${u.telegramId}">
-          <div class="user-avatar-mini">${escapeHtml(initial)}</div>
-          <div class="user-info-col">
-            <div class="user-top-line">
-              <span class="user-name-text">${escapeHtml(displayName)}</span>
-              <span class="msg-count-tag">${timeStr || `${u.messageCount || 0} msgs`}</span>
+        <div class="user-item-card ${isActive ? "active" : ""}" data-id="${u.telegramId}">
+          <div class="user-avatar-mini">${initials}</div>
+          <div class="user-info-body">
+            <div class="user-top-row">
+              <span class="user-display-name">${escapeHtml(displayName)}</span>
+              <span class="user-last-time">${formatRelativeTime(u.lastActive)}</span>
             </div>
-            <div class="user-snippet-text">
-              <span style="color:var(--border-highlight); font-family:var(--font-mono); font-size:0.7rem; margin-right:4px;">${handleTag}</span>
-              ${escapeHtml(u.lastMessageSnippet || "No activity")}
+            <div class="user-sub-row">
+              <span class="user-snippet">${escapeHtml(u.lastMessageSnippet || "No messages yet")}</span>
+              <span class="user-msg-count">${u.messageCount || 0}</span>
             </div>
           </div>
         </div>
@@ -196,10 +196,10 @@ function renderUsersList() {
     })
     .join("");
 
-  usersListEl.querySelectorAll(".user-item").forEach((el) => {
-    el.addEventListener("click", () => {
-      const chatId = el.dataset.chatId;
-      const targetUser = allUsers.find((u) => String(u.telegramId) === String(chatId));
+  usersListEl.querySelectorAll(".user-item-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      const targetId = Number(card.dataset.id);
+      const targetUser = allUsers.find((u) => u.telegramId === targetId);
       if (targetUser) {
         selectUserThread(targetUser);
       }
@@ -207,174 +207,143 @@ function renderUsersList() {
   });
 }
 
-// 3. Select a User Thread
-async function selectUserThread(user) {
+// Select User Thread
+function selectUserThread(user) {
   activeTargetUser = user;
-  activeMessages = [];
   renderUsersList();
 
-  const displayName = user.firstName || (user.username ? `@${user.username}` : `User #${user.telegramId}`);
-  activeUserName.textContent = displayName;
-  activeAvatar.textContent = displayName.replace(/^@/, "").charAt(0).toUpperCase() || "U";
-  activeUserHandle.textContent = user.username ? `@${user.username}` : "NO USERNAME";
-  activeUserMeta.textContent = `TG_ID: ${user.telegramId}`;
+  activeAvatar.textContent = (user.firstName || "U").substring(0, 2).toUpperCase();
+  activeUserName.textContent = user.firstName || "User";
+  activeUserHandle.textContent = user.username ? `@${user.username}` : `ID: ${user.telegramId}`;
+  activeUserMeta.textContent = `TELEGRAM ID: ${user.telegramId} // ACTIVE NOW`;
 
-  messagesStreamEl.innerHTML = `
-    <div class="skeleton-row" style="width:50%;"></div>
-    <div class="skeleton-row" style="width:65%; align-self:flex-end;"></div>
-  `;
-
-  await loadConversationMessages(true);
   chatMessageInput.focus();
+  loadConversationMessages(true);
 }
 
-// Markdown to Rich HTML Formatter for Chat Bubbles
+// Markdown Formatter for Chat Bubbles
 function formatMarkdownToHtml(text) {
   if (!text) return "";
   let html = escapeHtml(String(text));
 
-  // Code blocks ```code```
   html = html.replace(/```([\s\S]*?)```/g, '<pre style="background:rgba(0,0,0,0.4); padding:8px 12px; border-radius:6px; font-family:var(--font-mono); font-size:0.82rem; margin:6px 0; overflow-x:auto;">$1</pre>');
-
-  // Inline code `code`
   html = html.replace(/`([^`]+)`/g, '<code style="background:rgba(0,0,0,0.3); padding:2px 6px; border-radius:4px; font-family:var(--font-mono); font-size:0.82rem; color:var(--accent-cyan);">$1</code>');
-
-  // Double bold **text**
   html = html.replace(/\*\*([^*]+)\*\*/g, '<strong style="color:var(--text-pure-white); font-weight:700;">$1</strong>');
-
-  // Single asterisk *text*
   html = html.replace(/(^|[^\*])\*([^\*]+)\*([^\*]|$)/g, '$1<strong style="color:var(--text-pure-white); font-weight:700;">$2</strong>$3');
-
-  // Italic _text_
   html = html.replace(/(^|[^_])_([^_]+)_([^_]|$)/g, '$1<em>$2</em>$3');
-
-  // Links [text](url)
   html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:var(--accent-cyan); text-decoration:underline;">$1</a>');
-
-  // Line breaks \n to <br>
   html = html.replace(/\n/g, "<br>");
 
   return html;
 }
 
-// Create a single message DOM element with Spoiler Badge, Edit & Delete Actions
-function createMessageElement(msg) {
-  const isBot = msg.role === "assistant";
-  const senderLabel = isBot ? "ATHARVAOS // PROXY" : (activeTargetUser?.firstName || "USER").toUpperCase();
-  const timeStr = msg.createdAt
-    ? new Date(msg.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })
-    : "";
+// Create single message DOM element
+function createMessageNode(msg) {
+  const isUser = msg.role === "user";
+  const rowEl = document.createElement("div");
+  rowEl.className = `msg-row ${isUser ? "user-msg" : "bot-msg"}`;
+  rowEl.dataset.id = msg._id || "";
 
-  const hasSpoilerBadge =
-    msg.hasSpoiler ||
-    (typeof msg.content === "string" && msg.content.includes("🙈")) ||
-    (typeof msg.content === "string" && msg.content.toLowerCase().includes("spoiler"));
+  const timeStr = formatTime(msg.createdAt);
+  const senderTag = isUser ? `@${activeTargetUser?.username || activeTargetUser?.firstName || "User"}` : "AtharvaOS (Bot POV)";
+  const spoilerBadge = msg.hasSpoiler ? `<span class="spoiler-badge"><i data-lucide="eye-off"></i> SPOILER</span>` : "";
 
-  const div = document.createElement("div");
-  div.className = `msg-row ${isBot ? "bot-msg" : "user-msg"}`;
-  div.dataset.msgKey = msg._id || `${msg.role}-${msg.content}-${msg.createdAt}`;
-  div.innerHTML = `
-    <div class="msg-sender-tag">
-      <span>${escapeHtml(senderLabel)}</span>
-      ${hasSpoilerBadge ? `<span class="spoiler-bubble-badge"><i data-lucide="eye-off"></i> SPOILER</span>` : ""}
-    </div>
-    <div class="msg-content-wrapper">
-      <div class="msg-card" id="msgCardText_${msg._id || Math.random().toString(36).substring(2, 7)}">
-        ${formatMarkdownToHtml(msg.content)}
-      </div>
+  let actionToolbar = "";
+  if (!isUser) {
+    actionToolbar = `
       <div class="msg-actions-bar">
-        <button class="msg-action-btn edit-btn" title="Edit message text">
-          <i data-lucide="pencil"></i>
+        <button class="msg-action-btn edit-btn" title="Edit Message Content">
+          <i data-lucide="edit-3"></i>
         </button>
-        <button class="msg-action-btn delete-btn" title="Delete message from conversation & Telegram">
+        <button class="msg-action-btn delete-btn" title="Delete Message from Chat & Telegram">
           <i data-lucide="trash-2"></i>
         </button>
       </div>
+    `;
+  }
+
+  rowEl.innerHTML = `
+    <div class="msg-sender-meta">${senderTag} ${spoilerBadge}</div>
+    <div class="msg-content-wrapper">
+      <div class="msg-card">
+        <div class="msg-text">${formatMarkdownToHtml(msg.content)}</div>
+        <div class="msg-time">${timeStr}</div>
+      </div>
+      ${actionToolbar}
     </div>
-    <div class="msg-time">${escapeHtml(timeStr)}</div>
   `;
 
-  // Attach Edit event
-  const editBtn = div.querySelector(".edit-btn");
-  if (editBtn) {
-    editBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      startInlineEdit(msg, div);
-    });
+  if (!isUser) {
+    const editBtn = rowEl.querySelector(".edit-btn");
+    const deleteBtn = rowEl.querySelector(".delete-btn");
+
+    if (editBtn) {
+      editBtn.addEventListener("click", () => openEditMessageModal(msg, rowEl));
+    }
+    if (deleteBtn) {
+      deleteBtn.addEventListener("click", () => deleteAdminMessage(msg, rowEl));
+    }
   }
 
-  // Attach Delete event
-  const deleteBtn = div.querySelector(".delete-btn");
-  if (deleteBtn) {
-    deleteBtn.addEventListener("click", async (e) => {
-      e.stopPropagation();
-      await deleteAdminMessage(msg, div);
-    });
-  }
-
-  return div;
+  return rowEl;
 }
 
-// Inline Message Editor
-function startInlineEdit(msg, rowEl) {
-  const contentWrapper = rowEl.querySelector(".msg-content-wrapper");
-  const originalText = msg.content || "";
+// Edit Message Inline Editor Modal
+function openEditMessageModal(msg, rowEl) {
+  const cardEl = rowEl.querySelector(".msg-card");
+  const textEl = rowEl.querySelector(".msg-text");
+  const oldText = msg.content;
 
-  contentWrapper.innerHTML = `
-    <div class="inline-edit-box">
-      <textarea class="inline-edit-textarea" rows="2">${escapeHtml(originalText)}</textarea>
-      <div class="inline-edit-buttons">
-        <button class="inline-btn cancel">Cancel</button>
-        <button class="inline-btn save">Save Changes</button>
-      </div>
+  cardEl.innerHTML = `
+    <textarea class="inline-edit-textarea" rows="3">${escapeHtml(oldText)}</textarea>
+    <div class="inline-edit-actions">
+      <button class="inline-btn cancel">Cancel</button>
+      <button class="inline-btn save">Save Changes</button>
     </div>
   `;
 
-  const textarea = contentWrapper.querySelector(".inline-edit-textarea");
-  const cancelBtn = contentWrapper.querySelector(".inline-btn.cancel");
-  const saveBtn = contentWrapper.querySelector(".inline-btn.save");
+  const textarea = cardEl.querySelector(".inline-edit-textarea");
+  const cancelBtn = cardEl.querySelector(".cancel");
+  const saveBtn = cardEl.querySelector(".save");
 
   textarea.focus();
-  textarea.setSelectionRange(textarea.value.length, textarea.value.length);
 
   cancelBtn.addEventListener("click", () => {
-    // Restore message element
-    const newElem = createMessageElement(msg);
-    rowEl.replaceWith(newElem);
-    refreshIcons();
+    cardEl.innerHTML = `
+      <div class="msg-text">${formatMarkdownToHtml(oldText)}</div>
+      <div class="msg-time">${formatTime(msg.createdAt)}</div>
+    `;
   });
 
   saveBtn.addEventListener("click", async () => {
-    const updatedText = textarea.value.trim();
-    if (!updatedText) return;
+    const newText = textarea.value.trim();
+    if (!newText) {
+      return showToast("Message content cannot be empty", "error");
+    }
 
     saveBtn.disabled = true;
     saveBtn.textContent = "Saving...";
 
     try {
-      const endpoint = window.location.origin.includes("localhost")
-        ? "/api/local-edit-message"
-        : `${API_BASE_URL}/admin/edit-message`;
-
-      const res = await fetch(endpoint, {
+      const res = await fetch(getApiUrl("/local-edit-message"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          ownerId: OWNER_CHAT_ID,
           messageId: msg._id,
           chatId: activeTargetUser ? activeTargetUser.telegramId : null,
           telegramMessageId: msg.telegramMessageId,
-          newText: updatedText,
+          newText,
         }),
       });
 
       const data = await res.json();
       if (data.ok || data.success) {
-        msg.content = updatedText;
-        const newElem = createMessageElement(msg);
-        rowEl.replaceWith(newElem);
-        refreshIcons();
-        showToast("✏️ Message updated in transcript & Telegram!", "success");
+        msg.content = newText;
+        cardEl.innerHTML = `
+          <div class="msg-text">${formatMarkdownToHtml(newText)}</div>
+          <div class="msg-time">${formatTime(msg.createdAt)}</div>
+        `;
+        showToast("✏️ Message updated on Telegram & transcript!", "success");
       } else {
         saveBtn.disabled = false;
         saveBtn.textContent = "Save Changes";
@@ -397,11 +366,7 @@ async function deleteAdminMessage(msg, rowEl) {
   rowEl.classList.add("deleting");
 
   try {
-    const endpoint = window.location.origin.includes("localhost")
-      ? "/api/local-delete-message"
-      : `${API_BASE_URL}/admin/delete-message`;
-
-    const res = await fetch(endpoint, {
+    const res = await fetch(getApiUrl("/local-delete-message"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -429,13 +394,13 @@ async function deleteAdminMessage(msg, rowEl) {
   }
 }
 
-// 4. Load Conversation Messages (Robust Key-Based Zero-Flicker Diffing)
+// Load Conversation Messages
 async function loadConversationMessages(isInitialSelect = false) {
   if (!activeTargetUser) return;
 
   try {
     const res = await fetch(
-      `${API_BASE_URL}/admin/conversations?chatId=${OWNER_CHAT_ID}&targetChatId=${activeTargetUser.telegramId}`
+      getApiUrl(`/admin/conversations?chatId=${OWNER_CHAT_ID}&targetChatId=${activeTargetUser.telegramId}`)
     );
     const data = await res.json();
 
@@ -449,343 +414,188 @@ async function loadConversationMessages(isInitialSelect = false) {
         return (a._id || "").localeCompare(b._id || "");
       });
 
-      const currentDomKeys = Array.from(messagesStreamEl.querySelectorAll(".msg-row"))
-        .map((el) => el.dataset.msgKey)
-        .filter(Boolean);
-      const incomingKeys = incomingMessages.map(
-        (msg) => msg._id || `${msg.role}-${msg.content}-${msg.createdAt}`
-      );
-
-      if (
-        !isInitialSelect &&
-        currentDomKeys.length === incomingKeys.length &&
-        currentDomKeys.join(",") === incomingKeys.join(",")
-      ) {
-        return;
-      }
-
-      const isNearBottom =
-        messagesStreamEl.scrollHeight - messagesStreamEl.scrollTop <= messagesStreamEl.clientHeight + 80;
-
-      activeMessages = incomingMessages;
-      messagesStreamEl.innerHTML = "";
-
-      if (activeMessages.length === 0) {
-        messagesStreamEl.innerHTML = `
-          <div class="empty-state-canvas">
-            <i data-lucide="message-square" class="empty-icon"></i>
-            <h3>EMPTY TRANSCRIPT</h3>
-            <p>No messages recorded for ${escapeHtml(activeTargetUser.firstName)}. Start the conversation below!</p>
-          </div>
-        `;
+      if (isInitialSelect) {
+        messagesStreamEl.innerHTML = "";
+        activeMessages = incomingMessages;
+        incomingMessages.forEach((msg) => {
+          messagesStreamEl.appendChild(createMessageNode(msg));
+        });
         refreshIcons();
+        messagesStreamEl.scrollTop = messagesStreamEl.scrollHeight;
         return;
       }
 
-      activeMessages.forEach((msg) => {
-        messagesStreamEl.appendChild(createMessageElement(msg));
-      });
+      // Smart Diff Check
+      const existingIds = new Set(activeMessages.map((m) => m._id));
+      const newMsgs = incomingMessages.filter((m) => !existingIds.has(m._id));
 
-      if (isInitialSelect || isNearBottom) {
+      if (newMsgs.length > 0) {
+        newMsgs.forEach((msg) => {
+          activeMessages.push(msg);
+          messagesStreamEl.appendChild(createMessageNode(msg));
+        });
+        refreshIcons();
         messagesStreamEl.scrollTop = messagesStreamEl.scrollHeight;
       }
     }
   } catch (err) {
-    console.error("Failed to load conversation transcript:", err);
+    console.error("Failed to load conversation messages:", err);
   }
 }
 
-// 5. Send Message as Bot (Human Proxy with Real-Time Video & Photo Progress)
-async function sendMessage() {
-  if (!activeTargetUser) {
-    showToast("Please select a user thread first!", "error");
-    return;
-  }
+// ------------------------------------------------------------------
+// MEDIA ATTACHMENT & DRAG AND DROP ENGINE
+// ------------------------------------------------------------------
 
-  const text = chatMessageInput.value.trim();
-  const media = stagedMediaBase64;
-  const mType = stagedMediaType;
-  const fName = stagedMediaFileName;
-  const spoilerFlag = Boolean(isSpoilerActive);
-
-  if (!text && !media) return;
-
-  // Clear Input & Staged Media immediately
-  chatMessageInput.value = "";
-  chatMessageInput.style.height = "auto";
-  clearStagedMedia();
-
-  // Optimistic UI Append
-  const isVideo = mType.startsWith("video/") || /\.(mp4|mov|webm|mkv|avi)$/i.test(fName);
-  const mediaPrefix = isVideo ? "[Video]" : "[Photo]";
-  const optimisticContent = media ? `${mediaPrefix} ${text}`.trim() : text;
-  const tempMsg = {
-    role: "assistant",
-    content: optimisticContent,
-    hasSpoiler: spoilerFlag,
-    createdAt: new Date().toISOString(),
-  };
-
-  const emptyStateEl = messagesStreamEl.querySelector(".empty-state-canvas");
-  if (emptyStateEl) emptyStateEl.remove();
-
-  const msgElement = createMessageElement(tempMsg);
-  messagesStreamEl.appendChild(msgElement);
-  activeMessages.push(tempMsg);
-  messagesStreamEl.scrollTop = messagesStreamEl.scrollHeight;
-
-  // -------------------------------------------------------------
-  // If Media is attached: Use direct XHR with Upload Progress Bar!
-  // -------------------------------------------------------------
-  if (media) {
-    sendBtn.disabled = true;
-    updateUploadProgress(10, `UPLOADING ${isVideo ? "VIDEO" : "PHOTO"}...`);
-
-    const xhr = new XMLHttpRequest();
-    // Use local server upload endpoint when running locally, fallback to AWS API URL
-    const uploadUrl = window.location.origin.includes("localhost")
-      ? "/api/local-upload"
-      : `${API_BASE_URL}/admin/send-message`;
-
-    xhr.upload.onprogress = (event) => {
-      if (event.lengthComputable) {
-        const percent = Math.min(95, Math.round((event.loaded / event.total) * 90) + 5);
-        const loadedMb = (event.loaded / (1024 * 1024)).toFixed(1);
-        const totalMb = (event.total / (1024 * 1024)).toFixed(1);
-        updateUploadProgress(percent, `TRANSMITTING ${isVideo ? "VIDEO" : "PHOTO"} (${loadedMb}MB / ${totalMb}MB)...`);
-      }
-    };
-
-    xhr.onload = () => {
-      sendBtn.disabled = false;
-      updateUploadProgress(100, "TELEGRAM PROCESSING...");
-      setTimeout(hideUploadProgress, 1000);
-
-      try {
-        const data = JSON.parse(xhr.responseText);
-        if (data.ok || data.success) {
-          showToast(`✅ ${isVideo ? "Video" : "Photo"} delivered to Telegram!`, "success");
-
-          // Update tempMsg with real IDs for immediate editing/deletion
-          const hDoc = data.history || data.historyDoc;
-          if (hDoc && hDoc._id) tempMsg._id = hDoc._id;
-          const tgMsgId = hDoc?.telegramMessageId || data.telegramResult?.message_id || data.telegramMessageId;
-          if (tgMsgId) tempMsg.telegramMessageId = tgMsgId;
-
-          msgElement.dataset.msgKey = tempMsg._id || `${tempMsg.role}-${tempMsg.content}-${tempMsg.createdAt}`;
-        } else {
-          showToast(`⚠️ ${data.error || "Telegram upload failed"}`, "error");
-        }
-      } catch (e) {
-        showToast("⚠️ Delivery response error.", "error");
-      }
-    };
-
-    xhr.onerror = () => {
-      sendBtn.disabled = false;
-      hideUploadProgress();
-      showToast("❌ Network error while uploading media.", "error");
-    };
-
-    xhr.open("POST", uploadUrl, true);
-    xhr.setRequestHeader("Content-Type", "application/json");
-    xhr.send(
-      JSON.stringify({
-        ownerId: OWNER_CHAT_ID,
-        targetChatId: activeTargetUser.telegramId,
-        text,
-        mediaBase64: media,
-        mediaType: mType,
-        fileName: fName,
-        caption: text,
-        hasSpoiler: spoilerFlag,
-      })
-    );
-  } else {
-    // Pure Text Message
-    try {
-      const res = await fetch(`${API_BASE_URL}/admin/send-message`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ownerId: OWNER_CHAT_ID,
-          targetChatId: activeTargetUser.telegramId,
-          text,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        if (data.history?._id) tempMsg._id = data.history._id;
-        if (data.telegramMessageId) tempMsg.telegramMessageId = data.telegramMessageId;
-        msgElement.dataset.msgKey = tempMsg._id || `${tempMsg.role}-${tempMsg.content}-${tempMsg.createdAt}`;
-      } else {
-        showToast(`⚠️ ${data.error || "Failed to send text"}`, "error");
-      }
-    } catch (err) {
-      showToast("❌ Failed to transmit text via bot.", "error");
-    }
-  }
-}
-
-const dragDropOverlay = document.getElementById("dragDropOverlay");
-const chatViewContainer = document.querySelector(".chat-view-container");
-
-// Spoiler / Censor Toggle Helper (Telegram Native 'Hide with spoiler')
-function updateSpoilerUI() {
-  if (toggleSpoilerBtn) {
-    toggleSpoilerBtn.classList.toggle("active", isSpoilerActive);
-    if (spoilerBtnText) {
-      spoilerBtnText.textContent = isSpoilerActive ? "Hidden with spoiler (ON)" : "Hide with spoiler";
-    }
-  }
-  if (previewMediaWrapper) {
-    previewMediaWrapper.classList.toggle("has-spoiler", isSpoilerActive);
-  }
-  if (spoilerBadgeOverlay) {
-    spoilerBadgeOverlay.style.display = isSpoilerActive ? "flex" : "none";
-  }
-  if (mediaReadyTag) {
-    mediaReadyTag.classList.toggle("spoiler-active", isSpoilerActive);
-    const isVideo = stagedMediaType.startsWith("video/") || /\.(mp4|mov|webm|mkv|avi)$/i.test(stagedMediaFileName);
-    const baseTag = isVideo ? "VIDEO" : "PHOTO";
-    mediaReadyTag.textContent = isSpoilerActive ? `SPOILER ${baseTag} READY` : `${baseTag} READY TO TRANSMIT`;
-  }
-  refreshIcons();
-}
-
-if (toggleSpoilerBtn) {
-  toggleSpoilerBtn.addEventListener("click", () => {
-    isSpoilerActive = !isSpoilerActive;
-    updateSpoilerUI();
-    showToast(isSpoilerActive ? "🙈 Telegram 'Hide with spoiler' enabled" : "👁️ Telegram 'Hide with spoiler' disabled", "success");
-  });
-}
-
-// 6. Media Handling & Base64 Converter (Images & Videos)
-function handleMediaFile(file) {
+function stageMediaFile(file) {
   if (!file) return;
 
-  const isVideo = file.type.startsWith("video/") || /\.(mp4|mov|webm|mkv|avi)$/i.test(file.name);
-  const isPhoto = file.type.startsWith("image/") || /\.(png|jpg|jpeg|gif|webp)$/i.test(file.name);
-
-  if (!isVideo && !isPhoto) {
-    showToast("⚠️ Only photos and videos are supported.", "error");
-    return;
+  const isValidType = file.type.startsWith("image/") || file.type.startsWith("video/");
+  if (!isValidType) {
+    return showToast("Only Photo (PNG/JPG/WEBP/GIF) or Video (MP4/MOV/WEBM) files are supported.", "error");
   }
 
-  stagedMediaFileName = file.name || (isVideo ? "video.mp4" : "photo.jpg");
-  stagedMediaType = file.type || (isVideo ? "video/mp4" : "image/jpeg");
+  if (file.size > 25 * 1024 * 1024) {
+    return showToast("File size exceeds 25MB limit.", "error");
+  }
 
   const reader = new FileReader();
-  reader.onload = () => {
-    stagedMediaBase64 = reader.result;
-    mediaFileName.textContent = stagedMediaFileName;
+  reader.onload = (e) => {
+    stagedMediaBase64 = e.target.result;
+    stagedMediaFileName = file.name;
+    stagedMediaType = file.type;
 
-    if (isVideo) {
-      mediaPreviewImg.style.display = "none";
-      mediaPreviewVid.style.display = "block";
-      mediaPreviewVid.src = stagedMediaBase64;
-      if (mediaReadyTag) mediaReadyTag.textContent = "VIDEO READY TO TRANSMIT";
+    mediaPreviewName.textContent = file.name;
+    const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+    mediaPreviewMeta.textContent = `${file.type.toUpperCase()} // ${sizeMb} MB`;
+
+    if (file.type.startsWith("image/")) {
+      mediaPreviewThumb.src = stagedMediaBase64;
     } else {
-      mediaPreviewVid.style.display = "none";
-      mediaPreviewImg.style.display = "block";
-      mediaPreviewImg.src = stagedMediaBase64;
-      if (mediaReadyTag) mediaReadyTag.textContent = "PHOTO READY TO TRANSMIT";
+      mediaPreviewThumb.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='%2523f59e0b' stroke-width='2'><path d='m22 8-6 4 6 4V8Z'/><rect width='14' height='12' x='2' y='6' rx='2'/></svg>";
     }
 
-    mediaStagingBar.style.display = "block";
-    chatMessageInput.focus();
-    showToast(`📎 Staged: ${stagedMediaFileName}`, "success");
+    mediaPreviewBar.style.display = "flex";
+    showToast(`📸 Media staged: ${file.name}`, "success");
   };
+
   reader.readAsDataURL(file);
 }
-
-attachMediaBtn.addEventListener("click", () => {
-  mediaFileInput.click();
-});
-
-mediaFileInput.addEventListener("change", (e) => {
-  const file = e.target.files[0];
-  if (file) handleMediaFile(file);
-});
 
 function clearStagedMedia() {
   stagedMediaBase64 = null;
   stagedMediaFileName = "";
   stagedMediaType = "";
-  isSpoilerActive = false;
-  updateSpoilerUI();
   mediaFileInput.value = "";
-  mediaPreviewImg.src = "";
-  mediaPreviewImg.style.display = "none";
-  mediaPreviewVid.src = "";
-  mediaPreviewVid.style.display = "none";
-  mediaStagingBar.style.display = "none";
+  mediaPreviewBar.style.display = "none";
 }
 
-clearMediaBtn.addEventListener("click", clearStagedMedia);
-
-// 7. Drag and Drop Support
-let dragCounter = 0;
-
-window.addEventListener("dragenter", (e) => {
-  e.preventDefault();
-  if (e.dataTransfer && e.dataTransfer.types.includes("Files")) {
-    dragCounter++;
-    if (dragDropOverlay) dragDropOverlay.style.display = "flex";
+attachMediaBtn.addEventListener("click", () => mediaFileInput.click());
+mediaFileInput.addEventListener("change", (e) => {
+  if (e.target.files && e.target.files[0]) {
+    stageMediaFile(e.target.files[0]);
   }
 });
+removeMediaBtn.addEventListener("click", clearStagedMedia);
 
+toggleSpoilerBtn.addEventListener("click", () => {
+  isSpoilerActive = !isSpoilerActive;
+  toggleSpoilerBtn.classList.toggle("active", isSpoilerActive);
+  showToast(isSpoilerActive ? "👁️‍🗨️ Spoiler mode ENABLED for media" : "👁️ Spoiler mode DISABLED", "info");
+});
+
+// Drag & Drop
 window.addEventListener("dragover", (e) => {
   e.preventDefault();
+  if (activeTargetUser) dragDropOverlay.style.display = "flex";
 });
 
-window.addEventListener("dragleave", (e) => {
+dragDropOverlay.addEventListener("dragleave", (e) => {
   e.preventDefault();
-  dragCounter--;
-  if (dragCounter <= 0) {
-    dragCounter = 0;
-    if (dragDropOverlay) dragDropOverlay.style.display = "none";
-  }
+  dragDropOverlay.style.display = "none";
 });
 
 window.addEventListener("drop", (e) => {
   e.preventDefault();
-  dragCounter = 0;
-  if (dragDropOverlay) dragDropOverlay.style.display = "none";
-
-  if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
-    const file = e.dataTransfer.files[0];
-    handleMediaFile(file);
+  dragDropOverlay.style.display = "none";
+  if (activeTargetUser && e.dataTransfer.files && e.dataTransfer.files[0]) {
+    stageMediaFile(e.dataTransfer.files[0]);
   }
 });
 
-// 8. Clipboard Paste Support (Ctrl+V directly pastes images/videos)
-window.addEventListener("paste", (e) => {
-  if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
-    const file = e.clipboardData.files[0];
-    handleMediaFile(file);
-  }
-});
+// ------------------------------------------------------------------
+// MESSAGE TRANSMISSION ENGINE (Proxy Bot POV Dispatch)
+// ------------------------------------------------------------------
 
-// 9. Easter Egg & Security Alerts System
+async function sendMessage() {
+  if (!activeTargetUser) {
+    return showToast("Please select a target user thread from the left directory first.", "error");
+  }
+
+  const text = chatMessageInput.value.trim();
+  if (!text && !stagedMediaBase64) {
+    return showToast("Please enter a text message or attach a media file.", "error");
+  }
+
+  sendBtn.disabled = true;
+  sendBtn.innerHTML = `<span class="upload-spinner"></span>`;
+
+  const payload = {
+    ownerId: OWNER_CHAT_ID,
+    targetChatId: activeTargetUser.telegramId,
+    text: text,
+    caption: text,
+    mediaBase64: stagedMediaBase64,
+    mediaType: stagedMediaType,
+    fileName: stagedMediaFileName,
+    hasSpoiler: isSpoilerActive,
+  };
+
+  try {
+    const res = await fetch(getApiUrl("/local-upload"), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload),
+    });
+
+    const data = await res.json();
+
+    if (data.ok || data.success) {
+      chatMessageInput.value = "";
+      chatMessageInput.style.height = "auto";
+      clearStagedMedia();
+      showToast("🚀 Transmitted to Telegram successfully!", "success");
+
+      await loadConversationMessages(true);
+      await fetchUsers();
+    } else {
+      showToast(`⚠️ Delivery failed: ${data.error || "Telegram API Error"}`, "error");
+    }
+  } catch (err) {
+    console.error("Message send error:", err);
+    showToast("❌ Network error delivering message.", "error");
+  } finally {
+    sendBtn.disabled = false;
+    sendBtn.innerHTML = `<i data-lucide="arrow-up"></i>`;
+    refreshIcons();
+  }
+}
+
+// ------------------------------------------------------------------
+// EASTER EGG & SECURITY ALERTS SYSTEM
+// ------------------------------------------------------------------
+
 let cachedAlerts = [];
 
 async function fetchAlerts() {
   try {
-    const alertsUrl = window.location.origin.includes("localhost")
-      ? "/api/admin/alerts"
-      : `${API_BASE_URL}/admin/alerts`;
-
-    const res = await fetch(alertsUrl);
+    const res = await fetch(getApiUrl("/admin/alerts"));
     const data = await res.json();
 
     if (data.ok || data.alerts) {
       cachedAlerts = data.alerts || [];
       unreadAlertsCount = data.unreadCount || 0;
 
-      // Update Header Bell Badge
       if (alertsBadgeCount) {
         if (unreadAlertsCount > 0) {
           alertsBadgeCount.textContent = `${unreadAlertsCount} NEW`;
@@ -797,7 +607,6 @@ async function fetchAlerts() {
         }
       }
 
-      // Check if new alert just triggered
       if (unreadAlertsCount > lastAlertsCount && cachedAlerts.length > 0) {
         const topAlert = cachedAlerts[0];
         showToast(`🚨 Easter Egg Trigger: "${topAlert.trigger}" by ${topAlert.userName || "User"}!`, "error");
@@ -878,7 +687,6 @@ function renderAlertsModal() {
         (alert.trigger && alert.trigger.toLowerCase().includes("meme")) ||
         (alert.message && alert.message.toLowerCase().includes("show_meme"))
       ) {
-        // Direct Send Meme Button for any /show_meme or NSFW alert
         memeActionDeck = `
           <div class="alert-meme-preview-wrap" style="justify-content: flex-end;">
             <button class="meme-action-btn approve send-direct-meme-btn" data-chat-id="${alert.chatId}">
@@ -907,7 +715,6 @@ function renderAlertsModal() {
     })
     .join("");
 
-  // Attach Approve / Reject Button handlers
   alertsListBody.querySelectorAll(".meme-action-btn.approve:not(.send-direct-meme-btn)").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
       e.stopPropagation();
@@ -928,7 +735,6 @@ function renderAlertsModal() {
     });
   });
 
-  // Attach Direct Send Meme from Alert
   alertsListBody.querySelectorAll(".send-direct-meme-btn").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
       e.stopPropagation();
@@ -941,7 +747,6 @@ function renderAlertsModal() {
     });
   });
 
-  // Attach click to jump into user thread
   alertsListBody.querySelectorAll(".alert-item-card").forEach((card) => {
     card.addEventListener("click", (e) => {
       if (e.target.closest(".meme-action-btn")) return;
@@ -968,11 +773,7 @@ async function quickCastMeme(targetChatId) {
   try {
     showToast("🌶️ Fetching and transmitting random NSFW meme...", "success");
 
-    const castUrl = window.location.origin.includes("localhost")
-      ? "/api/admin/send-random-meme"
-      : `${API_BASE_URL}/admin/send-random-meme`;
-
-    const res = await fetch(castUrl, {
+    const res = await fetch(getApiUrl("/admin/send-random-meme"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ targetChatId }),
@@ -994,11 +795,7 @@ async function quickCastMeme(targetChatId) {
 
 async function executeMemeAction(requestId, action) {
   try {
-    const actionUrl = window.location.origin.includes("localhost")
-      ? "/api/admin/meme-action"
-      : `${API_BASE_URL}/admin/meme-action`;
-
-    const res = await fetch(actionUrl, {
+    const res = await fetch(getApiUrl("/admin/meme-action"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ requestId, action }),
@@ -1031,11 +828,7 @@ function closeAlertsModal() {
 
 async function markAllAlertsAsRead() {
   try {
-    const markUrl = window.location.origin.includes("localhost")
-      ? "/api/admin/alerts/mark-read"
-      : `${API_BASE_URL}/admin/alerts/mark-read`;
-
-    await fetch(markUrl, { method: "POST" });
+    await fetch(getApiUrl("/admin/alerts/mark-read"), { method: "POST" });
     unreadAlertsCount = 0;
     lastAlertsCount = 0;
     cachedAlerts.forEach((a) => (a.isRead = true));
@@ -1075,7 +868,10 @@ if (quickCastMemeBtn) {
   });
 }
 
-// 7. Event Listeners & Shortcuts
+// ------------------------------------------------------------------
+// 7. EVENT LISTENERS & INITIALIZATION
+// ------------------------------------------------------------------
+
 sendBtn.addEventListener("click", sendMessage);
 
 chatMessageInput.addEventListener("keydown", (e) => {
@@ -1085,7 +881,6 @@ chatMessageInput.addEventListener("keydown", (e) => {
   }
 });
 
-// Auto-expand textarea
 chatMessageInput.addEventListener("input", () => {
   chatMessageInput.style.height = "auto";
   chatMessageInput.style.height = `${Math.min(chatMessageInput.scrollHeight, 120)}px`;
@@ -1095,17 +890,15 @@ userSearchInput.addEventListener("input", renderUsersList);
 refreshUsersBtn.addEventListener("click", fetchUsers);
 manualRefreshBtn.addEventListener("click", () => loadConversationMessages(true));
 
-// Toggle Auto-Polling
 autoPollToggleBtn.addEventListener("click", () => {
   isAutoPollActive = !isAutoPollActive;
   autoPollToggleBtn.classList.toggle("active", isAutoPollActive);
   autoPollToggleBtn.querySelector("span").textContent = isAutoPollActive ? "AUTO-SYNC: ON" : "AUTO-SYNC: OFF";
 });
 
-// Real-Time Polling Loop (Smart visibility-aware sync to conserve MongoDB connection limits)
+// Real-Time Polling Loop
 function startPolling() {
   setInterval(async () => {
-    // Only poll when the tab is actively visible to the user
     if (isAutoPollActive && document.visibilityState === "visible") {
       if (activeTargetUser) {
         await loadConversationMessages();
@@ -1113,25 +906,28 @@ function startPolling() {
       await fetchUsers();
       await fetchAlerts();
     }
-  }, 4000);
-
-  // Instantly fetch latest updates when user switches back to this tab
-  document.addEventListener("visibilitychange", async () => {
-    if (document.visibilityState === "visible" && isAutoPollActive) {
-      if (activeTargetUser) {
-        await loadConversationMessages();
-      }
-      await fetchUsers();
-      await fetchAlerts();
-    }
-  });
+  }, 2500);
 }
 
-// Initialization
-document.addEventListener("DOMContentLoaded", () => {
-  startLiveClock();
-  fetchUsers();
-  fetchAlerts();
-  startPolling();
+// Live Clock
+function updateClock() {
+  if (liveClock) {
+    const now = new Date();
+    liveClock.textContent = `${now.toLocaleTimeString("en-US", { hour12: false })} IST`;
+  }
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// Initial Boot
+document.addEventListener("DOMContentLoaded", async () => {
   refreshIcons();
+  await fetchUsers();
+  await fetchAlerts();
+
+  if (allUsers.length > 0) {
+    selectUserThread(allUsers[0]);
+  }
+
+  startPolling();
 });
