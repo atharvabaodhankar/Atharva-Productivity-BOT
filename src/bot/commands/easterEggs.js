@@ -194,4 +194,31 @@ module.exports = (bot) => {
       console.error("meme_rejc error:", err);
     }
   });
+
+  // 7. Video Command: Fetch video from specific subreddit (e.g. /video dankvideos or /video unexpected)
+  bot.command(["video", "v", "video_meme", "videomeme"], async (ctx) => {
+    try {
+      const chatId = ctx.chat.id;
+      const textParts = (ctx.message.text || "").trim().split(/\s+/);
+      const requestedSub = textParts[1] ? textParts[1].replace(/^r\//i, "") : "dankvideos";
+
+      const waitMsg = await ctx.reply(`🎬 Finding the best video from r/${requestedSub}... ⏳`);
+
+      const { sendSubredditVideo } = require("../../services/memeService");
+      try {
+        await sendSubredditVideo(bot, chatId, requestedSub);
+        try { await ctx.deleteMessage(waitMsg.message_id); } catch (e) {}
+      } catch (vidErr) {
+        console.warn("/video fetch fallback, trying r/unexpected...", vidErr.message);
+        try {
+          await sendSubredditVideo(bot, chatId, "unexpected");
+          try { await ctx.deleteMessage(waitMsg.message_id); } catch (e) {}
+        } catch (subErr) {
+          await ctx.reply(`Arre yaar, r/${requestedSub} se video fetch nahi ho payi! Try again in a sec. 😅`);
+        }
+      }
+    } catch (err) {
+      console.error("/video command error:", err);
+    }
+  });
 };

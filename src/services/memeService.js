@@ -278,8 +278,74 @@ async function sendRandomMemeToChat(bot, chatId) {
   return { ok: true, meme, history: historyDoc };
 }
 
+async function fetchSubredditContent({ subreddit = "", category = "all", filterVideo = false } = {}) {
+  const apiUrl = MEME_API_URL || process.env.MEME_API_URL || "https://redditreels.onrender.com";
+  const apiKey = MEME_API_KEY || process.env.MEME_API_KEY || "rr_live_9f8d7a6b5c4e3d2a1f0e8d7c6b5a4f3e";
+
+  let endpoint = `${apiUrl}/api/memes/random?`;
+  const params = [];
+  if (subreddit) params.push(`subreddit=${encodeURIComponent(subreddit)}`);
+  if (category && !subreddit) params.push(`category=${encodeURIComponent(category)}`);
+  endpoint += params.join("&");
+
+  try {
+    for (let attempt = 0; attempt < 4; attempt++) {
+      const res = await fetch(endpoint, {
+        headers: { "x-api-key": apiKey, Accept: "application/json" },
+      });
+      if (!res.ok) continue;
+      const data = await res.json();
+      if (!data || !data.url) continue;
+
+      if (!filterVideo) return data;
+      const isVid = data.mediaType === "video" || /\.mp4(\?.*)?$/i.test(data.url) || data.url.includes("v.redd.it");
+      if (isVid) return data;
+    }
+
+    if (filterVideo) {
+      const vidSub = subreddit || "dankvideos";
+      const vidRes = await fetch(`${apiUrl}/api/memes/random?subreddit=${encodeURIComponent(vidSub)}`, {
+        headers: { "x-api-key": apiKey, Accept: "application/json" },
+      });
+      if (vidRes.ok) {
+        const vidData = await vidRes.json();
+        if (vidData && vidData.url) return vidData;
+      }
+    }
+  } catch (err) {
+    console.error("fetchSubredditContent error:", err.message);
+  }
+  return null;
+}
+
+async function sendSubredditVideo(bot, chatId, subreddit = "dankvideos") {
+  const media = await fetchSubredditContent({ subreddit, filterVideo: true });
+  if (!media || !media.url) {
+    throw new Error(`Unable to fetch video from r/${subreddit} right now.`);
+  }
+
+  const captionHtml = `🎬 <b>${markdownToTelegramHtml(media.title || "Reddit Video")}</b>\n\n📂 <i>r/${escapeHtml(media.subreddit || subreddit)}</i> • <a href="${media.permalink || media.url}">Reddit Source Link</a>`;
+
+  const sentMsg = await sendTelegramMediaSafely(bot, chatId, media.url, {
+    caption: captionHtml,
+    parse_mode: "HTML",
+    mediaType: "video",
+  });
+
+  await History.create({
+    chatId: Number(chatId),
+    role: "assistant",
+    content: `[Video: ${media.title}] (r/${media.subreddit || subreddit})`,
+    telegramMessageId: sentMsg?.message_id || null,
+  });
+
+  return { media, sentMsg };
+}
+
 module.exports = {
   fetchRandomNsfwMeme,
+  fetchSubredditContent,
+  sendSubredditVideo,
   requestOwnerMemeApproval,
   handleMemeApprovalAction,
   processMemeApproval,
