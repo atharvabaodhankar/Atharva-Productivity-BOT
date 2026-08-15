@@ -485,10 +485,36 @@ svg.lucide {
 .badge-tag { background: var(--flo-lavender-light); color: var(--flo-lavender-dark); font-weight: 600; }
 .badge-project { background: var(--flo-lavender-dark); color: #FFFFFF; font-weight: 800; letter-spacing: 0.05em; }
 .badge-parent-project { background: var(--flo-lavender-light); color: var(--flo-lavender-dark); font-weight: 700; border: 1px solid var(--flo-lavender-border); }
+.badge-video { background: rgba(186, 171, 255, 0.35); color: var(--ink-primary); font-weight: 700; border: 1px solid var(--flo-lavender-border); }
 
 .project-card {
   border-left: 4px solid var(--flo-lavender-dark);
   background: linear-gradient(135deg, #FFFFFF, rgba(186, 171, 255, 0.08));
+}
+
+.video-card {
+  border-left: 4px solid var(--flo-lavender);
+}
+
+.link-action-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: var(--flo-lavender);
+  color: var(--ink-primary);
+  text-decoration: none;
+  font-size: 0.75rem;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  border: 1px solid var(--flo-lavender-dark);
+  transition: all var(--dur) var(--ease);
+}
+
+.link-action-pill:hover {
+  background: var(--flo-lavender-dark);
+  color: #FFFFFF;
+  transform: translateY(-1px);
 }
 
 .due-indicator {

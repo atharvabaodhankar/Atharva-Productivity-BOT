@@ -19,6 +19,8 @@ const memorySchema = new mongoose.Schema(
         "reminder",
         "note",
         "reflection",
+        "video",
+        "link",
       ],
       required: true,
       default: "task",
@@ -26,6 +28,11 @@ const memorySchema = new mongoose.Schema(
     content: {
       type: String,
       required: true,
+    },
+    url: {
+      type: String,
+      default: "",
+      trim: true,
     },
     date: {
       type: Date,

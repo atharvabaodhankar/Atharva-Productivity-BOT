@@ -164,6 +164,7 @@ async function askAI({ message, chatId, historyContext = "", base64ImageUrl = nu
             chatId,
             type: args.type || "task",
             content: args.content,
+            url: args.url || "",
             date: parsedDate,
             priority: args.priority || "medium",
             tags: args.tags || [],

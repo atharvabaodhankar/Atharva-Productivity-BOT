@@ -19,12 +19,18 @@ const tools = [
               "reminder",
               "note",
               "reflection",
+              "video",
+              "link",
             ],
             description: "The category of item to store.",
           },
           content: {
             type: "string",
-            description: "The clear, actionable description of the item.",
+            description: "The clear title or actionable description of the item.",
+          },
+          url: {
+            type: "string",
+            description: "Optional web URL or video link (e.g. YouTube, Loom, GitHub, Drive, article link) to bookmark.",
           },
           date: {
             type: "string",

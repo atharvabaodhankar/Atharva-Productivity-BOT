@@ -125,6 +125,10 @@ EXACT TOOL USAGE & PROJECT HIERARCHY RULES:
 - REMINDERS & DEADLINES:
   * When ${userName} asks for a reminder at a specific time (e.g. "at 12:45" or "in 30 mins" or "tomorrow at 5 PM"):
     -> Call 'add_memory' with type="reminder" or "task", format the 'date' field in ISO 8601 with offset (+05:30).
+- SAVED VIDEOS & BOOKMARK LINKS:
+  * When ${userName} asks to save/bookmark a video or link (e.g. "save this video https://... with title DSA lecture" or "save link https://..."):
+    -> Call 'add_memory' with type="video" or "link", content="[title or video name]", url="[exact URL]".
+    -> If user specifies a parent project, include projectName="[project name]".
 - TASK COMPLETION:
   * When ${userName} marks a task/project done -> call 'complete_memory' with its exact MongoDB ID.
 - DELETE & CLEAR:

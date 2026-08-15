@@ -50,6 +50,7 @@ const openAddModalBtn = document.getElementById("openAddModalBtn");
 const closeAddModalBtn = document.getElementById("closeAddModalBtn");
 const addTaskForm = document.getElementById("addTaskForm");
 const taskProjectInput = document.getElementById("taskProjectInput");
+const taskUrlInput = document.getElementById("taskUrlInput");
 
 // Conversation Modal Elements
 const convoModal = document.getElementById("convoModal");
@@ -134,12 +135,12 @@ async function fetchTasks() {
         },
         {
           _id: "demo2",
-          type: "task",
-          content: "Create overview plan",
-          projectName: "Blockchain Land Registry System",
+          type: "video",
+          content: "Next.js 15 & Solana Web3 Tutorial",
+          url: "https://youtube.com",
           completed: false,
           priority: "medium",
-          tags: ["planning"],
+          tags: ["video", "study"],
         },
       ];
       updateProgress({ total: 2, completed: 0, progress: 0 });
@@ -163,7 +164,7 @@ function updateProgress(stats) {
   taskSummaryHeadline.textContent = `${completed} of ${total} Completed`;
 }
 
-// Render Tasks with Project Badges & Grouping
+// Render Tasks with Project Badges, Videos & Grouping
 function renderTasks() {
   taskListEl.innerHTML = "";
 
@@ -173,6 +174,8 @@ function renderTasks() {
       matchesFilter = true;
     } else if (activeFilter === "project") {
       matchesFilter = task.type === "project" || Boolean(task.projectName);
+    } else if (activeFilter === "video") {
+      matchesFilter = task.type === "video" || task.type === "link" || Boolean(task.url);
     } else {
       matchesFilter = task.type === activeFilter;
     }
@@ -180,6 +183,7 @@ function renderTasks() {
     const matchesSearch =
       !searchQuery ||
       task.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (task.url && task.url.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (task.projectName && task.projectName.toLowerCase().includes(searchQuery.toLowerCase())) ||
       (task.tags && task.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase())));
 
@@ -203,7 +207,8 @@ function renderTasks() {
   filtered.forEach((task) => {
     const card = document.createElement("div");
     const isProject = task.type === "project";
-    card.className = `item-card ${isProject ? "project-card" : ""} ${task.completed ? "completed" : ""}`;
+    const isVideo = task.type === "video" || task.type === "link" || Boolean(task.url);
+    card.className = `item-card ${isProject ? "project-card" : ""} ${isVideo ? "video-card" : ""} ${task.completed ? "completed" : ""}`;
     card.dataset.id = task._id;
 
     // Due date
@@ -230,12 +235,25 @@ function renderTasks() {
     const priorityLabel = priority === "high" ? "High" : priority === "low" ? "Low" : "Med";
     const priorityBadge = `<span class="badge badge-${priority}">${priorityLabel}</span>`;
 
-    // Type / Project Badge
+    // Type / Project / Video Badge
     let typeBadge = "";
     if (isProject) {
       typeBadge = `<span class="badge badge-project"><i data-lucide="folder" class="icon-inline"></i> PROJECT</span>`;
+    } else if (isVideo) {
+      typeBadge = `<span class="badge badge-video"><i data-lucide="video" class="icon-inline"></i> SAVED LINK</span>`;
     } else if (task.projectName) {
       typeBadge = `<span class="badge badge-parent-project"><i data-lucide="folder-git-2" class="icon-inline"></i> ${escapeHtml(task.projectName)}</span>`;
+    }
+
+    // URL Button
+    let urlBtnHtml = "";
+    if (task.url) {
+      urlBtnHtml = `
+        <a href="${escapeHtml(task.url)}" target="_blank" rel="noopener noreferrer" class="link-action-pill" onclick="event.stopPropagation()">
+          <i data-lucide="external-link" class="icon-inline"></i>
+          <span>Open Link</span>
+        </a>
+      `;
     }
 
     // Tags
@@ -256,6 +274,7 @@ function renderTasks() {
           ${typeBadge}
           ${priorityBadge}
           ${dueHtml}
+          ${urlBtnHtml}
           ${tagsHtml}
         </div>
       </div>
@@ -338,6 +357,7 @@ addTaskForm.addEventListener("submit", async (e) => {
   const type = document.querySelector('input[name="type"]:checked')?.value || "task";
   const content = document.getElementById("taskContentInput").value.trim();
   const projectName = taskProjectInput ? taskProjectInput.value.trim() : "";
+  const url = taskUrlInput ? taskUrlInput.value.trim() : "";
   const dateVal = document.getElementById("taskDateInput").value;
   const priority = document.getElementById("taskPriorityInput").value;
   const rawTags = document.getElementById("taskTagsInput").value;
@@ -352,6 +372,7 @@ addTaskForm.addEventListener("submit", async (e) => {
     _id: "temp_" + Date.now(),
     type,
     content,
+    url: url || "",
     projectName: type !== "project" ? projectName : "",
     date: dateVal ? new Date(dateVal).toISOString() : null,
     priority,
@@ -376,6 +397,7 @@ addTaskForm.addEventListener("submit", async (e) => {
         chatId: currentUser.id,
         type,
         content,
+        url: url || "",
         projectName: type !== "project" ? projectName : "",
         date: dateVal || null,
         priority,
@@ -387,6 +409,7 @@ addTaskForm.addEventListener("submit", async (e) => {
       tempTask._id = data.task._id;
       tempTask.projectId = data.task.projectId;
       tempTask.projectName = data.task.projectName;
+      tempTask.url = data.task.url;
     }
   } catch (err) {
     console.error("Failed to create task:", err);

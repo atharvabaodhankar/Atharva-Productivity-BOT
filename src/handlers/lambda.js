@@ -137,6 +137,7 @@ exports.handler = async (event, context) => {
           chatId: payload.chatId,
           type: payload.type || "task",
           content: payload.content,
+          url: payload.url || "",
           date: payload.date ? new Date(payload.date) : null,
           priority: payload.priority || "medium",
           tags: Array.isArray(payload.tags) ? payload.tags : [],
