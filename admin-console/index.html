@@ -119,6 +119,25 @@
         </div>
       </div>
 
+      <!-- Live Upload Progress Bar -->
+      <div class="upload-progress-wrapper" id="uploadProgressWrapper" style="display:none;">
+        <div class="progress-info-row">
+          <div class="progress-label-wrap">
+            <span class="upload-spinner"></span>
+            <span id="uploadStatusText" class="mono-meta">TRANSMITTING VIDEO TO TELEGRAM...</span>
+          </div>
+          <span id="uploadPercentText" class="mono-meta">0%</span>
+        </div>
+        <div class="progress-track">
+          <div id="progressBarFill" class="progress-fill" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <!-- Toast Banner -->
+      <div id="toastNotification" class="toast-notification" style="display:none;">
+        <span id="toastMsg">Notification</span>
+      </div>
+
       <!-- Chat Input Deck -->
       <footer class="input-deck">
         <div class="input-container">

@@ -1,4 +1,4 @@
-// AtharvaOS // Monochrome Bot POV Console Controller (Zero-Flicker Live Engine)
+// AtharvaOS // Monochrome Bot POV Console Controller (Zero-Flicker Live Engine & Direct Media Uploader)
 
 const API_BASE_URL = "https://ged2lb24hngndlzk5b73dmvdqy0ydsmo.lambda-url.ap-south-1.on.aws/api";
 const OWNER_CHAT_ID = "5275149287";
@@ -34,6 +34,13 @@ const mediaFileName = document.getElementById("mediaFileName");
 const mediaReadyTag = document.getElementById("mediaReadyTag");
 const clearMediaBtn = document.getElementById("clearMediaBtn");
 
+const uploadProgressWrapper = document.getElementById("uploadProgressWrapper");
+const progressBarFill = document.getElementById("progressBarFill");
+const uploadStatusText = document.getElementById("uploadStatusText");
+const uploadPercentText = document.getElementById("uploadPercentText");
+const toastNotification = document.getElementById("toastNotification");
+const toastMsg = document.getElementById("toastMsg");
+
 const mediaFileInput = document.getElementById("mediaFileInput");
 const attachMediaBtn = document.getElementById("attachMediaBtn");
 const chatMessageInput = document.getElementById("chatMessageInput");
@@ -43,6 +50,33 @@ const sendBtn = document.getElementById("sendBtn");
 function refreshIcons() {
   if (window.lucide && typeof window.lucide.createIcons === "function") {
     window.lucide.createIcons();
+  }
+}
+
+// Toast Notifications
+function showToast(message, type = "success") {
+  if (!toastNotification || !toastMsg) return;
+  toastMsg.textContent = message;
+  toastNotification.className = `toast-notification ${type}`;
+  toastNotification.style.display = "flex";
+  setTimeout(() => {
+    toastNotification.style.display = "none";
+  }, 4000);
+}
+
+// Upload Progress Helper
+function updateUploadProgress(percent, label) {
+  if (!uploadProgressWrapper) return;
+  uploadProgressWrapper.style.display = "flex";
+  progressBarFill.style.width = `${percent}%`;
+  uploadPercentText.textContent = `${percent}%`;
+  if (label) uploadStatusText.textContent = label;
+}
+
+function hideUploadProgress() {
+  if (uploadProgressWrapper) {
+    uploadProgressWrapper.style.display = "none";
+    progressBarFill.style.width = "0%";
   }
 }
 
@@ -92,14 +126,12 @@ async function fetchUsers() {
     const data = await res.json();
 
     if (data && data.users) {
-      // Calculate a signature to check if user list actually changed
       const newSignature = data.users
         .map((u) => `${u.telegramId}-${u.messageCount}-${u.lastActive}-${u.lastMessageSnippet}`)
         .join("|");
 
       allUsers = data.users;
 
-      // Only re-render if user data or order actually changed
       if (newSignature !== lastUsersSignature) {
         lastUsersSignature = newSignature;
         renderUsersList();
@@ -151,7 +183,6 @@ function renderUsersList() {
     })
     .join("");
 
-  // Attach click events
   usersListEl.querySelectorAll(".user-item").forEach((el) => {
     el.addEventListener("click", () => {
       const chatId = el.dataset.chatId;
@@ -167,7 +198,7 @@ function renderUsersList() {
 async function selectUserThread(user) {
   activeTargetUser = user;
   activeMessages = [];
-  renderUsersList(); // Update active highlights
+  renderUsersList();
 
   const displayName = user.firstName || (user.username ? `@${user.username}` : `User #${user.telegramId}`);
   activeUserName.textContent = displayName;
@@ -218,7 +249,6 @@ async function loadConversationMessages(isInitialSelect = false) {
     const data = await res.json();
 
     if (data && data.messages) {
-      // Sort messages deterministically: user prompt ALWAYS precedes assistant reply
       const incomingMessages = (data.messages || []).sort((a, b) => {
         const timeA = new Date(a.createdAt).getTime();
         const timeB = new Date(b.createdAt).getTime();
@@ -228,7 +258,6 @@ async function loadConversationMessages(isInitialSelect = false) {
         return (a._id || "").localeCompare(b._id || "");
       });
 
-      // Compute signature of current DOM vs incoming messages
       const currentDomKeys = Array.from(messagesStreamEl.querySelectorAll(".msg-row"))
         .map((el) => el.dataset.msgKey)
         .filter(Boolean);
@@ -236,7 +265,6 @@ async function loadConversationMessages(isInitialSelect = false) {
         (msg) => msg._id || `${msg.role}-${msg.content}-${msg.createdAt}`
       );
 
-      // If nothing changed, do ZERO DOM operations (No flicker, no shuttering)
       if (
         !isInitialSelect &&
         currentDomKeys.length === incomingKeys.length &&
@@ -245,7 +273,6 @@ async function loadConversationMessages(isInitialSelect = false) {
         return;
       }
 
-      // Check if user was near bottom before updating
       const isNearBottom =
         messagesStreamEl.scrollHeight - messagesStreamEl.scrollTop <= messagesStreamEl.clientHeight + 80;
 
@@ -277,10 +304,10 @@ async function loadConversationMessages(isInitialSelect = false) {
   }
 }
 
-// 5. Send Message as Bot (Human Proxy with Video & Photo)
+// 5. Send Message as Bot (Human Proxy with Real-Time Video & Photo Progress)
 async function sendMessage() {
   if (!activeTargetUser) {
-    alert("Please select a user thread first!");
+    showToast("Please select a user thread first!", "error");
     return;
   }
 
@@ -313,11 +340,55 @@ async function sendMessage() {
   activeMessages.push(tempMsg);
   messagesStreamEl.scrollTop = messagesStreamEl.scrollHeight;
 
-  try {
-    const res = await fetch(`${API_BASE_URL}/admin/send-message`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
+  // -------------------------------------------------------------
+  // If Media is attached: Use direct XHR with Upload Progress Bar!
+  // -------------------------------------------------------------
+  if (media) {
+    sendBtn.disabled = true;
+    updateUploadProgress(10, `UPLOADING ${isVideo ? "VIDEO" : "PHOTO"}...`);
+
+    const xhr = new XMLHttpRequest();
+    // Use local server upload endpoint when running locally, fallback to AWS API URL
+    const uploadUrl = window.location.origin.includes("localhost")
+      ? "/api/local-upload"
+      : `${API_BASE_URL}/admin/send-message`;
+
+    xhr.upload.onprogress = (event) => {
+      if (event.lengthComputable) {
+        const percent = Math.min(95, Math.round((event.loaded / event.total) * 90) + 5);
+        const loadedMb = (event.loaded / (1024 * 1024)).toFixed(1);
+        const totalMb = (event.total / (1024 * 1024)).toFixed(1);
+        updateUploadProgress(percent, `TRANSMITTING ${isVideo ? "VIDEO" : "PHOTO"} (${loadedMb}MB / ${totalMb}MB)...`);
+      }
+    };
+
+    xhr.onload = () => {
+      sendBtn.disabled = false;
+      updateUploadProgress(100, "TELEGRAM PROCESSING...");
+      setTimeout(hideUploadProgress, 1000);
+
+      try {
+        const data = JSON.parse(xhr.responseText);
+        if (data.ok || data.success) {
+          showToast(`✅ ${isVideo ? "Video" : "Photo"} delivered to Telegram!`, "success");
+        } else {
+          showToast(`⚠️ ${data.error || "Telegram upload failed"}`, "error");
+        }
+      } catch (e) {
+        showToast("⚠️ Delivery response error.", "error");
+      }
+    };
+
+    xhr.onerror = () => {
+      sendBtn.disabled = false;
+      hideUploadProgress();
+      showToast("❌ Network error while uploading media.", "error");
+    };
+
+    xhr.open("POST", uploadUrl, true);
+    xhr.setRequestHeader("Content-Type", "application/json");
+    xhr.send(
+      JSON.stringify({
         ownerId: OWNER_CHAT_ID,
         targetChatId: activeTargetUser.telegramId,
         text,
@@ -325,15 +396,28 @@ async function sendMessage() {
         mediaType: mType,
         fileName: fName,
         caption: text,
-      }),
-    });
+      })
+    );
+  } else {
+    // Pure Text Message
+    try {
+      const res = await fetch(`${API_BASE_URL}/admin/send-message`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ownerId: OWNER_CHAT_ID,
+          targetChatId: activeTargetUser.telegramId,
+          text,
+        }),
+      });
 
-    const data = await res.json();
-    if (!data.success) {
-      console.error("Delivery error:", data.error);
+      const data = await res.json();
+      if (!data.success) {
+        showToast(`⚠️ ${data.error || "Failed to send text"}`, "error");
+      }
+    } catch (err) {
+      showToast("❌ Failed to transmit text via bot.", "error");
     }
-  } catch (err) {
-    console.error("Failed to transmit message via bot:", err);
   }
 }
 
