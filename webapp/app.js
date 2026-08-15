@@ -1,4 +1,4 @@
-// AtharvaOS Dual-Color (Flo 101) Mini App Controller with Professional Lucide Icons
+// AtharvaOS Dual-Color (Flo 101) Mini App Controller with Telegram Profile Photos
 
 const API_BASE_URL = "https://ged2lb24hngndlzk5b73dmvdqy0ydsmo.lambda-url.ap-south-1.on.aws/api";
 const OWNER_CHAT_ID = "5275149287";
@@ -16,10 +16,14 @@ let currentUser = {
   id: OWNER_CHAT_ID,
   first_name: "Atharva",
   username: "op_athu",
+  photo_url: null,
 };
 
 if (tg?.initDataUnsafe?.user) {
-  currentUser = tg.initDataUnsafe.user;
+  currentUser = {
+    ...currentUser,
+    ...tg.initDataUnsafe.user,
+  };
 }
 
 // State
@@ -52,11 +56,23 @@ function refreshIcons() {
   }
 }
 
+// Render User Avatar (Real Telegram Profile Photo or Initial)
+function renderAvatar(photoUrl, name) {
+  const safeName = name || "Champ";
+  const initial = safeName.charAt(0).toUpperCase();
+
+  if (photoUrl) {
+    userAvatar.innerHTML = `<img src="${photoUrl}" alt="${safeName}" class="avatar-photo" onerror="this.parentElement.textContent='${initial}'">`;
+  } else {
+    userAvatar.textContent = initial;
+  }
+}
+
 // Initialize User Profile
 function setupUserProfile() {
-  const initial = (currentUser.first_name || "A").charAt(0).toUpperCase();
-  userAvatar.textContent = initial;
-  greetingText.textContent = `Good day, ${currentUser.first_name || "Champ"}`;
+  const name = currentUser.first_name || "Champ";
+  greetingText.textContent = `Good day, ${name}`;
+  renderAvatar(currentUser.photo_url, name);
 
   // Always show Admin Tab for owner
   if (String(currentUser.id) === OWNER_CHAT_ID || String(currentUser.id) === "5275149287") {
@@ -79,10 +95,19 @@ async function fetchTasks() {
     const res = await fetch(`${API_BASE_URL}/tasks?chatId=${currentUser.id}`);
     const data = await res.json();
 
-    if (data && data.tasks) {
-      allTasks = data.tasks;
-      updateProgress(data.stats);
-      renderTasks();
+    if (data) {
+      if (data.user) {
+        if (data.user.photoUrl && !currentUser.photo_url) {
+          currentUser.photo_url = data.user.photoUrl;
+          renderAvatar(data.user.photoUrl, currentUser.first_name);
+        }
+      }
+
+      if (data.tasks) {
+        allTasks = data.tasks;
+        updateProgress(data.stats);
+        renderTasks();
+      }
     }
   } catch (err) {
     console.error("Failed to load tasks:", err);

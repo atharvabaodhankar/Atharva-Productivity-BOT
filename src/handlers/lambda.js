@@ -64,11 +64,29 @@ exports.handler = async (event, context) => {
         const completed = tasks.filter((t) => t.completed).length;
         const pending = total - completed;
 
+        // Fetch Telegram Avatar if available
+        let photoUrl = null;
+        try {
+          const photos = await bot.telegram.getUserProfilePhotos(Number(chatId), 0, 1);
+          if (photos && photos.total_count > 0 && photos.photos[0] && photos.photos[0].length > 0) {
+            const fileId = photos.photos[0][photos.photos[0].length - 1].file_id;
+            const fileLink = await bot.telegram.getFileLink(fileId);
+            photoUrl = fileLink.href || String(fileLink);
+          }
+        } catch (e) {
+          // Fallback if private or not set
+        }
+
         return {
           statusCode: 200,
           headers: CORS_HEADERS,
           body: JSON.stringify({
-            user: user || { firstName: "Friend", telegramId: chatId },
+            user: {
+              firstName: user ? user.firstName : "Friend",
+              telegramId: chatId,
+              username: user ? user.username : "",
+              photoUrl: photoUrl,
+            },
             stats: {
               total,
               completed,
@@ -157,7 +175,6 @@ exports.handler = async (event, context) => {
         const reqChatId = String(queryParams.chatId || "").trim();
         const configuredAdminId = String(process.env.CHAT_ID || CHAT_ID || "5275149287").trim();
 
-        // Allow owner ID 5275149287 or configured CHAT_ID
         if (reqChatId !== "5275149287" && reqChatId !== configuredAdminId) {
           return {
             statusCode: 403,
