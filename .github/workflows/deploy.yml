@@ -40,6 +40,7 @@ jobs:
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
           MEME_API_URL: ${{ secrets.MEME_API_URL }}
           MEME_API_KEY: ${{ secrets.MEME_API_KEY }}
+          ADMIN_SECRET: ${{ secrets.ADMIN_SECRET }}
         run: |
           echo "Packaging application..."
           zip -rq function.zip . -x ".git/*" ".github/*" ".env*" "README.md" "*.log"
@@ -56,11 +57,14 @@ jobs:
           echo "Updating Lambda environment variables..."
           aws lambda update-function-configuration \
             --function-name AtharvaOS-Bot \
-            --environment "Variables={BOT_TOKEN=\"$BOT_TOKEN\",CHAT_ID=\"$CHAT_ID\",MONGO_URI=\"$MONGO_URI\",GROQ_API_KEY=\"$GROQ_API_KEY\",MEME_API_URL=\"$MEME_API_URL\",MEME_API_KEY=\"$MEME_API_KEY\"}"
+            --environment "Variables={BOT_TOKEN=\"$BOT_TOKEN\",CHAT_ID=\"$CHAT_ID\",MONGO_URI=\"$MONGO_URI\",GROQ_API_KEY=\"$GROQ_API_KEY\",MEME_API_URL=\"$MEME_API_URL\",MEME_API_KEY=\"$MEME_API_KEY\",ADMIN_SECRET=\"$ADMIN_SECRET\"}"
 
           echo "Waiting for configuration update to complete..."
           aws lambda wait function-updated \
             --function-name AtharvaOS-Bot
+
+          echo "Linking Telegram Webhook for Bot Token..."
+          node setWebhook.js https://ged2lb24hngndlzk5b73dmvdqy0ydsmo.lambda-url.ap-south-1.on.aws/
 
           echo "Setting up Amazon EventBridge 5-minute reminder cron..."
           aws events put-rule \
