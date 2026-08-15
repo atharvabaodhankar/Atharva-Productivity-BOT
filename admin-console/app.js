@@ -873,6 +873,19 @@ function renderAlertsModal() {
             </div>
           `;
         }
+      } else if (
+        alert.type === "NSFW_TRIGGER" ||
+        (alert.trigger && alert.trigger.toLowerCase().includes("meme")) ||
+        (alert.message && alert.message.toLowerCase().includes("show_meme"))
+      ) {
+        // Direct Send Meme Button for any /show_meme or NSFW alert
+        memeActionDeck = `
+          <div class="alert-meme-preview-wrap" style="justify-content: flex-end;">
+            <button class="meme-action-btn approve send-direct-meme-btn" data-chat-id="${alert.chatId}">
+              <i data-lucide="flame"></i> Send Random NSFW Meme (Spoiler)
+            </button>
+          </div>
+        `;
       }
 
       return `
@@ -895,7 +908,7 @@ function renderAlertsModal() {
     .join("");
 
   // Attach Approve / Reject Button handlers
-  alertsListBody.querySelectorAll(".meme-action-btn.approve").forEach((btn) => {
+  alertsListBody.querySelectorAll(".meme-action-btn.approve:not(.send-direct-meme-btn)").forEach((btn) => {
     btn.addEventListener("click", async (e) => {
       e.stopPropagation();
       const reqId = btn.dataset.reqId;
@@ -915,6 +928,19 @@ function renderAlertsModal() {
     });
   });
 
+  // Attach Direct Send Meme from Alert
+  alertsListBody.querySelectorAll(".send-direct-meme-btn").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const targetChatId = btn.dataset.chatId;
+      btn.disabled = true;
+      btn.innerHTML = `<span class="upload-spinner" style="width:10px;height:10px;"></span> Transmitting...`;
+      await quickCastMeme(targetChatId);
+      btn.innerHTML = `<i data-lucide="check"></i> Sent!`;
+      refreshIcons();
+    });
+  });
+
   // Attach click to jump into user thread
   alertsListBody.querySelectorAll(".alert-item-card").forEach((card) => {
     card.addEventListener("click", (e) => {
@@ -931,6 +957,39 @@ function renderAlertsModal() {
   });
 
   refreshIcons();
+}
+
+async function quickCastMeme(targetChatId) {
+  if (!targetChatId) {
+    showToast("Please select a user conversation first.", "error");
+    return;
+  }
+
+  try {
+    showToast("🌶️ Fetching and transmitting random NSFW meme...", "success");
+
+    const castUrl = window.location.origin.includes("localhost")
+      ? "/api/admin/send-random-meme"
+      : `${API_BASE_URL}/admin/send-random-meme`;
+
+    const res = await fetch(castUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ targetChatId }),
+    });
+
+    const data = await res.json();
+    if (data.ok) {
+      showToast(`✅ Delivered: "${data.result?.meme?.title || "Meme"}" with spoiler blur!`, "success");
+      if (activeTargetUser && String(activeTargetUser.telegramId) === String(targetChatId)) {
+        await loadConversationMessages(true);
+      }
+    } else {
+      showToast(`❌ Error: ${data.error || "Could not send meme"}`, "error");
+    }
+  } catch (err) {
+    showToast(`❌ Failed to send meme: ${err.message}`, "error");
+  }
 }
 
 async function executeMemeAction(requestId, action) {
@@ -1000,6 +1059,19 @@ if (markAlertsReadBtn) {
 if (alertsModalOverlay) {
   alertsModalOverlay.addEventListener("click", (e) => {
     if (e.target === alertsModalOverlay) closeAlertsModal();
+  });
+}
+
+const quickCastMemeBtn = document.getElementById("quickCastMemeBtn");
+if (quickCastMemeBtn) {
+  quickCastMemeBtn.addEventListener("click", async () => {
+    if (!activeTargetUser) {
+      showToast("Please select a user conversation from the directory first.", "error");
+      return;
+    }
+    quickCastMemeBtn.disabled = true;
+    await quickCastMeme(activeTargetUser.telegramId);
+    quickCastMemeBtn.disabled = false;
   });
 }
 

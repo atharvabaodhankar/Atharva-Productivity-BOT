@@ -347,6 +347,37 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
+  // 6. Direct Quick-Cast Random Meme API
+  if (req.url === "/api/admin/send-random-meme" && req.method === "POST") {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+    });
+
+    req.on("end", async () => {
+      try {
+        const payload = JSON.parse(body || "{}");
+        const { targetChatId } = payload;
+        if (!targetChatId) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          return res.end(JSON.stringify({ ok: false, error: "targetChatId is required." }));
+        }
+
+        const bot = require("./src/bot");
+        const { sendRandomMemeToChat } = require("./src/services/memeService");
+        const result = await sendRandomMemeToChat(bot, targetChatId);
+
+        res.writeHead(200, { "Content-Type": "application/json" });
+        return res.end(JSON.stringify({ ok: true, result }));
+      } catch (err) {
+        console.error("send-random-meme error:", err);
+        res.writeHead(500, { "Content-Type": "application/json" });
+        return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
   // 5. Static File Server
   let filePath = path.join(ADMIN_DIR, req.url === "/" ? "index.html" : req.url.split("?")[0]);
   const ext = path.extname(filePath).toLowerCase();

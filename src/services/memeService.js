@@ -247,9 +247,36 @@ function escapeHtml(text) {
     .replace(/>/g, "&gt;");
 }
 
+async function sendRandomMemeToChat(bot, chatId) {
+  const meme = await fetchRandomNsfwMeme();
+  if (!meme || !meme.url) {
+    throw new Error("Could not fetch meme from Reddit API at this moment.");
+  }
+
+  const userCaption = `🌶️ <b>${escapeHtml(meme.title || "Random NSFW Meme")}</b>\n\n<i>(Transmitted from Mission Control Console)</i>`;
+
+  const sentMsg = await sendTelegramMediaSafely(bot, chatId, meme.url, {
+    caption: userCaption,
+    parse_mode: "HTML",
+    has_spoiler: true,
+    mediaType: meme.mediaType,
+  });
+
+  const historyDoc = await History.create({
+    chatId: Number(chatId),
+    role: "assistant",
+    content: `[Meme: ${meme.title}]`,
+    telegramMessageId: sentMsg?.message_id || null,
+    hasSpoiler: true,
+  });
+
+  return { ok: true, meme, history: historyDoc };
+}
+
 module.exports = {
   fetchRandomNsfwMeme,
   requestOwnerMemeApproval,
   handleMemeApprovalAction,
   processMemeApproval,
+  sendRandomMemeToChat,
 };
