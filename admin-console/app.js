@@ -1,4 +1,4 @@
-// AtharvaOS // Monochrome Bot POV Console Controller
+// AtharvaOS // Monochrome Bot POV Console Controller (Real-Time Live Engine)
 
 const API_BASE_URL = "https://ged2lb24hngndlzk5b73dmvdqy0ydsmo.lambda-url.ap-south-1.on.aws/api";
 const OWNER_CHAT_ID = "5275149287";
@@ -10,7 +10,7 @@ let activeMessages = [];
 let stagedMediaBase64 = null;
 let stagedMediaFileName = "";
 let isAutoPollActive = true;
-let pollTimer = null;
+let lastKnownMsgCount = 0;
 
 // DOM Elements
 const usersListEl = document.getElementById("usersListEl");
@@ -62,11 +62,27 @@ function startLiveClock() {
 function escapeHtml(str) {
   if (!str) return "";
   const div = document.createElement("div");
-  div.textContent = str;
+  div.textContent = String(str);
   return div.innerHTML;
 }
 
-// 1. Fetch Users List
+// Relative Time Formatter
+function formatRelativeTime(dateStr) {
+  if (!dateStr) return "";
+  const d = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now - d;
+  const diffSec = Math.floor(diffMs / 1000);
+  const diffMin = Math.floor(diffSec / 60);
+  const diffHours = Math.floor(diffMin / 60);
+
+  if (diffSec < 45) return "Just now";
+  if (diffMin < 60) return `${diffMin}m ago`;
+  if (diffHours < 24) return d.toLocaleTimeString("en-US", { hour: "numeric", minute: "2-digit", hour12: true });
+  return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+
+// 1. Fetch Users List (Sorted by Most Recent Activity)
 async function fetchUsers() {
   try {
     const res = await fetch(`${API_BASE_URL}/stats?chatId=${OWNER_CHAT_ID}`);
@@ -81,7 +97,7 @@ async function fetchUsers() {
   }
 }
 
-// 2. Render Users Directory
+// 2. Render Users Directory (Handles Users With and Without Username)
 function renderUsersList() {
   const query = userSearchInput.value.toLowerCase().trim();
   const filtered = allUsers.filter((u) => {
@@ -98,18 +114,24 @@ function renderUsersList() {
 
   usersListEl.innerHTML = filtered
     .map((u) => {
-      const initial = (u.firstName || "U").charAt(0).toUpperCase();
+      const displayName = u.firstName || (u.username ? `@${u.username}` : `User #${u.telegramId}`);
+      const initial = displayName.replace(/^@/, "").charAt(0).toUpperCase() || "U";
       const isActive = activeTargetUser && String(activeTargetUser.telegramId) === String(u.telegramId);
+      const handleTag = u.username ? `@${escapeHtml(u.username)}` : `ID:${u.telegramId}`;
+      const timeStr = formatRelativeTime(u.lastActive);
 
       return `
         <div class="user-item ${isActive ? "active" : ""}" data-chat-id="${u.telegramId}">
           <div class="user-avatar-mini">${escapeHtml(initial)}</div>
           <div class="user-info-col">
             <div class="user-top-line">
-              <span class="user-name-text">${escapeHtml(u.firstName)}</span>
-              <span class="msg-count-tag">${u.messageCount || 0} msgs</span>
+              <span class="user-name-text">${escapeHtml(displayName)}</span>
+              <span class="msg-count-tag">${timeStr || `${u.messageCount || 0} msgs`}</span>
             </div>
-            <div class="user-snippet-text">${escapeHtml(u.lastMessageSnippet || "No activity")}</div>
+            <div class="user-snippet-text">
+              <span style="color:var(--border-highlight); font-family:var(--font-mono); font-size:0.7rem; margin-right:4px;">${handleTag}</span>
+              ${escapeHtml(u.lastMessageSnippet || "No activity")}
+            </div>
           </div>
         </div>
       `;
@@ -131,25 +153,26 @@ function renderUsersList() {
 // 3. Select a User Thread
 async function selectUserThread(user) {
   activeTargetUser = user;
+  lastKnownMsgCount = 0;
   renderUsersList(); // Update active highlights
 
-  const name = user.firstName || "User";
-  activeUserName.textContent = name;
-  activeAvatar.textContent = name.charAt(0).toUpperCase();
-  activeUserHandle.textContent = user.username ? `@${user.username}` : "NO HANDLE";
+  const displayName = user.firstName || (user.username ? `@${user.username}` : `User #${user.telegramId}`);
+  activeUserName.textContent = displayName;
+  activeAvatar.textContent = displayName.replace(/^@/, "").charAt(0).toUpperCase() || "U";
+  activeUserHandle.textContent = user.username ? `@${user.username}` : "NO USERNAME";
   activeUserMeta.textContent = `TG_ID: ${user.telegramId}`;
 
   messagesStreamEl.innerHTML = `
-    <div class="skeleton-row" style="width:60%;"></div>
-    <div class="skeleton-row" style="width:70%; align-self:flex-end;"></div>
+    <div class="skeleton-row" style="width:50%;"></div>
+    <div class="skeleton-row" style="width:65%; align-self:flex-end;"></div>
   `;
 
-  await loadConversationMessages();
+  await loadConversationMessages(true);
   chatMessageInput.focus();
 }
 
-// 4. Load Conversation Messages
-async function loadConversationMessages() {
+// 4. Load Conversation Messages (With Auto-Scroll and Live Polling)
+async function loadConversationMessages(isInitialSelect = false) {
   if (!activeTargetUser) return;
 
   try {
@@ -159,8 +182,19 @@ async function loadConversationMessages() {
     const data = await res.json();
 
     if (data && data.messages) {
+      const isNewMessageArrived = data.messages.length > lastKnownMsgCount;
       activeMessages = data.messages;
+      lastKnownMsgCount = data.messages.length;
+
+      // Check if user was near bottom before re-rendering
+      const isNearBottom =
+        messagesStreamEl.scrollHeight - messagesStreamEl.scrollTop <= messagesStreamEl.clientHeight + 100;
+
       renderMessagesStream();
+
+      if (isInitialSelect || isNewMessageArrived || isNearBottom) {
+        messagesStreamEl.scrollTop = messagesStreamEl.scrollHeight;
+      }
     }
   } catch (err) {
     console.error("Failed to load conversation transcript:", err);
@@ -205,8 +239,6 @@ function renderMessagesStream() {
     })
     .join("");
 
-  // Scroll to bottom
-  messagesStreamEl.scrollTop = messagesStreamEl.scrollHeight;
   refreshIcons();
 }
 
@@ -231,10 +263,13 @@ async function sendMessage() {
   };
 
   activeMessages.push(tempMsg);
+  lastKnownMsgCount++;
   renderMessagesStream();
+  messagesStreamEl.scrollTop = messagesStreamEl.scrollHeight;
 
   // Clear Input & Staged Media
   chatMessageInput.value = "";
+  chatMessageInput.style.height = "auto";
   clearStagedMedia();
 
   try {
@@ -307,7 +342,7 @@ chatMessageInput.addEventListener("input", () => {
 
 userSearchInput.addEventListener("input", renderUsersList);
 refreshUsersBtn.addEventListener("click", fetchUsers);
-manualRefreshBtn.addEventListener("click", loadConversationMessages);
+manualRefreshBtn.addEventListener("click", () => loadConversationMessages(true));
 
 // Toggle Auto-Polling
 autoPollToggleBtn.addEventListener("click", () => {
@@ -316,13 +351,17 @@ autoPollToggleBtn.addEventListener("click", () => {
   autoPollToggleBtn.querySelector("span").textContent = isAutoPollActive ? "AUTO-SYNC: ON" : "AUTO-SYNC: OFF";
 });
 
-// Real-Time Polling Loop (Every 3 seconds)
+// Real-Time Polling Loop (Every 2 seconds for live message stream & user activity)
 function startPolling() {
   setInterval(async () => {
-    if (isAutoPollActive && activeTargetUser) {
-      await loadConversationMessages();
+    if (isAutoPollActive) {
+      if (activeTargetUser) {
+        await loadConversationMessages();
+      }
+      // Also poll user list to update recent order and new incoming messages
+      await fetchUsers();
     }
-  }, 3000);
+  }, 2000);
 }
 
 // Initialization

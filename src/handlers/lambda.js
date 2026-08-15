@@ -209,35 +209,57 @@ exports.handler = async (event, context) => {
         }
 
         const totalUsers = await User.countDocuments();
-        const users = await User.find().sort({ createdAt: -1 }).limit(25);
+        const users = await User.find().limit(100);
         const totalTasks = await Memory.countDocuments();
         const pendingTasks = await Memory.countDocuments({ completed: false });
         const completedTasks = await Memory.countDocuments({ completed: true });
         const totalMessages = await History.countDocuments();
 
+        // Also discover any chatIds from History in case any are missing from User collection
+        const distinctChatIds = await History.distinct("chatId");
+        const knownTelegramIds = new Set(users.map((u) => Number(u.telegramId)));
+
+        const allUserObjects = [...users];
+        for (const cid of distinctChatIds) {
+          if (cid && !knownTelegramIds.has(Number(cid))) {
+            allUserObjects.push({
+              telegramId: cid,
+              firstName: `User #${cid}`,
+              username: "",
+              createdAt: new Date(),
+            });
+          }
+        }
+
         // Enrich users list with message counts & latest message
         const enrichedUsers = await Promise.all(
-          users.map(async (u) => {
+          allUserObjects.map(async (u) => {
             const msgCount = await History.countDocuments({ chatId: u.telegramId });
             const lastMsg = await History.findOne({ chatId: u.telegramId }).sort({ createdAt: -1 });
+            const displayName = u.firstName || u.username || `User #${u.telegramId}`;
             return {
-              _id: u._id,
+              _id: u._id || `temp_${u.telegramId}`,
               telegramId: u.telegramId,
-              firstName: u.firstName,
-              username: u.username,
-              createdAt: u.createdAt,
+              firstName: displayName,
+              username: u.username || "",
+              createdAt: u.createdAt || new Date(),
               messageCount: msgCount,
-              lastMessageSnippet: lastMsg ? lastMsg.content.slice(0, 45) + (lastMsg.content.length > 45 ? "..." : "") : "No messages yet",
-              lastActive: lastMsg ? lastMsg.createdAt : u.createdAt,
+              lastMessageSnippet: lastMsg
+                ? lastMsg.content.slice(0, 50) + (lastMsg.content.length > 50 ? "..." : "")
+                : "No messages yet",
+              lastActive: lastMsg ? lastMsg.createdAt : u.createdAt || new Date(0),
             };
           })
         );
+
+        // Sort by most recent activity first (Desc)
+        enrichedUsers.sort((a, b) => new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime());
 
         return {
           statusCode: 200,
           headers: CORS_HEADERS,
           body: JSON.stringify({
-            totalUsers,
+            totalUsers: Math.max(totalUsers, enrichedUsers.length),
             totalTasks,
             pendingTasks,
             completedTasks,
@@ -272,13 +294,27 @@ exports.handler = async (event, context) => {
         const targetUser = await User.findOne({ telegramId: targetChatId });
         const messages = await History.find({ chatId: targetChatId })
           .sort({ createdAt: 1 })
-          .limit(100);
+          .limit(200);
+
+        const safeUser = targetUser
+          ? {
+              _id: targetUser._id,
+              telegramId: targetUser.telegramId,
+              firstName: targetUser.firstName || targetUser.username || `User #${targetUser.telegramId}`,
+              username: targetUser.username || "",
+              photoUrl: targetUser.photoUrl || null,
+            }
+          : {
+              telegramId: targetChatId,
+              firstName: `User #${targetChatId}`,
+              username: "",
+            };
 
         return {
           statusCode: 200,
           headers: CORS_HEADERS,
           body: JSON.stringify({
-            targetUser: targetUser || { firstName: "Unknown User", telegramId: targetChatId },
+            targetUser: safeUser,
             messages,
           }),
         };
