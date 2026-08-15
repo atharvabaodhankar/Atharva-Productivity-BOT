@@ -207,7 +207,7 @@ function createMessageElement(msg) {
   return div;
 }
 
-// 4. Load Conversation Messages (Incremental Flicker-Free Diffing)
+// 4. Load Conversation Messages (Robust Key-Based Zero-Flicker Diffing)
 async function loadConversationMessages(isInitialSelect = false) {
   if (!activeTargetUser) return;
 
@@ -218,7 +218,7 @@ async function loadConversationMessages(isInitialSelect = false) {
     const data = await res.json();
 
     if (data && data.messages) {
-      // Sort messages deterministically so user prompt ALWAYS precedes assistant reply
+      // Sort messages deterministically: user prompt ALWAYS precedes assistant reply
       const incomingMessages = (data.messages || []).sort((a, b) => {
         const timeA = new Date(a.createdAt).getTime();
         const timeB = new Date(b.createdAt).getTime();
@@ -228,58 +228,47 @@ async function loadConversationMessages(isInitialSelect = false) {
         return (a._id || "").localeCompare(b._id || "");
       });
 
-      // 1. Initial Load or Thread Switch
-      if (isInitialSelect) {
-        activeMessages = incomingMessages;
-        messagesStreamEl.innerHTML = "";
+      // Compute signature of current DOM vs incoming messages
+      const currentDomKeys = Array.from(messagesStreamEl.querySelectorAll(".msg-row"))
+        .map((el) => el.dataset.msgKey)
+        .filter(Boolean);
+      const incomingKeys = incomingMessages.map(
+        (msg) => msg._id || `${msg.role}-${msg.content}-${msg.createdAt}`
+      );
 
-        if (activeMessages.length === 0) {
-          messagesStreamEl.innerHTML = `
-            <div class="empty-state-canvas">
-              <i data-lucide="message-square" class="empty-icon"></i>
-              <h3>EMPTY TRANSCRIPT</h3>
-              <p>No messages recorded for ${escapeHtml(activeTargetUser.firstName)}. Start the conversation below!</p>
-            </div>
-          `;
-          refreshIcons();
-          return;
-        }
-
-        activeMessages.forEach((msg) => {
-          messagesStreamEl.appendChild(createMessageElement(msg));
-        });
-        messagesStreamEl.scrollTop = messagesStreamEl.scrollHeight;
+      // If nothing changed, do ZERO DOM operations (No flicker, no shuttering)
+      if (
+        !isInitialSelect &&
+        currentDomKeys.length === incomingKeys.length &&
+        currentDomKeys.join(",") === incomingKeys.join(",")
+      ) {
         return;
       }
 
-      // 2. Incremental Diff: Check if there are new messages without wiping DOM
-      if (incomingMessages.length === activeMessages.length) {
-        // Zero changes, DO NOT touch DOM (Eliminates shuttering completely!)
-        return;
-      }
-
-      // Check if user was already at bottom before appending
+      // Check if user was near bottom before updating
       const isNearBottom =
         messagesStreamEl.scrollHeight - messagesStreamEl.scrollTop <= messagesStreamEl.clientHeight + 80;
 
-      // Append only newly added messages
-      const existingCount = activeMessages.length;
-      const newIncoming = incomingMessages.slice(existingCount);
+      activeMessages = incomingMessages;
+      messagesStreamEl.innerHTML = "";
 
-      // If empty state was visible, clear it first
-      const emptyStateEl = messagesStreamEl.querySelector(".empty-state-canvas");
-      if (emptyStateEl) {
-        emptyStateEl.remove();
+      if (activeMessages.length === 0) {
+        messagesStreamEl.innerHTML = `
+          <div class="empty-state-canvas">
+            <i data-lucide="message-square" class="empty-icon"></i>
+            <h3>EMPTY TRANSCRIPT</h3>
+            <p>No messages recorded for ${escapeHtml(activeTargetUser.firstName)}. Start the conversation below!</p>
+          </div>
+        `;
+        refreshIcons();
+        return;
       }
 
-      newIncoming.forEach((msg) => {
+      activeMessages.forEach((msg) => {
         messagesStreamEl.appendChild(createMessageElement(msg));
       });
 
-      activeMessages = incomingMessages;
-
-      // Auto-scroll only if was at bottom or received new message
-      if (isNearBottom || newIncoming.length > 0) {
+      if (isInitialSelect || isNearBottom) {
         messagesStreamEl.scrollTop = messagesStreamEl.scrollHeight;
       }
     }
