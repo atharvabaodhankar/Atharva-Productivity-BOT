@@ -228,6 +228,35 @@ async function selectUserThread(user) {
   chatMessageInput.focus();
 }
 
+// Markdown to Rich HTML Formatter for Chat Bubbles
+function formatMarkdownToHtml(text) {
+  if (!text) return "";
+  let html = escapeHtml(String(text));
+
+  // Code blocks ```code```
+  html = html.replace(/```([\s\S]*?)```/g, '<pre style="background:rgba(0,0,0,0.4); padding:8px 12px; border-radius:6px; font-family:var(--font-mono); font-size:0.82rem; margin:6px 0; overflow-x:auto;">$1</pre>');
+
+  // Inline code `code`
+  html = html.replace(/`([^`]+)`/g, '<code style="background:rgba(0,0,0,0.3); padding:2px 6px; border-radius:4px; font-family:var(--font-mono); font-size:0.82rem; color:var(--accent-cyan);">$1</code>');
+
+  // Double bold **text**
+  html = html.replace(/\*\*([^*]+)\*\*/g, '<strong style="color:var(--text-pure-white); font-weight:700;">$1</strong>');
+
+  // Single asterisk *text*
+  html = html.replace(/(^|[^\*])\*([^\*]+)\*([^\*]|$)/g, '$1<strong style="color:var(--text-pure-white); font-weight:700;">$2</strong>$3');
+
+  // Italic _text_
+  html = html.replace(/(^|[^_])_([^_]+)_([^_]|$)/g, '$1<em>$2</em>$3');
+
+  // Links [text](url)
+  html = html.replace(/\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/g, '<a href="$2" target="_blank" rel="noopener noreferrer" style="color:var(--accent-cyan); text-decoration:underline;">$1</a>');
+
+  // Line breaks \n to <br>
+  html = html.replace(/\n/g, "<br>");
+
+  return html;
+}
+
 // Create a single message DOM element with Spoiler Badge, Edit & Delete Actions
 function createMessageElement(msg) {
   const isBot = msg.role === "assistant";
@@ -251,7 +280,7 @@ function createMessageElement(msg) {
     </div>
     <div class="msg-content-wrapper">
       <div class="msg-card" id="msgCardText_${msg._id || Math.random().toString(36).substring(2, 7)}">
-        ${escapeHtml(msg.content)}
+        ${formatMarkdownToHtml(msg.content)}
       </div>
       <div class="msg-actions-bar">
         <button class="msg-action-btn edit-btn" title="Edit message text">

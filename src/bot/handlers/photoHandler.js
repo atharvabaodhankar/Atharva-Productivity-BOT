@@ -1,6 +1,7 @@
 const { askAI } = require("../../ai/aiService");
 const History = require("../../models/History");
 const GroupConfig = require("../../models/GroupConfig");
+const { sendTelegramFormatted } = require("../../utils/telegramFormatter");
 
 const MENTION_REGEX = /@Atharva_Produtivity_Bot|@Atharva_Productivity_Bot|@AtharvaOS/gi;
 
@@ -70,7 +71,7 @@ module.exports = (bot) => {
         senderName: ctx.from?.first_name || "Friend",
       });
 
-      const sentMsg = await ctx.reply(reply, {
+      const sentMsg = await sendTelegramFormatted(ctx, reply, {
         reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
       });
 

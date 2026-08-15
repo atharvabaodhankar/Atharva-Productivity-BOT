@@ -4,6 +4,9 @@ const fs = require("fs");
 const path = require("path");
 const mongoose = require("mongoose");
 const { BOT_TOKEN, MONGO_URI } = require("./src/config/env");
+const History = require("./src/models/History");
+const Alert = require("./src/models/Alert");
+const { markdownToTelegramHtml } = require("./src/utils/telegramFormatter");
 
 const PORT = process.env.PORT || 4000;
 const ADMIN_DIR = path.join(__dirname, "admin-console");
@@ -20,16 +23,6 @@ if (MONGO_URI) {
     .catch((err) => console.warn("MongoDB connection error in admin server:", err.message));
 }
 
-const historySchema = new mongoose.Schema(
-  {
-    chatId: Number,
-    role: String,
-    content: String,
-  },
-  { timestamps: true }
-);
-const History = mongoose.models.History || mongoose.model("History", historySchema);
-const Alert = require("./src/models/Alert");
 
 const MIME_TYPES = {
   ".html": "text/html",
@@ -110,11 +103,13 @@ const server = http.createServer(async (req, res) => {
           }
 
           if (caption || text) {
-            formData.append("caption", caption || text);
+            formData.append("caption", markdownToTelegramHtml(caption || text));
+            formData.append("parse_mode", "HTML");
           }
         } else {
           telegramApiUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`;
-          formData.append("text", text);
+          formData.append("text", markdownToTelegramHtml(text));
+          formData.append("parse_mode", "HTML");
         }
 
         // Transmit to Telegram API

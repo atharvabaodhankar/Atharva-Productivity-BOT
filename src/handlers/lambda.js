@@ -5,6 +5,7 @@ const User = require("../models/User");
 const Memory = require("../models/Memory");
 const History = require("../models/History");
 const Alert = require("../models/Alert");
+const { markdownToTelegramHtml } = require("../utils/telegramFormatter");
 const {
   checkUpcomingReminders,
   sendDailySummary,
@@ -363,7 +364,10 @@ exports.handler = async (event, context) => {
             const isImage = mediaType.startsWith("image/") || /\.(png|jpg|jpeg|gif|webp)$/i.test(fileName);
 
             const mediaOptions = {};
-            if (caption) mediaOptions.caption = caption;
+            if (caption) {
+              mediaOptions.caption = markdownToTelegramHtml(caption);
+              mediaOptions.parse_mode = "HTML";
+            }
             if (hasSpoiler) mediaOptions.has_spoiler = true;
 
             if (isVideo) {
@@ -384,12 +388,18 @@ exports.handler = async (event, context) => {
               sentMsg = await bot.telegram.sendDocument(
                 targetChatId,
                 { source: buffer, filename: fileName || "file" },
-                caption ? { caption } : undefined
+                caption ? { caption: markdownToTelegramHtml(caption), parse_mode: "HTML" } : undefined
               );
               recordedContent = `[Document: ${fileName || "file"}] ${caption || ""}`.trim();
             }
           } else if (text) {
-            sentMsg = await bot.telegram.sendMessage(targetChatId, text);
+            try {
+              sentMsg = await bot.telegram.sendMessage(targetChatId, markdownToTelegramHtml(text), {
+                parse_mode: "HTML",
+              });
+            } catch (tgFormatErr) {
+              sentMsg = await bot.telegram.sendMessage(targetChatId, text);
+            }
           } else {
             return {
               statusCode: 400,
