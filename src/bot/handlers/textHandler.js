@@ -65,12 +65,22 @@ module.exports = (bot) => {
         senderName: ctx.from?.first_name || "Friend",
       });
 
-      // Save history sequentially so user message always has earlier timestamp and ID
-      await History.create({ chatId, role: "user", content: userMessage });
-      await History.create({ chatId, role: "assistant", content: reply });
-
-      ctx.reply(reply, {
+      const sentMsg = await ctx.reply(reply, {
         reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
+      });
+
+      // Save history with telegramMessageId for full deletion/edit support
+      await History.create({
+        chatId,
+        role: "user",
+        content: userMessage,
+        telegramMessageId: ctx.message.message_id,
+      });
+      await History.create({
+        chatId,
+        role: "assistant",
+        content: reply,
+        telegramMessageId: sentMsg.message_id,
       });
     } catch (error) {
       console.error("Text handler error:", error);

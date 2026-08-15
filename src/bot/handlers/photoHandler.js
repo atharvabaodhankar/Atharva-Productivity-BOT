@@ -70,16 +70,22 @@ module.exports = (bot) => {
         senderName: ctx.from?.first_name || "Friend",
       });
 
-      // Save history sequentially
+      const sentMsg = await ctx.reply(reply, {
+        reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
+      });
+
+      // Save history with telegramMessageId for deletion & editing support
       await History.create({
         chatId,
         role: "user",
         content: caption ? `[Photo] ${caption}` : "[Photo]",
+        telegramMessageId: ctx.message.message_id,
       });
-      await History.create({ chatId, role: "assistant", content: reply });
-
-      ctx.reply(reply, {
-        reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
+      await History.create({
+        chatId,
+        role: "assistant",
+        content: reply,
+        telegramMessageId: sentMsg.message_id,
       });
     } catch (error) {
       console.error("Photo handler error:", error);
