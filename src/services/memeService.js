@@ -2,15 +2,21 @@ const { MEME_API_URL, MEME_API_KEY, BOT_TOKEN } = require("../config/env");
 const MemeRequest = require("../models/MemeRequest");
 const History = require("../models/History");
 const Alert = require("../models/Alert");
+const { markdownToTelegramHtml } = require("../utils/telegramFormatter");
 const { Markup } = require("telegraf");
 
 const OWNER_ID = "5275149287";
+const DEFAULT_MEME_API_URL = "https://redditreels.onrender.com";
+const DEFAULT_MEME_API_KEY = "rr_live_9f8d7a6b5c4e3d2a1f0e8d7c6b5a4f3e";
 
 async function fetchRandomNsfwMeme() {
+  const apiUrl = MEME_API_URL || DEFAULT_MEME_API_URL;
+  const apiKey = MEME_API_KEY || DEFAULT_MEME_API_KEY;
+
   try {
-    const res = await fetch(`${MEME_API_URL}/api/memes/random?category=nsfw`, {
+    const res = await fetch(`${apiUrl}/api/memes/random?category=nsfw`, {
       headers: {
-        "x-api-key": MEME_API_KEY,
+        "x-api-key": apiKey,
         Accept: "application/json",
       },
     });
@@ -24,6 +30,44 @@ async function fetchRandomNsfwMeme() {
   } catch (err) {
     console.error("fetchRandomNsfwMeme error:", err.message);
     return null;
+  }
+}
+
+// Helper to send media to Telegram with format detection
+async function sendTelegramMediaSafely(bot, targetChatId, mediaUrl, options = {}) {
+  const isGif = /\.gif(\?.*)?$/i.test(mediaUrl) || options.mediaType === "gif";
+  const isVideo = /\.mp4(\?.*)?$/i.test(mediaUrl) || options.mediaType === "video";
+  const isPhoto = /\.(jpg|jpeg|png|webp)(\?.*)?$/i.test(mediaUrl) || options.mediaType === "image";
+
+  const { mediaType, ...tgOptions } = options;
+
+  try {
+    if (isGif) {
+      return await bot.telegram.sendAnimation(targetChatId, mediaUrl, tgOptions);
+    } else if (isVideo) {
+      return await bot.telegram.sendVideo(targetChatId, mediaUrl, tgOptions);
+    } else if (isPhoto) {
+      return await bot.telegram.sendPhoto(targetChatId, mediaUrl, tgOptions);
+    } else {
+      // Try photo first, fallback to animation
+      try {
+        return await bot.telegram.sendPhoto(targetChatId, mediaUrl, tgOptions);
+      } catch (photoErr) {
+        return await bot.telegram.sendAnimation(targetChatId, mediaUrl, tgOptions);
+      }
+    }
+  } catch (sendErr) {
+    console.warn("sendTelegramMediaSafely media dispatch failed, falling back to message:", sendErr.message);
+    const captionText = options.caption || "";
+    const cleanUrl = mediaUrl;
+    return await bot.telegram.sendMessage(
+      targetChatId,
+      `${captionText}\n\n🖼️ <a href="${cleanUrl}">View Media</a>`,
+      {
+        parse_mode: "HTML",
+        reply_markup: tgOptions.reply_markup,
+      }
+    );
   }
 }
 
@@ -41,7 +85,7 @@ async function requestOwnerMemeApproval(bot, { chatId, userName, username }) {
     username: username || "",
     memeTitle: meme.title || "Random NSFW Meme",
     memeUrl: meme.url,
-    mediaType: meme.mediaType || (meme.url.endsWith(".mp4") ? "video" : "image"),
+    mediaType: meme.mediaType || (meme.url.endsWith(".gif") ? "gif" : meme.url.endsWith(".mp4") ? "video" : "image"),
     subreddit: meme.subreddit || "NSFWMemes",
     permalink: meme.permalink || "",
     status: "PENDING",
@@ -58,48 +102,27 @@ async function requestOwnerMemeApproval(bot, { chatId, userName, username }) {
   });
 
   // 3. Send Approval Message to Atharva's Telegram
-  const caption =
-    `🚨🔞 *[ATHARVAOS // MEME APPROVAL REQUIRED]*\n\n` +
-    `👤 *Requester:* ${userName} (@${username || "none"} | \`${chatId}\`)\n` +
-    `🌶️ *Title:* ${meme.title}\n` +
-    `📂 *Subreddit:* r/${meme.subreddit}\n` +
-    `🔗 *Source:* [Reddit Post](${meme.permalink || meme.url})\n\n` +
-    `_Do you approve sending this meme with spoiler blur to the user?_`;
+  const htmlCaption =
+    `🚨🔞 <b>[ATHARVAOS // MEME APPROVAL REQUIRED]</b>\n\n` +
+    `👤 <b>Requester:</b> ${escapeHtml(userName)} (@${escapeHtml(username || "none")} | <code>${chatId}</code>)\n` +
+    `🌶️ <b>Title:</b> ${escapeHtml(meme.title)}\n` +
+    `📂 <b>Subreddit:</b> r/${escapeHtml(meme.subreddit || "NSFWMemes")}\n` +
+    `🔗 <b>Source:</b> <a href="${meme.permalink || meme.url}">Reddit Post Link</a>\n\n` +
+    `<i>Do you approve sending this meme with spoiler blur to the user?</i>`;
 
   const keyboard = Markup.inlineKeyboard([
     [
-      Markup.button.callback("✅ Approve & Send to User", `meme_appr_${reqDoc._id}`),
-      Markup.button.callback("❌ Reject Request", `meme_rejc_${reqDoc._id}`),
+      Markup.button.callback("✅ Approve & Send", `meme_appr_${reqDoc._id}`),
+      Markup.button.callback("❌ Reject", `meme_rejc_${reqDoc._id}`),
     ],
   ]);
 
-  try {
-    const isVideo = meme.mediaType === "video" || meme.url.endsWith(".mp4");
-    if (isVideo) {
-      await bot.telegram.sendVideo(OWNER_ID, meme.url, {
-        caption,
-        parse_mode: "Markdown",
-        ...keyboard,
-      });
-    } else {
-      await bot.telegram.sendPhoto(OWNER_ID, meme.url, {
-        caption,
-        parse_mode: "Markdown",
-        ...keyboard,
-      });
-    }
-  } catch (tgErr) {
-    // If sending media directly to owner fails (e.g. format restriction), send as text prompt
-    await bot.telegram.sendMessage(
-      OWNER_ID,
-      `${caption}\n\n🖼️ *Direct Link:* ${meme.url}`,
-      {
-        parse_mode: "Markdown",
-        disable_web_page_preview: false,
-        ...keyboard,
-      }
-    );
-  }
+  await sendTelegramMediaSafely(bot, OWNER_ID, meme.url, {
+    caption: htmlCaption,
+    parse_mode: "HTML",
+    mediaType: meme.mediaType,
+    ...keyboard,
+  });
 
   return reqDoc;
 }
@@ -118,35 +141,17 @@ async function handleMemeApprovalAction(bot, ctx, requestId, isApproved) {
     reqDoc.status = "APPROVED";
     await reqDoc.save();
 
-    await ctx.answerCbQuery("Approved! Sending meme to user with spoiler blur... 🌶️");
+    await ctx.answerCbQuery("Approved! Delivering meme to user... 🌶️");
 
     // Deliver to User
-    const userCaption = `🌶️ *${reqDoc.memeTitle}*\n\n_(Approved & delivered by AtharvaOS)_`;
-    const isVideo = reqDoc.mediaType === "video" || reqDoc.memeUrl.endsWith(".mp4");
+    const userCaption = `🌶️ <b>${escapeHtml(reqDoc.memeTitle)}</b>\n\n<i>(Approved & delivered by AtharvaOS)</i>`;
 
-    let sentMsg = null;
-    try {
-      if (isVideo) {
-        sentMsg = await bot.telegram.sendVideo(reqDoc.chatId, reqDoc.memeUrl, {
-          caption: userCaption,
-          parse_mode: "Markdown",
-          has_spoiler: true,
-        });
-      } else {
-        sentMsg = await bot.telegram.sendPhoto(reqDoc.chatId, reqDoc.memeUrl, {
-          caption: userCaption,
-          parse_mode: "Markdown",
-          has_spoiler: true,
-        });
-      }
-    } catch (deliverErr) {
-      // Fallback
-      sentMsg = await bot.telegram.sendMessage(
-        reqDoc.chatId,
-        `🌶️ *${reqDoc.memeTitle}*\n\n[Open Meme](${reqDoc.memeUrl})`,
-        { parse_mode: "Markdown" }
-      );
-    }
+    const sentMsg = await sendTelegramMediaSafely(bot, reqDoc.chatId, reqDoc.memeUrl, {
+      caption: userCaption,
+      parse_mode: "HTML",
+      has_spoiler: true,
+      mediaType: reqDoc.mediaType,
+    });
 
     // Save in User History
     await History.create({
@@ -158,16 +163,18 @@ async function handleMemeApprovalAction(bot, ctx, requestId, isApproved) {
     });
 
     // Update Owner Message
-    const updatedOwnerText =
-      `✅ *[APPROVED & DELIVERED]*\n\n` +
-      `👤 *User:* ${reqDoc.userName} (@${reqDoc.username || "none"})\n` +
-      `🌶️ *Title:* ${reqDoc.memeTitle}\n` +
-      `🚀 *Status:* Successfully transmitted to user chat with spoiler blur!`;
+    const updatedOwnerHtml =
+      `✅ <b>[APPROVED & DELIVERED]</b>\n\n` +
+      `👤 <b>User:</b> ${escapeHtml(reqDoc.userName)} (@${escapeHtml(reqDoc.username || "none")})\n` +
+      `🌶️ <b>Title:</b> ${escapeHtml(reqDoc.memeTitle)}\n` +
+      `🚀 <b>Status:</b> Transmitted to user chat with spoiler blur!`;
 
     try {
-      await ctx.editMessageCaption(updatedOwnerText, { parse_mode: "Markdown" });
+      await ctx.editMessageCaption(updatedOwnerHtml, { parse_mode: "HTML" });
     } catch (e) {
-      await ctx.editMessageText(updatedOwnerText, { parse_mode: "Markdown" });
+      try {
+        await ctx.editMessageText(updatedOwnerHtml, { parse_mode: "HTML" });
+      } catch (e2) {}
     }
   } else {
     reqDoc.status = "REJECTED";
@@ -186,18 +193,28 @@ async function handleMemeApprovalAction(bot, ctx, requestId, isApproved) {
     });
 
     // Update Owner Message
-    const updatedOwnerText =
-      `❌ *[REJECTED & BLOCKED]*\n\n` +
-      `👤 *User:* ${reqDoc.userName} (@${reqDoc.username || "none"})\n` +
-      `🌶️ *Title:* ${reqDoc.memeTitle}\n` +
-      `🛑 *Status:* Denied. User was notified to stay disciplined!`;
+    const updatedOwnerHtml =
+      `❌ <b>[REJECTED & BLOCKED]</b>\n\n` +
+      `👤 <b>User:</b> ${escapeHtml(reqDoc.userName)} (@${escapeHtml(reqDoc.username || "none")})\n` +
+      `🌶️ <b>Title:</b> ${escapeHtml(reqDoc.memeTitle)}\n` +
+      `🛑 <b>Status:</b> Denied. User was notified to stay disciplined!`;
 
     try {
-      await ctx.editMessageCaption(updatedOwnerText, { parse_mode: "Markdown" });
+      await ctx.editMessageCaption(updatedOwnerHtml, { parse_mode: "HTML" });
     } catch (e) {
-      await ctx.editMessageText(updatedOwnerText, { parse_mode: "Markdown" });
+      try {
+        await ctx.editMessageText(updatedOwnerHtml, { parse_mode: "HTML" });
+      } catch (e2) {}
     }
   }
+}
+
+function escapeHtml(text) {
+  if (!text) return "";
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
 }
 
 module.exports = {
