@@ -531,26 +531,42 @@ function stageMediaFile(file) {
     stagedMediaBase64 = e.target.result;
     stagedMediaFileName = file.name;
     stagedMediaType = file.type;
+    isSpoilerActive = false;
 
-    const pName = document.getElementById("mediaPreviewName") || mediaPreviewName;
-    const pMeta = document.getElementById("mediaPreviewMeta") || mediaPreviewMeta;
-    const pThumb = document.getElementById("mediaPreviewThumb") || mediaPreviewThumb;
-    const pBar = document.getElementById("mediaPreviewBar") || mediaPreviewBar;
+    const pBar = document.getElementById("mediaStagingBar") || document.getElementById("mediaPreviewBar");
+    const pName = document.getElementById("mediaFileName") || document.getElementById("mediaPreviewName");
+    const pTag = document.getElementById("mediaReadyTag") || document.getElementById("mediaPreviewMeta");
+    const pImg = document.getElementById("mediaPreviewImg") || document.getElementById("mediaPreviewThumb");
+    const pVid = document.getElementById("mediaPreviewVid");
+    const pSpoilerOverlay = document.getElementById("spoilerBadgeOverlay");
+    const pSpoilerBtnText = document.getElementById("spoilerBtnText");
+    const pSpoilerBtn = document.getElementById("toggleSpoilerBtn");
 
     if (pName) pName.textContent = file.name;
     const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
-    if (pMeta) pMeta.textContent = `${file.type.toUpperCase()} // ${sizeMb} MB`;
+    if (pTag) pTag.textContent = `${file.type.toUpperCase().replace("IMAGE/", "").replace("VIDEO/", "")} // ${sizeMb} MB // READY TO TRANSMIT`;
 
-    if (pThumb) {
-      if (file.type.startsWith("image/")) {
-        pThumb.src = stagedMediaBase64;
-      } else {
-        pThumb.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='%2523f59e0b' stroke-width='2'><path d='m22 8-6 4 6 4V8Z'/><rect width='14' height='12' x='2' y='6' rx='2'/></svg>";
+    if (file.type.startsWith("image/")) {
+      if (pImg) {
+        pImg.src = stagedMediaBase64;
+        pImg.style.display = "block";
       }
+      if (pVid) pVid.style.display = "none";
+    } else {
+      if (pVid) {
+        pVid.src = stagedMediaBase64;
+        pVid.style.display = "block";
+      }
+      if (pImg && pImg !== pVid) pImg.style.display = "none";
     }
+
+    if (pSpoilerOverlay) pSpoilerOverlay.style.display = "none";
+    if (pSpoilerBtnText) pSpoilerBtnText.textContent = "Hide with spoiler";
+    if (pSpoilerBtn) pSpoilerBtn.classList.remove("active");
 
     if (pBar) pBar.style.display = "flex";
     showToast(`📸 Media staged: ${file.name}`, "success");
+    refreshIcons();
   };
 
   reader.readAsDataURL(file);
@@ -560,8 +576,23 @@ function clearStagedMedia() {
   stagedMediaBase64 = null;
   stagedMediaFileName = "";
   stagedMediaType = "";
-  if (mediaFileInput) mediaFileInput.value = "";
-  if (mediaPreviewBar) mediaPreviewBar.style.display = "none";
+  isSpoilerActive = false;
+
+  const pInput = document.getElementById("mediaFileInput");
+  const pBar = document.getElementById("mediaStagingBar") || document.getElementById("mediaPreviewBar");
+  const pImg = document.getElementById("mediaPreviewImg") || document.getElementById("mediaPreviewThumb");
+  const pVid = document.getElementById("mediaPreviewVid");
+  const pSpoilerOverlay = document.getElementById("spoilerBadgeOverlay");
+  const pSpoilerBtnText = document.getElementById("spoilerBtnText");
+  const pSpoilerBtn = document.getElementById("toggleSpoilerBtn");
+
+  if (pInput) pInput.value = "";
+  if (pImg) { pImg.src = ""; pImg.style.display = "none"; }
+  if (pVid) { pVid.src = ""; pVid.style.display = "none"; }
+  if (pSpoilerOverlay) pSpoilerOverlay.style.display = "none";
+  if (pSpoilerBtnText) pSpoilerBtnText.textContent = "Hide with spoiler";
+  if (pSpoilerBtn) pSpoilerBtn.classList.remove("active");
+  if (pBar) pBar.style.display = "none";
 }
 
 if (attachMediaBtn && mediaFileInput) {
@@ -574,15 +605,28 @@ if (mediaFileInput) {
     }
   });
 }
-if (removeMediaBtn) {
-  removeMediaBtn.addEventListener("click", clearStagedMedia);
+const clearMediaBtn = document.getElementById("clearMediaBtn") || document.getElementById("removeMediaBtn");
+if (clearMediaBtn) {
+  clearMediaBtn.addEventListener("click", clearStagedMedia);
 }
 
 if (toggleSpoilerBtn) {
   toggleSpoilerBtn.addEventListener("click", () => {
     isSpoilerActive = !isSpoilerActive;
-    toggleSpoilerBtn.classList.toggle("active", isSpoilerActive);
-    showToast(isSpoilerActive ? "👁️‍🗨️ Spoiler mode ENABLED for media" : "👁️ Spoiler mode DISABLED", "info");
+    const pSpoilerOverlay = document.getElementById("spoilerBadgeOverlay");
+    const pSpoilerBtnText = document.getElementById("spoilerBtnText");
+
+    if (isSpoilerActive) {
+      if (pSpoilerOverlay) pSpoilerOverlay.style.display = "flex";
+      if (pSpoilerBtnText) pSpoilerBtnText.textContent = "Spoiler Blur Active 🙈";
+      toggleSpoilerBtn.classList.add("active");
+      showToast("🙈 Spoiler blur enabled for media!", "info");
+    } else {
+      if (pSpoilerOverlay) pSpoilerOverlay.style.display = "none";
+      if (pSpoilerBtnText) pSpoilerBtnText.textContent = "Hide with spoiler";
+      toggleSpoilerBtn.classList.remove("active");
+      showToast("👁️ Spoiler blur disabled", "info");
+    }
   });
 }
 
