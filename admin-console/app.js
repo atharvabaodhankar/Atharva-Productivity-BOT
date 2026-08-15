@@ -392,7 +392,7 @@ function openEditMessageModal(msg, rowEl) {
     saveBtn.textContent = "Saving...";
 
     try {
-      const res = await authenticatedFetch(getApiUrl("/local-edit-message"), {
+      const res = await authenticatedFetch(getApiUrl("/admin/edit-message"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -433,7 +433,7 @@ async function deleteAdminMessage(msg, rowEl) {
   rowEl.classList.add("deleting");
 
   try {
-    const res = await authenticatedFetch(getApiUrl("/local-delete-message"), {
+    const res = await authenticatedFetch(getApiUrl("/admin/delete-message"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -722,7 +722,7 @@ async function sendMessage() {
   };
 
   try {
-    const res = await authenticatedFetch(getApiUrl("/local-upload"), {
+    const res = await authenticatedFetch(getApiUrl("/admin/send-message"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),

@@ -54,7 +54,7 @@ exports.handler = async (event, context) => {
       const { ADMIN_SECRET } = require("../config/env");
       const expectedSecret = process.env.ADMIN_SECRET || ADMIN_SECRET || "Atharva_SuperSecret_AdminKey_2026";
 
-      if (rawPath.includes("/admin") || rawPath === "/api/stats" || rawPath === "/api/conversations") {
+      if (rawPath.includes("/admin") || rawPath.includes("/local-") || rawPath === "/api/stats" || rawPath === "/api/conversations") {
         if (reqSecret !== expectedSecret) {
           return {
             statusCode: 401,
@@ -337,8 +337,8 @@ exports.handler = async (event, context) => {
         };
       }
 
-      // POST /api/admin/send-message (Live Bot Proxy / Human Takeover with Media)
-      if (rawPath === "/api/admin/send-message" && httpMethod === "POST") {
+      // POST /api/admin/send-message OR /api/local-upload (Live Bot Proxy / Human Takeover with Media)
+      if ((rawPath.endsWith("/send-message") || rawPath.endsWith("/local-upload")) && httpMethod === "POST") {
         const payload =
           typeof event.body === "string" ? JSON.parse(event.body || "{}") : event.body || {};
         const reqChatId = String(payload.chatId || payload.ownerId || "").trim();
@@ -452,12 +452,12 @@ exports.handler = async (event, context) => {
       }
 
       // 1.3 ADMIN DELETE MESSAGE ENDPOINT
-      if (rawPath.endsWith("/api/admin/delete-message") && httpMethod === "POST") {
+      if ((rawPath.endsWith("/delete-message") || rawPath.endsWith("/local-delete-message")) && httpMethod === "POST") {
         try {
           const body = JSON.parse(event.body || "{}");
           const { ownerId, messageId, chatId, telegramMessageId } = body;
 
-          if (String(ownerId) !== "5275149287") {
+          if (String(ownerId || "") !== "5275149287" && String(ownerId || "") !== String(process.env.CHAT_ID || CHAT_ID || "5275149287")) {
             return {
               statusCode: 403,
               headers: CORS_HEADERS,
@@ -499,7 +499,7 @@ exports.handler = async (event, context) => {
       }
 
       // 1.4 ADMIN EDIT MESSAGE ENDPOINT
-      if (rawPath.endsWith("/api/admin/edit-message") && httpMethod === "POST") {
+      if ((rawPath.endsWith("/edit-message") || rawPath.endsWith("/local-edit-message")) && httpMethod === "POST") {
         try {
           const body = JSON.parse(event.body || "{}");
           const { ownerId, messageId, chatId, telegramMessageId, newText } = body;
