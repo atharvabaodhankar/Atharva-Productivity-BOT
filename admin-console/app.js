@@ -492,7 +492,8 @@ async function sendMessage() {
   const emptyStateEl = messagesStreamEl.querySelector(".empty-state-canvas");
   if (emptyStateEl) emptyStateEl.remove();
 
-  messagesStreamEl.appendChild(createMessageElement(tempMsg));
+  const msgElement = createMessageElement(tempMsg);
+  messagesStreamEl.appendChild(msgElement);
   activeMessages.push(tempMsg);
   messagesStreamEl.scrollTop = messagesStreamEl.scrollHeight;
 
@@ -527,6 +528,14 @@ async function sendMessage() {
         const data = JSON.parse(xhr.responseText);
         if (data.ok || data.success) {
           showToast(`✅ ${isVideo ? "Video" : "Photo"} delivered to Telegram!`, "success");
+
+          // Update tempMsg with real IDs for immediate editing/deletion
+          const hDoc = data.history || data.historyDoc;
+          if (hDoc && hDoc._id) tempMsg._id = hDoc._id;
+          const tgMsgId = hDoc?.telegramMessageId || data.telegramResult?.message_id || data.telegramMessageId;
+          if (tgMsgId) tempMsg.telegramMessageId = tgMsgId;
+
+          msgElement.dataset.msgKey = tempMsg._id || `${tempMsg.role}-${tempMsg.content}-${tempMsg.createdAt}`;
         } else {
           showToast(`⚠️ ${data.error || "Telegram upload failed"}`, "error");
         }
@@ -569,7 +578,11 @@ async function sendMessage() {
       });
 
       const data = await res.json();
-      if (!data.success) {
+      if (data.success) {
+        if (data.history?._id) tempMsg._id = data.history._id;
+        if (data.telegramMessageId) tempMsg.telegramMessageId = data.telegramMessageId;
+        msgElement.dataset.msgKey = tempMsg._id || `${tempMsg.role}-${tempMsg.content}-${tempMsg.createdAt}`;
+      } else {
         showToast(`⚠️ ${data.error || "Failed to send text"}`, "error");
       }
     } catch (err) {
