@@ -30,12 +30,19 @@ function getAdminSecret() {
 }
 
 function authenticatedFetch(url, options = {}) {
-  const headers = options.headers || {};
   const secret = getAdminSecret();
+  let finalUrl = url;
+
+  if (secret) {
+    const separator = finalUrl.includes("?") ? "&" : "?";
+    finalUrl = `${finalUrl}${separator}admin_secret=${encodeURIComponent(secret)}`;
+  }
+
+  const headers = options.headers || {};
   if (secret) {
     headers["x-admin-secret"] = secret;
   }
-  return fetch(url, { ...options, headers });
+  return fetch(finalUrl, { ...options, headers });
 }
 
 // Security Gate: Verify Owner Clearance
