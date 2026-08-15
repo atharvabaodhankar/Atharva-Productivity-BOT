@@ -216,7 +216,8 @@ async function askAI({ message, chatId, historyContext = "", base64ImageUrl = nu
     }
   }
 
-  return sanitizeOutput(responseMessage.content);
+  const finalRawText = responseMessage.content || responseMessage.reasoning || "";
+  return sanitizeOutput(finalRawText);
 }
 
 module.exports = { askAI };
