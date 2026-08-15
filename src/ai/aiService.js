@@ -4,11 +4,31 @@ const { buildSystemPrompt } = require("./promptEngine");
 const Memory = require("../models/Memory");
 const User = require("../models/User");
 
+// Clean any leaked XML, function syntax, or internal IDs from raw LLM output
+function sanitizeOutput(text) {
+  if (!text) return "Chal bhai, sorted! Anything else?";
+
+  return text
+    .replace(/<function=[\s\S]*?<\/function>/gi, "")
+    .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, "")
+    .replace(/<[\s\S]*?>/g, "") // remove any stray HTML/XML tags
+    .replace(/\[ID:\s*[0-9a-fA-F]+\]/g, "")
+    .replace(/Pending Tasks Count:\s*\d+/gi, "")
+    .replace(/#/g, "")
+    .replace(/\*\*/g, "*")
+    .trim();
+}
+
+const CASUAL_GREETINGS = new Set([
+  "hi", "hello", "hey", "yo", "ho", "haan", "ha", "ok", "okay",
+  "kya hal", "kya chal raha", "sup", "wassup", "good morning", "good night", "bye"
+]);
+
 async function askAI({ message, chatId, historyContext = "", base64ImageUrl = null }) {
   const user = await User.findOne({ telegramId: chatId });
   const memories = await Memory.find({ chatId })
     .sort({ completed: 1, createdAt: -1 })
-    .limit(25);
+    .limit(20);
 
   const pendingTasksCount = await Memory.countDocuments({
     chatId,
@@ -46,31 +66,45 @@ async function askAI({ message, chatId, historyContext = "", base64ImageUrl = nu
     { role: "user", content: userContent },
   ];
 
+  const cleanInput = (message || "").trim().toLowerCase();
+  const isCasualChat = CASUAL_GREETINGS.has(cleanInput) && !base64ImageUrl;
+
   let responseMessage;
 
+  // If casual greeting, execute fast completion without tools to prevent hallucination
+  if (isCasualChat) {
+    const directResponse = await executeWithFailover({
+      messages,
+      model,
+      temperature: 0.65,
+      max_completion_tokens: 300,
+    });
+    return sanitizeOutput(directResponse.choices[0].message.content);
+  }
+
+  // Otherwise, use tool calling
   try {
     const response = await executeWithFailover({
       messages,
       model,
-      temperature: 0.85,
-      max_completion_tokens: 800,
+      temperature: 0.65,
+      max_completion_tokens: 600,
       tools,
       tool_choice: "auto",
     });
     responseMessage = response.choices[0].message;
   } catch (err) {
-    // If tool parsing failed or Groq had a tool use error, gracefully execute standard chat completion without tools
-    console.warn("Tool calling attempt failed, falling back to direct chat:", err.message);
+    console.warn("Tool calling failed, falling back to direct chat:", err.message);
     const fallbackResponse = await executeWithFailover({
       messages,
       model,
-      temperature: 0.85,
-      max_completion_tokens: 800,
+      temperature: 0.65,
+      max_completion_tokens: 500,
     });
     responseMessage = fallbackResponse.choices[0].message;
   }
 
-  // Handle tool calls if any
+  // Process tool calls if triggered
   if (responseMessage.tool_calls && responseMessage.tool_calls.length > 0) {
     messages.push(responseMessage);
 
@@ -95,7 +129,7 @@ async function askAI({ message, chatId, historyContext = "", base64ImageUrl = nu
             priority: args.priority || "medium",
             tags: args.tags || [],
           });
-          resultContent = `Created ${newMem.type}: "${newMem.content}" (ID: ${newMem._id})`;
+          resultContent = `Successfully created ${newMem.type}: "${newMem.content}" (ID: ${newMem._id})`;
         } else if (functionName === "complete_memory") {
           const updated = await Memory.findOneAndUpdate(
             { _id: args.id, chatId },
@@ -104,12 +138,12 @@ async function askAI({ message, chatId, historyContext = "", base64ImageUrl = nu
           );
           resultContent = updated
             ? `Marked "${updated.content}" as COMPLETED.`
-            : `Item ${args.id} not found.`;
+            : `Item not found.`;
         } else if (functionName === "delete_memory") {
           const deleted = await Memory.findOneAndDelete({ _id: args.id, chatId });
           resultContent = deleted
             ? `Deleted item "${deleted.content}".`
-            : `Item ${args.id} not found.`;
+            : `Item not found.`;
         } else if (functionName === "clear_all_memories") {
           const res = await Memory.deleteMany({ chatId });
           resultContent = `Cleared all ${res.deletedCount} items.`;
@@ -131,15 +165,15 @@ async function askAI({ message, chatId, historyContext = "", base64ImageUrl = nu
       const followUp = await executeWithFailover({
         messages,
         model,
+        temperature: 0.65,
       });
       responseMessage = followUp.choices[0].message;
     } catch (err) {
-      console.warn("Follow-up completion failed, using default confirmation:", err.message);
+      console.warn("Follow-up error:", err.message);
     }
   }
 
-  const rawText = responseMessage.content || "Sorted bhai! ✅ Anything else?";
-  return rawText.replace(/#/g, "").replace(/\*\*/g, "*");
+  return sanitizeOutput(responseMessage.content);
 }
 
 module.exports = { askAI };
