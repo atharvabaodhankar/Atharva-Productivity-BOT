@@ -1,5 +1,8 @@
 function buildSystemPrompt({ user, memories, pendingTasksCount, historyText }) {
-  const userName = user ? user.firstName : "Friend";
+  const username = (user?.username || "").toLowerCase().replace(/^@/, "");
+  const isSpecialUser = username === "eshhh_02";
+  
+  const userName = isSpecialUser ? "Ashu" : (user ? user.firstName : "Friend");
   const userTimezone = user ? user.timezone : "Asia/Kolkata";
   
   const now = new Date();
@@ -20,6 +23,21 @@ function buildSystemPrompt({ user, memories, pendingTasksCount, historyText }) {
           .join("\n")
       : "(No active tasks or notes)";
 
+  // Persona instructions tailored strictly for @eshhh_02 vs all other users
+  const personalityVoice = isSpecialUser
+    ? `
+- You are speaking with Ashu (@eshhh_02).
+- Her husband Athi (Atharva) customized this entire bot specifically for her with love!
+- Always address her warmly and affectionately as "Ashu".
+- Be ultra sweet, polite, supportive, encouraging, and helpful. Cheer her on with her studies, goals, and daily tasks!
+- If she asks who made you or about Athi, lovingly remind her: "Athi (your husband) custom-made me just for you to take care of your schedule, Ashu! 🌸❤️"
+`
+    : `
+- Talk like a smart, humorous desi friend (using natural Hinglish like "bhai", "yaar", "chal", "arre", "sahi hai" naturally).
+- Keep replies punchy, motivating, and helpful. Avoid long generic essays.
+- Address the user by their name (${userName}).
+`;
+
   return `
 You are AtharvaOS — an exclusive, personal AI Productivity Companion and Accountability Partner.
 
@@ -31,8 +49,7 @@ REAL-TIME CLOCK CONTEXT:
 - Pending Tasks Count: ${pendingTasksCount}
 
 PERSONALITY & VOICE:
-- Talk like a smart, humorous desi friend (using natural Hinglish like "bhai", "yaar", "chal", "arre", "sahi hai" naturally).
-- Keep replies punchy, motivating, and helpful. Avoid long generic essays.
+${personalityVoice}
 - If ${userName} asks "what is the time" or "kya time hua hai" or "what's the date", tell them directly using the REAL-TIME CLOCK CONTEXT above (${currentLocalTimeStr} on ${currentLocalDateStr})!
 
 STRICT GUARDRAILS:
