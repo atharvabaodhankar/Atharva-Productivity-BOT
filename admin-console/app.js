@@ -421,24 +421,28 @@ async function sendMessage() {
   }
 }
 
-// 6. Media Handling & Base64 Converter (Images & Videos)
-attachMediaBtn.addEventListener("click", () => {
-  mediaFileInput.click();
-});
+const dragDropOverlay = document.getElementById("dragDropOverlay");
+const chatViewContainer = document.querySelector(".chat-view-container");
 
-mediaFileInput.addEventListener("change", (e) => {
-  const file = e.target.files[0];
+// 6. Media Handling & Base64 Converter (Images & Videos)
+function handleMediaFile(file) {
   if (!file) return;
 
-  stagedMediaFileName = file.name;
-  stagedMediaType = file.type || "application/octet-stream";
-
   const isVideo = file.type.startsWith("video/") || /\.(mp4|mov|webm|mkv|avi)$/i.test(file.name);
+  const isPhoto = file.type.startsWith("image/") || /\.(png|jpg|jpeg|gif|webp)$/i.test(file.name);
+
+  if (!isVideo && !isPhoto) {
+    showToast("⚠️ Only photos and videos are supported.", "error");
+    return;
+  }
+
+  stagedMediaFileName = file.name || (isVideo ? "video.mp4" : "photo.jpg");
+  stagedMediaType = file.type || (isVideo ? "video/mp4" : "image/jpeg");
 
   const reader = new FileReader();
   reader.onload = () => {
     stagedMediaBase64 = reader.result;
-    mediaFileName.textContent = file.name;
+    mediaFileName.textContent = stagedMediaFileName;
 
     if (isVideo) {
       mediaPreviewImg.style.display = "none";
@@ -454,8 +458,18 @@ mediaFileInput.addEventListener("change", (e) => {
 
     mediaStagingBar.style.display = "block";
     chatMessageInput.focus();
+    showToast(`📎 Staged: ${stagedMediaFileName}`, "success");
   };
   reader.readAsDataURL(file);
+}
+
+attachMediaBtn.addEventListener("click", () => {
+  mediaFileInput.click();
+});
+
+mediaFileInput.addEventListener("change", (e) => {
+  const file = e.target.files[0];
+  if (file) handleMediaFile(file);
 });
 
 function clearStagedMedia() {
@@ -471,6 +485,49 @@ function clearStagedMedia() {
 }
 
 clearMediaBtn.addEventListener("click", clearStagedMedia);
+
+// 7. Drag and Drop Support
+let dragCounter = 0;
+
+window.addEventListener("dragenter", (e) => {
+  e.preventDefault();
+  if (e.dataTransfer && e.dataTransfer.types.includes("Files")) {
+    dragCounter++;
+    if (dragDropOverlay) dragDropOverlay.style.display = "flex";
+  }
+});
+
+window.addEventListener("dragover", (e) => {
+  e.preventDefault();
+});
+
+window.addEventListener("dragleave", (e) => {
+  e.preventDefault();
+  dragCounter--;
+  if (dragCounter <= 0) {
+    dragCounter = 0;
+    if (dragDropOverlay) dragDropOverlay.style.display = "none";
+  }
+});
+
+window.addEventListener("drop", (e) => {
+  e.preventDefault();
+  dragCounter = 0;
+  if (dragDropOverlay) dragDropOverlay.style.display = "none";
+
+  if (e.dataTransfer && e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+    const file = e.dataTransfer.files[0];
+    handleMediaFile(file);
+  }
+});
+
+// 8. Clipboard Paste Support (Ctrl+V directly pastes images/videos)
+window.addEventListener("paste", (e) => {
+  if (e.clipboardData && e.clipboardData.files && e.clipboardData.files.length > 0) {
+    const file = e.clipboardData.files[0];
+    handleMediaFile(file);
+  }
+});
 
 // 7. Event Listeners & Shortcuts
 sendBtn.addEventListener("click", sendMessage);

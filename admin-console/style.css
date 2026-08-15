@@ -432,9 +432,62 @@ html, body {
   color: var(--text-pure-white);
 }
 
-.mono-btn svg {
-  width: 15px;
-  height: 15px;
+/* Drag & Drop Visual Overlay */
+.drag-drop-overlay {
+  position: absolute;
+  top: 72px; /* below header */
+  bottom: 0;
+  left: 0;
+  right: 0;
+  background-color: rgba(9, 9, 11, 0.88);
+  backdrop-filter: blur(8px);
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px;
+  animation: fadeInMsg 0.15s ease-out;
+  pointer-events: none;
+}
+
+.drag-drop-box {
+  width: 100%;
+  max-width: 480px;
+  border: 2px dashed var(--text-pure-white);
+  border-radius: var(--radius-lg);
+  background-color: var(--bg-card);
+  padding: 40px 24px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  gap: 12px;
+  box-shadow: 0 0 30px rgba(255, 255, 255, 0.15);
+  animation: pulseDrag 1.5s ease-in-out infinite;
+}
+
+@keyframes pulseDrag {
+  0%, 100% { transform: scale(1); border-color: var(--text-pure-white); }
+  50% { transform: scale(1.02); border-color: var(--border-highlight); }
+}
+
+.drag-icon {
+  width: 48px;
+  height: 48px;
+  color: var(--text-pure-white);
+}
+
+.drag-drop-box h3 {
+  font-family: var(--font-mono);
+  font-size: 1rem;
+  letter-spacing: 0.08em;
+  color: var(--text-pure-white);
+}
+
+.drag-drop-box p {
+  font-size: 0.82rem;
+  color: var(--text-secondary);
 }
 
 /* ==========================================================================
