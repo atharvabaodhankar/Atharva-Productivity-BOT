@@ -100,6 +100,28 @@ module.exports = (bot) => {
         }
       }
 
+      // 1.6 Check if user sent plain text requesting NSFW meme (e.g. "show nsfw", "nsfw meme", "send nsfw")
+      const isPlainMemeRequest = /\b(show nsfw|nsfw meme|nsfw memes|show meme|send nsfw|send meme)\b/i.test(userMessage);
+      if (isPlainMemeRequest) {
+        await User.findOneAndUpdate(
+          { telegramId: chatId },
+          { $set: { awaitingMemeConfirmation: true } },
+          { upsert: true }
+        );
+
+        const promptMsg =
+          "Ahem ahem! 🔞 Pakka dekhna hai random NSFW memes? Sach batao, are you 18+ and really wish to see it? 😏\n\n💬 *Type 'yes' or 'no' in chat!*";
+
+        const sentMsg = await ctx.reply(promptMsg, {
+          parse_mode: "Markdown",
+          reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
+        });
+
+        await History.create({ chatId, role: "user", content: userMessage, telegramMessageId: ctx.message.message_id });
+        await History.create({ chatId, role: "assistant", content: promptMsg, telegramMessageId: sentMsg.message_id });
+        return;
+      }
+
       // 2. Check for Easter Eggs or NSFW triggers
       const detectedTrigger = checkEasterEggOrNsfw(userMessage);
       if (detectedTrigger) {

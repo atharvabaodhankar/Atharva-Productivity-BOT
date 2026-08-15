@@ -11,13 +11,22 @@ const History = require("../../models/History");
 module.exports = (bot) => {
   const easterEggCommands = [
     "secret",
-    "memes",
-    "nsfw",
     "carcasting",
     "easteregg",
     "eastereggs",
     "hack",
     "xxx",
+  ];
+
+  const memeCommands = [
+    "show_meme",
+    "showmeme",
+    "show_memes",
+    "nsfw",
+    "show_nsfw",
+    "nsfw_meme",
+    "meme_nsfw",
+    "show_nsfw_meme",
   ];
 
   // 1. Secret & Easter Egg Discovery Commands
@@ -67,8 +76,8 @@ module.exports = (bot) => {
     }
   });
 
-  // 2. /show_meme (ask 18+ confirmation and wait for user to type 'yes' or 'no' in chat)
-  bot.command(["show_meme", "showmeme", "show_memes", "nsfw_meme", "meme_nsfw"], async (ctx) => {
+  // 2. /show_meme & /show_nsfw (ask 18+ confirmation and wait for user to type 'yes' or 'no' in chat)
+  bot.command(memeCommands, async (ctx) => {
     try {
       const chatId = ctx.chat.id;
       const userName = ctx.from?.first_name || "Friend";
