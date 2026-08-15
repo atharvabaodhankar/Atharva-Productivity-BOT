@@ -1,7 +1,8 @@
 const { deleteMemory } = require("../../services/memoryService");
+const { privateOnly } = require("../middlewares/privateOnly");
 
 module.exports = (bot) => {
-  bot.command("delete", async (ctx) => {
+  bot.command("delete", privateOnly(async (ctx) => {
     const args = ctx.message.text.split(" ");
     if (args.length < 2) {
       return ctx.reply("Usage: /delete <task_id>\nGet task ID from /tasks command");
@@ -21,5 +22,5 @@ module.exports = (bot) => {
     } catch (error) {
       ctx.reply("❌ Invalid task ID format");
     }
-  });
+  }));
 };

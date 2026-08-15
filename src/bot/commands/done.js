@@ -1,7 +1,8 @@
 const { completeMemory } = require("../../services/memoryService");
+const { privateOnly } = require("../middlewares/privateOnly");
 
 module.exports = (bot) => {
-  bot.command("done", async (ctx) => {
+  bot.command("done", privateOnly(async (ctx) => {
     const args = ctx.message.text.split(" ");
     if (args.length < 2) {
       return ctx.reply("Arre bhai! Usage: /done <task_id>\nGet task ID from /tasks command 😊");
@@ -27,5 +28,5 @@ module.exports = (bot) => {
     } catch (error) {
       ctx.reply("Oops! Invalid task ID bro 😅 Use /tasks to get the right one");
     }
-  });
+  }));
 };

@@ -61,6 +61,8 @@ module.exports = (bot) => {
         message: userMessage,
         chatId,
         historyContext,
+        isGroup,
+        senderName: ctx.from?.first_name || "Friend",
       });
 
       // Save history asynchronously

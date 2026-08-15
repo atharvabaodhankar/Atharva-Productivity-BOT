@@ -27,23 +27,36 @@ const CASUAL_GREETINGS = new Set([
   "kesa he bro", "kaisa hai bro", "kaisa he", "who made you"
 ]);
 
-async function askAI({ message, chatId, historyContext = "", base64ImageUrl = null }) {
+async function askAI({
+  message,
+  chatId,
+  historyContext = "",
+  base64ImageUrl = null,
+  isGroup = false,
+  senderName = "Friend",
+}) {
   const user = await User.findOne({ telegramId: chatId });
-  const memories = await Memory.find({ chatId })
-    .sort({ completed: 1, createdAt: -1 })
-    .limit(20);
+  const memories = isGroup
+    ? []
+    : await Memory.find({ chatId })
+        .sort({ completed: 1, createdAt: -1 })
+        .limit(20);
 
-  const pendingTasksCount = await Memory.countDocuments({
-    chatId,
-    type: { $in: ["task", "assignment", "project", "exam"] },
-    completed: false,
-  });
+  const pendingTasksCount = isGroup
+    ? 0
+    : await Memory.countDocuments({
+        chatId,
+        type: { $in: ["task", "assignment", "project", "exam"] },
+        completed: false,
+      });
 
   const systemPrompt = buildSystemPrompt({
     user,
     memories,
     pendingTasksCount,
     historyText: historyContext,
+    isGroupChat: isGroup,
+    senderName,
   });
 
   const model = base64ImageUrl
@@ -70,22 +83,24 @@ async function askAI({ message, chatId, historyContext = "", base64ImageUrl = nu
   ];
 
   const cleanInput = (message || "").trim().toLowerCase();
-  const isCasualChat = CASUAL_GREETINGS.has(cleanInput) && !base64ImageUrl;
+  const isCasualChat = (CASUAL_GREETINGS.has(cleanInput) || isGroup) && !base64ImageUrl;
 
   let responseMessage;
 
-  // If casual greeting, execute fast completion without tools to prevent hallucination
+  // In groups or casual greetings, execute direct chat without tools to prevent workspace leaks/hallucinations
   if (isCasualChat) {
     const directResponse = await executeWithFailover({
       messages,
       model,
-      temperature: 0.65,
-      max_completion_tokens: 300,
+      temperature: 0.7,
+      max_completion_tokens: 350,
     });
-    return sanitizeOutput(directResponse.choices[0].message.content);
+    const rawContent =
+      directResponse.choices[0].message.content || directResponse.choices[0].message.reasoning || "";
+    return sanitizeOutput(rawContent);
   }
 
-  // Otherwise, use tool calling
+  // Otherwise, use tool calling in private DMs
   try {
     const response = await executeWithFailover({
       messages,

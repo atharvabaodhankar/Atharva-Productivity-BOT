@@ -1,7 +1,8 @@
 const { getTodaySummary } = require("../../services/memoryService");
+const { privateOnly } = require("../middlewares/privateOnly");
 
 module.exports = (bot) => {
-  bot.command("today", async (ctx) => {
+  bot.command("today", privateOnly(async (ctx) => {
     const chatId = ctx.chat.id;
     const name = ctx.state.user ? ctx.state.user.firstName : "champ";
     const userTimezone = ctx.state.user ? ctx.state.user.timezone : "Asia/Kolkata";
@@ -49,5 +50,5 @@ module.exports = (bot) => {
     }
 
     ctx.reply(message);
-  });
+  }));
 };

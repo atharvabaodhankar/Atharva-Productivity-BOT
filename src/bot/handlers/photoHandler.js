@@ -66,6 +66,8 @@ module.exports = (bot) => {
         chatId,
         historyContext,
         base64ImageUrl,
+        isGroup,
+        senderName: ctx.from?.first_name || "Friend",
       });
 
       await History.create([

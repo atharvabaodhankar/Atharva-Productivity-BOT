@@ -1,7 +1,8 @@
 const { getPendingTasks } = require("../../services/memoryService");
+const { privateOnly } = require("../middlewares/privateOnly");
 
 module.exports = (bot) => {
-  bot.command("tasks", async (ctx) => {
+  bot.command("tasks", privateOnly(async (ctx) => {
     const chatId = ctx.chat.id;
     const userTimezone = ctx.state.user ? ctx.state.user.timezone : "Asia/Kolkata";
     const tasks = await getPendingTasks(chatId);
@@ -49,5 +50,5 @@ module.exports = (bot) => {
     }
 
     ctx.reply(message);
-  });
+  }));
 };

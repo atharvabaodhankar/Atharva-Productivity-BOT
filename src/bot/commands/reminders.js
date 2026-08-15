@@ -1,7 +1,8 @@
 const { getReminders } = require("../../services/memoryService");
+const { privateOnly } = require("../middlewares/privateOnly");
 
 module.exports = (bot) => {
-  bot.command("reminders", async (ctx) => {
+  bot.command("reminders", privateOnly(async (ctx) => {
     const chatId = ctx.chat.id;
     const userTimezone = ctx.state.user ? ctx.state.user.timezone : "Asia/Kolkata";
     const reminders = await getReminders(chatId);
@@ -20,5 +21,5 @@ module.exports = (bot) => {
     });
 
     ctx.reply(message);
-  });
+  }));
 };
