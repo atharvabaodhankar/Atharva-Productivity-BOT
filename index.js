@@ -1,42 +1,36 @@
 require("dotenv").config();
-const bot = require("./bot");
-const { connectToDatabase } = require("./db");
-const { startReminderService } = require("./reminderService");
-
-const PORT = process.env.PORT || 3000;
+const bot = require("./src/bot");
+const { connectToDatabase } = require("./src/config/db");
+const { startReminderCron } = require("./src/services/reminderService");
+const { PORT, WEBHOOK_DOMAIN } = require("./src/config/env");
 
 async function startApp() {
   try {
     await connectToDatabase();
 
-    // Start bot locally
-    if (process.env.WEBHOOK_DOMAIN) {
+    if (WEBHOOK_DOMAIN) {
       bot.launch({
         webhook: {
-          domain: process.env.WEBHOOK_DOMAIN,
+          domain: WEBHOOK_DOMAIN,
           port: PORT,
           host: "0.0.0.0",
         },
       });
-      console.log("Telegram Bot Launched in Webhook Mode");
+      console.log(`Telegram Bot Launched in Webhook Mode (${WEBHOOK_DOMAIN})`);
     } else {
       bot.launch();
       console.log("Telegram Bot Launched in Polling Mode (Local Dev)");
     }
 
-    // Start reminder service locally
-    startReminderService(bot);
-
+    startReminderCron(bot);
   } catch (err) {
-    console.error("FAILED to start application:");
-    console.error(err);
+    console.error("Failed to start application:", err);
     process.exit(1);
   }
 }
 
 startApp();
 
-// Stop services gracefully
 process.once("SIGINT", () => {
   bot.stop("SIGINT");
   process.exit(0);
