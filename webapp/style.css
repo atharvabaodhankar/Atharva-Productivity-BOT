@@ -1,7 +1,7 @@
 /* ==========================================================================
    ATHARVAOS DUAL-COLOR LIGHT THEME (FLO 101 STYLE)
    Dual Colors: Crisp Dark Ink (#14110E) + Signature Flo Lavender (#BAABFF)
-   Clean paper canvas with organic flowing background curves.
+   Professional Lucide Outline Icons with Clean Crisp Geometry.
    ========================================================================== */
 
 :root {
@@ -106,6 +106,24 @@ h1, h2, h3, .display-serif {
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ink-muted);
+}
+
+/* Professional Lucide Icons Utilities */
+svg.lucide {
+  stroke-width: 2px;
+  vertical-align: middle;
+}
+
+.icon-sm {
+  width: 14px;
+  height: 14px;
+}
+
+.icon-inline {
+  width: 13px;
+  height: 13px;
+  vertical-align: -2px;
+  margin-right: 2px;
 }
 
 /* Header */
@@ -240,7 +258,7 @@ h1, h2, h3, .display-serif {
 .momentum-tag {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   font-size: 0.72rem;
   font-weight: 700;
   color: var(--flo-lavender-dark);
@@ -259,7 +277,7 @@ h1, h2, h3, .display-serif {
   line-height: 1.35;
 }
 
-/* Dual Color Navigation Pills (Flo 101 style) */
+/* Dual Color Navigation Pills */
 .nav-pills-bar {
   display: flex;
   gap: 8px;
@@ -276,7 +294,7 @@ h1, h2, h3, .display-serif {
   background: var(--card-white);
   border: 1px solid var(--line-hairline);
   color: var(--ink-secondary);
-  padding: 10px 18px;
+  padding: 9px 16px;
   border-radius: var(--radius-full);
   font-family: var(--font-sans);
   font-size: 0.85rem;
@@ -293,7 +311,11 @@ h1, h2, h3, .display-serif {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 0.85rem;
+}
+
+.icon-chip svg {
+  width: 16px;
+  height: 16px;
 }
 
 .pill-btn:hover {
@@ -311,12 +333,17 @@ h1, h2, h3, .display-serif {
 }
 
 .pill-btn.active .icon-chip {
-  width: 20px;
-  height: 20px;
+  width: 22px;
+  height: 22px;
   border-radius: var(--radius-full);
   background: var(--ink-primary);
   color: #FFFFFF;
-  font-size: 0.65rem;
+}
+
+.pill-btn.active .icon-chip svg {
+  width: 13px;
+  height: 13px;
+  stroke: #FFFFFF;
 }
 
 /* Search Bar */
@@ -329,8 +356,10 @@ h1, h2, h3, .display-serif {
 .search-icon {
   position: absolute;
   left: 14px;
-  font-size: 0.9rem;
-  opacity: 0.45;
+  width: 18px;
+  height: 18px;
+  color: var(--ink-muted);
+  pointer-events: none;
 }
 
 .search-field {
@@ -465,7 +494,7 @@ h1, h2, h3, .display-serif {
   color: var(--ink-secondary);
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: 2px;
 }
 
 .due-overdue { color: var(--badge-high); font-weight: 700; }
@@ -476,10 +505,17 @@ h1, h2, h3, .display-serif {
   border: none;
   color: var(--ink-muted);
   cursor: pointer;
-  font-size: 0.9rem;
   padding: 2px 4px;
   opacity: 0.5;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   transition: opacity var(--dur) var(--ease), color var(--dur) var(--ease);
+}
+
+.delete-btn svg {
+  width: 16px;
+  height: 16px;
 }
 
 .item-card:hover .delete-btn {
@@ -500,9 +536,21 @@ h1, h2, h3, .display-serif {
   gap: 10px;
 }
 
-.empty-icon {
-  font-size: 2.6rem;
-  margin-bottom: 2px;
+.empty-icon-wrap {
+  width: 64px;
+  height: 64px;
+  border-radius: var(--radius-full);
+  background: var(--flo-lavender-light);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 4px;
+}
+
+.empty-svg-icon {
+  width: 32px;
+  height: 32px;
+  color: var(--flo-lavender-dark);
 }
 
 .empty-state h3 {
@@ -571,9 +619,9 @@ h1, h2, h3, .display-serif {
   box-shadow: 0 14px 36px rgba(186, 171, 255, 0.7);
 }
 
-.fab-plus {
-  font-size: 1.2rem;
-  line-height: 1;
+.fab-icon {
+  width: 18px;
+  height: 18px;
 }
 
 /* Modal */
@@ -633,10 +681,14 @@ h1, h2, h3, .display-serif {
   height: 36px;
   border-radius: var(--radius-full);
   cursor: pointer;
-  font-size: 1rem;
   display: flex;
   align-items: center;
   justify-content: center;
+}
+
+.close-btn svg {
+  width: 18px;
+  height: 18px;
 }
 
 .modal-form {
@@ -675,7 +727,10 @@ h1, h2, h3, .display-serif {
 }
 
 .radio-pill {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
   padding: 9px 8px;
   border-radius: var(--radius-full);
   background: var(--panel-cream);
@@ -684,6 +739,11 @@ h1, h2, h3, .display-serif {
   font-weight: 600;
   color: var(--ink-secondary);
   transition: all var(--dur) var(--ease);
+}
+
+.radio-pill svg {
+  width: 14px;
+  height: 14px;
 }
 
 .category-radio input:checked + .radio-pill {
@@ -727,8 +787,17 @@ h1, h2, h3, .display-serif {
   font-weight: 700;
   cursor: pointer;
   margin-top: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   box-shadow: 0 4px 16px rgba(186, 171, 255, 0.5);
   transition: all var(--dur) var(--ease);
+}
+
+.submit-pill-btn svg {
+  width: 18px;
+  height: 18px;
 }
 
 .submit-pill-btn:hover {
@@ -756,8 +825,20 @@ h1, h2, h3, .display-serif {
   padding: 18px;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
   box-shadow: var(--shadow-card);
+}
+
+.stat-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.stat-icon {
+  width: 18px;
+  height: 18px;
+  color: var(--ink-muted);
 }
 
 .stat-num {
@@ -778,15 +859,40 @@ h1, h2, h3, .display-serif {
   box-shadow: var(--shadow-card);
 }
 
+.user-list-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
 .user-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 8px 0;
+  padding: 10px 0;
   border-bottom: 1px solid var(--line-hairline);
   font-size: 0.85rem;
 }
 
 .user-row:last-child {
   border-bottom: none;
+}
+
+.user-row-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mini-avatar {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-full);
+  background: var(--flo-lavender-light);
+  color: var(--flo-lavender-dark);
+  font-weight: 700;
+  font-size: 0.85rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }

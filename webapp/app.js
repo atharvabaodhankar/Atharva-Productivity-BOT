@@ -1,4 +1,4 @@
-// AtharvaOS Dual-Color (Flo 101) Mini App Controller
+// AtharvaOS Dual-Color (Flo 101) Mini App Controller with Professional Lucide Icons
 
 const API_BASE_URL = "https://ged2lb24hngndlzk5b73dmvdqy0ydsmo.lambda-url.ap-south-1.on.aws/api";
 const OWNER_CHAT_ID = "5275149287";
@@ -44,6 +44,13 @@ const addModal = document.getElementById("addModal");
 const openAddModalBtn = document.getElementById("openAddModalBtn");
 const closeAddModalBtn = document.getElementById("closeAddModalBtn");
 const addTaskForm = document.getElementById("addTaskForm");
+
+// Helper to refresh Lucide icons
+function refreshIcons() {
+  if (window.lucide && typeof window.lucide.createIcons === "function") {
+    window.lucide.createIcons();
+  }
+}
 
 // Initialize User Profile
 function setupUserProfile() {
@@ -127,11 +134,14 @@ function renderTasks() {
   if (filtered.length === 0) {
     taskListEl.innerHTML = `
       <div class="empty-state">
-        <div class="empty-icon">🏖️</div>
+        <div class="empty-icon-wrap">
+          <i data-lucide="inbox" class="empty-svg-icon"></i>
+        </div>
         <h3 class="display-serif">Your Slate is Clear</h3>
         <p>No active items in this category. Enjoy your stillness or plan your next breakthrough.</p>
       </div>
     `;
+    refreshIcons();
     return;
   }
 
@@ -148,20 +158,20 @@ function renderTasks() {
       const formatted = dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
       let dueClass = "due-indicator";
-      let dueText = `📅 ${formatted}`;
+      let dueText = `<i data-lucide="calendar" class="icon-inline"></i> ${formatted}`;
       if (daysLeft < 0) {
         dueClass += " due-overdue";
-        dueText = `⚠️ Overdue (${formatted})`;
+        dueText = `<i data-lucide="alert-circle" class="icon-inline"></i> Overdue (${formatted})`;
       } else if (daysLeft === 0) {
         dueClass += " due-today";
-        dueText = `🔥 Due Today`;
+        dueText = `<i data-lucide="clock" class="icon-inline"></i> Due Today`;
       }
       dueHtml = `<span class="${dueClass}">${dueText}</span>`;
     }
 
     // Priority badge
     const priority = task.priority || "medium";
-    const priorityLabel = priority === "high" ? "🔥 High" : priority === "low" ? "🟢 Low" : "⚡ Med";
+    const priorityLabel = priority === "high" ? "High" : priority === "low" ? "Low" : "Med";
     const priorityBadge = `<span class="badge badge-${priority}">${priorityLabel}</span>`;
 
     // Tags
@@ -174,7 +184,9 @@ function renderTasks() {
       <div class="card-body">
         <div class="card-top-row">
           <span class="card-title">${escapeHtml(task.content)}</span>
-          <button class="delete-btn" title="Delete item">🗑️</button>
+          <button class="delete-btn" title="Delete item" aria-label="Delete">
+            <i data-lucide="trash-2"></i>
+          </button>
         </div>
         <div class="card-meta-row">
           ${priorityBadge}
@@ -197,6 +209,8 @@ function renderTasks() {
 
     taskListEl.appendChild(card);
   });
+
+  refreshIcons();
 }
 
 // Toggle Task
@@ -324,33 +338,51 @@ async function fetchAdminStats() {
       adminContent.innerHTML = `
         <div class="stat-grid">
           <div class="stat-box">
-            <span class="eyebrow">TOTAL USERS</span>
+            <div class="stat-header">
+              <span class="eyebrow">TOTAL USERS</span>
+              <i data-lucide="users" class="stat-icon"></i>
+            </div>
             <span class="stat-num">${data.totalUsers}</span>
           </div>
           <div class="stat-box">
-            <span class="eyebrow">TOTAL TASKS</span>
+            <div class="stat-header">
+              <span class="eyebrow">TOTAL TASKS</span>
+              <i data-lucide="check-square" class="stat-icon"></i>
+            </div>
             <span class="stat-num">${data.totalTasks}</span>
           </div>
           <div class="stat-box">
-            <span class="eyebrow">COMPLETED</span>
+            <div class="stat-header">
+              <span class="eyebrow">COMPLETED</span>
+              <i data-lucide="check-circle-2" class="stat-icon" style="color:var(--status-green)"></i>
+            </div>
             <span class="stat-num" style="color:var(--status-green)">${data.completedTasks}</span>
           </div>
           <div class="stat-box">
-            <span class="eyebrow">AI MESSAGES</span>
+            <div class="stat-header">
+              <span class="eyebrow">AI MESSAGES</span>
+              <i data-lucide="message-square" class="stat-icon" style="color:var(--flo-lavender-dark)"></i>
+            </div>
             <span class="stat-num" style="color:var(--flo-lavender-dark)">${data.totalMessages}</span>
           </div>
         </div>
 
         <div class="users-list-card">
-          <span class="eyebrow">REGISTERED USER ROSTER</span>
-          <h4 class="display-serif" style="margin-bottom: 6px;">Active Profiles</h4>
+          <div class="user-list-header">
+            <span class="eyebrow">REGISTERED USER ROSTER</span>
+            <i data-lucide="user-check" class="stat-icon"></i>
+          </div>
+          <h4 class="display-serif" style="margin-bottom: 8px;">Active Profiles</h4>
           ${(data.users || [])
             .map(
               (u) => `
             <div class="user-row">
-              <div>
-                <strong>${escapeHtml(u.firstName)}</strong>
-                ${u.username ? `<span style="color:var(--ink-muted)"> (@${escapeHtml(u.username)})</span>` : ""}
+              <div class="user-row-left">
+                <div class="mini-avatar">${escapeHtml(u.firstName.charAt(0).toUpperCase())}</div>
+                <div>
+                  <strong>${escapeHtml(u.firstName)}</strong>
+                  ${u.username ? `<span style="color:var(--ink-muted)"> (@${escapeHtml(u.username)})</span>` : ""}
+                </div>
               </div>
               <span style="color:var(--ink-muted); font-size: 0.78rem;">
                 ${new Date(u.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
@@ -361,6 +393,7 @@ async function fetchAdminStats() {
             .join("")}
         </div>
       `;
+      refreshIcons();
     } else {
       adminContent.innerHTML = `<p style="color:var(--badge-high)">Access restricted or error loading stats.</p>`;
     }
@@ -423,3 +456,4 @@ function escapeHtml(text) {
 // Initial Boot
 setupUserProfile();
 fetchTasks();
+refreshIcons();

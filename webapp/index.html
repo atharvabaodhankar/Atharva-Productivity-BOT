@@ -13,6 +13,9 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
   
+  <!-- Lucide Professional Outline Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
   <!-- Canvas Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
   
@@ -64,7 +67,7 @@
 
         <div class="hero-text">
           <div class="momentum-tag">
-            <span class="tag-icon">⚡</span> DAILY MOMENTUM
+            <i data-lucide="zap" class="icon-sm"></i> DAILY MOMENTUM
           </div>
           <h2 class="hero-title" id="taskSummaryHeadline">0 of 0 Completed</h2>
           <p class="hero-quote" id="vibeQuote">Small daily wins compound into unstoppable momentum.</p>
@@ -75,34 +78,34 @@
     <!-- Dual Color Navigation Pills (Signature Flo Lavender) -->
     <nav class="nav-pills-bar" aria-label="Categories">
       <button class="pill-btn active" data-filter="all">
-        <span class="icon-chip">✦</span>
+        <span class="icon-chip"><i data-lucide="layout-grid"></i></span>
         <span>All</span>
       </button>
       <button class="pill-btn" data-filter="task">
-        <span class="icon-chip">⚡</span>
+        <span class="icon-chip"><i data-lucide="check-square"></i></span>
         <span>Tasks</span>
       </button>
       <button class="pill-btn" data-filter="assignment">
-        <span class="icon-chip">📚</span>
+        <span class="icon-chip"><i data-lucide="book-open"></i></span>
         <span>Study</span>
       </button>
       <button class="pill-btn" data-filter="goal">
-        <span class="icon-chip">🎯</span>
+        <span class="icon-chip"><i data-lucide="target"></i></span>
         <span>Goals</span>
       </button>
       <button class="pill-btn" data-filter="reminder">
-        <span class="icon-chip">🔔</span>
+        <span class="icon-chip"><i data-lucide="bell"></i></span>
         <span>Reminders</span>
       </button>
       <button class="pill-btn admin-pill" id="adminTabBtn" data-filter="admin" style="display:none;">
-        <span class="icon-chip">📊</span>
+        <span class="icon-chip"><i data-lucide="bar-chart-2"></i></span>
         <span>Analytics</span>
       </button>
     </nav>
 
     <!-- Search Input -->
     <div class="search-wrapper">
-      <span class="search-icon">🔍</span>
+      <i data-lucide="search" class="search-icon"></i>
       <input type="text" id="searchInput" class="search-field" placeholder="Search tasks, goals, or tags..." aria-label="Search">
     </div>
 
@@ -128,7 +131,7 @@
 
     <!-- Lavender Floating Action Button -->
     <button class="fab-btn" id="openAddModalBtn" aria-label="Add new item">
-      <span class="fab-plus">+</span>
+      <i data-lucide="plus" class="fab-icon"></i>
       <span>New Item</span>
     </button>
 
@@ -140,7 +143,9 @@
             <span class="eyebrow">QUICK ACTION</span>
             <h3 class="modal-title">Create New Item</h3>
           </div>
-          <button class="close-btn" id="closeAddModalBtn" aria-label="Close">✕</button>
+          <button class="close-btn" id="closeAddModalBtn" aria-label="Close">
+            <i data-lucide="x"></i>
+          </button>
         </div>
 
         <form id="addTaskForm" class="modal-form">
@@ -149,19 +154,19 @@
             <div class="category-options">
               <label class="category-radio">
                 <input type="radio" name="type" value="task" checked>
-                <span class="radio-pill">⚡ Task</span>
+                <span class="radio-pill"><i data-lucide="check-square"></i> Task</span>
               </label>
               <label class="category-radio">
                 <input type="radio" name="type" value="assignment">
-                <span class="radio-pill">📚 Study</span>
+                <span class="radio-pill"><i data-lucide="book-open"></i> Study</span>
               </label>
               <label class="category-radio">
                 <input type="radio" name="type" value="goal">
-                <span class="radio-pill">🎯 Goal</span>
+                <span class="radio-pill"><i data-lucide="target"></i> Goal</span>
               </label>
               <label class="category-radio">
                 <input type="radio" name="type" value="reminder">
-                <span class="radio-pill">🔔 Reminder</span>
+                <span class="radio-pill"><i data-lucide="bell"></i> Reminder</span>
               </label>
             </div>
           </div>
@@ -179,9 +184,9 @@
             <div class="form-group half">
               <label for="taskPriorityInput" class="form-label">PRIORITY</label>
               <select id="taskPriorityInput" class="form-select">
-                <option value="high">🔥 High</option>
-                <option value="medium" selected>⚡ Medium</option>
-                <option value="low">🟢 Low</option>
+                <option value="high">High</option>
+                <option value="medium" selected>Medium</option>
+                <option value="low">Low</option>
               </select>
             </div>
           </div>
@@ -192,7 +197,8 @@
           </div>
 
           <button type="submit" class="submit-pill-btn" id="submitTaskBtn">
-            Add to AtharvaOS 🚀
+            <span>Save to AtharvaOS</span>
+            <i data-lucide="arrow-right"></i>
           </button>
         </form>
       </div>
