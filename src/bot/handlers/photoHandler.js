@@ -2,6 +2,8 @@ const { askAI } = require("../../ai/aiService");
 const History = require("../../models/History");
 const GroupConfig = require("../../models/GroupConfig");
 
+const MENTION_REGEX = /@Atharva_Produtivity_Bot|@Atharva_Productivity_Bot|@AtharvaOS/gi;
+
 module.exports = (bot) => {
   bot.on("photo", async (ctx) => {
     try {
@@ -17,19 +19,23 @@ module.exports = (bot) => {
           return;
         }
 
-        const botUsername = ctx.botInfo?.username || "Atharva_Productivity_Bot";
-        const botMentionRegex = new RegExp(`@${botUsername}`, "i");
-        const isMentioned = botMentionRegex.test(caption);
+        const isMentioned = MENTION_REGEX.test(caption) ||
+          ctx.message.caption_entities?.some(
+            (e) =>
+              e.type === "mention" &&
+              /@Atharva_Produtivity_Bot/i.test(caption.substring(e.offset, e.offset + e.length))
+          );
+
         const isReplyToBot =
           ctx.message.reply_to_message?.from?.is_bot &&
-          (ctx.message.reply_to_message?.from?.username?.toLowerCase() === botUsername.toLowerCase() ||
-            ctx.message.reply_to_message?.from?.id === ctx.botInfo?.id);
+          (ctx.message.reply_to_message?.from?.id === 7987805958 ||
+            /@Atharva_Produtivity_Bot/i.test(ctx.message.reply_to_message?.from?.username || ""));
 
         if (!isMentioned && !isReplyToBot) {
           return;
         }
 
-        caption = caption.replace(botMentionRegex, "").trim();
+        caption = caption.replace(MENTION_REGEX, "").trim();
       }
 
       // Pick highest resolution photo

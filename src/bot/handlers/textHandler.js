@@ -2,6 +2,8 @@ const { askAI } = require("../../ai/aiService");
 const History = require("../../models/History");
 const GroupConfig = require("../../models/GroupConfig");
 
+const MENTION_REGEX = /@Atharva_Produtivity_Bot|@Atharva_Productivity_Bot|@AtharvaOS/gi;
+
 module.exports = (bot) => {
   bot.on("text", async (ctx) => {
     try {
@@ -19,23 +21,29 @@ module.exports = (bot) => {
           return;
         }
 
-        const botUsername = ctx.botInfo?.username || "Atharva_Productivity_Bot";
-        const botMentionRegex = new RegExp(`@${botUsername}`, "i");
-        const isMentioned = botMentionRegex.test(userMessage);
+        const isMentioned = MENTION_REGEX.test(userMessage) || 
+          ctx.message.entities?.some(
+            (e) =>
+              e.type === "mention" &&
+              /@Atharva_Produtivity_Bot/i.test(userMessage.substring(e.offset, e.offset + e.length))
+          );
+
         const isReplyToBot =
           ctx.message.reply_to_message?.from?.is_bot &&
-          (ctx.message.reply_to_message?.from?.username?.toLowerCase() === botUsername.toLowerCase() ||
-            ctx.message.reply_to_message?.from?.id === ctx.botInfo?.id);
+          (ctx.message.reply_to_message?.from?.id === 7987805958 ||
+            /@Atharva_Produtivity_Bot/i.test(ctx.message.reply_to_message?.from?.username || ""));
 
         // In groups, ONLY respond if explicitly tagged or replied to
         if (!isMentioned && !isReplyToBot) {
           return;
         }
 
-        // Clean mention from prompt
-        userMessage = userMessage.replace(botMentionRegex, "").trim();
+        // Clean mention from prompt text
+        userMessage = userMessage.replace(MENTION_REGEX, "").trim();
         if (!userMessage && !isReplyToBot) {
-          return ctx.reply("Haan bhai! Kaho, kaise madad karu? 🚀");
+          return ctx.reply("Haan bhai! Kaho, kaise madad karu? 🚀", {
+            reply_to_message_id: ctx.message.message_id,
+          });
         }
       }
 

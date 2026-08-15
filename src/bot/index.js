@@ -8,6 +8,14 @@ if (!BOT_TOKEN) {
 
 const bot = new Telegraf(BOT_TOKEN);
 
+// Explicitly set bot identity for serverless Lambda execution
+bot.botInfo = {
+  id: 7987805958,
+  is_bot: true,
+  first_name: "Atharva OS",
+  username: "Atharva_Produtivity_Bot",
+};
+
 // 1. Attach user auto-registration middleware
 bot.use(userMiddleware);
 
