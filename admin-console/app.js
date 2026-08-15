@@ -1,16 +1,16 @@
-// AtharvaOS // Monochrome Bot POV Console Controller (Real-Time Live Engine)
+// AtharvaOS // Monochrome Bot POV Console Controller (Zero-Flicker Live Engine)
 
 const API_BASE_URL = "https://ged2lb24hngndlzk5b73dmvdqy0ydsmo.lambda-url.ap-south-1.on.aws/api";
 const OWNER_CHAT_ID = "5275149287";
 
 // State
 let allUsers = [];
+let lastUsersSignature = "";
 let activeTargetUser = null;
 let activeMessages = [];
 let stagedMediaBase64 = null;
 let stagedMediaFileName = "";
 let isAutoPollActive = true;
-let lastKnownMsgCount = 0;
 
 // DOM Elements
 const usersListEl = document.getElementById("usersListEl");
@@ -82,15 +82,25 @@ function formatRelativeTime(dateStr) {
   return d.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 }
 
-// 1. Fetch Users List (Sorted by Most Recent Activity)
+// 1. Fetch Users List (With Zero-Flicker Diff Check)
 async function fetchUsers() {
   try {
     const res = await fetch(`${API_BASE_URL}/stats?chatId=${OWNER_CHAT_ID}`);
     const data = await res.json();
 
     if (data && data.users) {
+      // Calculate a signature to check if user list actually changed
+      const newSignature = data.users
+        .map((u) => `${u.telegramId}-${u.messageCount}-${u.lastActive}-${u.lastMessageSnippet}`)
+        .join("|");
+
       allUsers = data.users;
-      renderUsersList();
+
+      // Only re-render if user data or order actually changed
+      if (newSignature !== lastUsersSignature) {
+        lastUsersSignature = newSignature;
+        renderUsersList();
+      }
     }
   } catch (err) {
     console.error("Failed to load user threads:", err);
@@ -153,7 +163,7 @@ function renderUsersList() {
 // 3. Select a User Thread
 async function selectUserThread(user) {
   activeTargetUser = user;
-  lastKnownMsgCount = 0;
+  activeMessages = [];
   renderUsersList(); // Update active highlights
 
   const displayName = user.firstName || (user.username ? `@${user.username}` : `User #${user.telegramId}`);
@@ -171,7 +181,30 @@ async function selectUserThread(user) {
   chatMessageInput.focus();
 }
 
-// 4. Load Conversation Messages (With Auto-Scroll and Live Polling)
+// Create a single message DOM element
+function createMessageElement(msg) {
+  const isBot = msg.role === "assistant";
+  const senderLabel = isBot ? "ATHARVAOS // PROXY" : (activeTargetUser?.firstName || "USER").toUpperCase();
+  const timeStr = msg.createdAt
+    ? new Date(msg.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })
+    : "";
+
+  const div = document.createElement("div");
+  div.className = `msg-row ${isBot ? "bot-msg" : "user-msg"}`;
+  div.dataset.msgKey = msg._id || `${msg.role}-${msg.content}-${msg.createdAt}`;
+  div.innerHTML = `
+    <div class="msg-sender-tag">
+      <span>${escapeHtml(senderLabel)}</span>
+    </div>
+    <div class="msg-card">
+      ${escapeHtml(msg.content)}
+    </div>
+    <div class="msg-time">${escapeHtml(timeStr)}</div>
+  `;
+  return div;
+}
+
+// 4. Load Conversation Messages (Incremental Flicker-Free Diffing)
 async function loadConversationMessages(isInitialSelect = false) {
   if (!activeTargetUser) return;
 
@@ -182,17 +215,60 @@ async function loadConversationMessages(isInitialSelect = false) {
     const data = await res.json();
 
     if (data && data.messages) {
-      const isNewMessageArrived = data.messages.length > lastKnownMsgCount;
-      activeMessages = data.messages;
-      lastKnownMsgCount = data.messages.length;
+      const incomingMessages = data.messages;
 
-      // Check if user was near bottom before re-rendering
+      // 1. Initial Load or Thread Switch
+      if (isInitialSelect) {
+        activeMessages = incomingMessages;
+        messagesStreamEl.innerHTML = "";
+
+        if (activeMessages.length === 0) {
+          messagesStreamEl.innerHTML = `
+            <div class="empty-state-canvas">
+              <i data-lucide="message-square" class="empty-icon"></i>
+              <h3>EMPTY TRANSCRIPT</h3>
+              <p>No messages recorded for ${escapeHtml(activeTargetUser.firstName)}. Start the conversation below!</p>
+            </div>
+          `;
+          refreshIcons();
+          return;
+        }
+
+        activeMessages.forEach((msg) => {
+          messagesStreamEl.appendChild(createMessageElement(msg));
+        });
+        messagesStreamEl.scrollTop = messagesStreamEl.scrollHeight;
+        return;
+      }
+
+      // 2. Incremental Diff: Check if there are new messages without wiping DOM
+      if (incomingMessages.length === activeMessages.length) {
+        // Zero changes, DO NOT touch DOM (Eliminates shuttering completely!)
+        return;
+      }
+
+      // Check if user was already at bottom before appending
       const isNearBottom =
-        messagesStreamEl.scrollHeight - messagesStreamEl.scrollTop <= messagesStreamEl.clientHeight + 100;
+        messagesStreamEl.scrollHeight - messagesStreamEl.scrollTop <= messagesStreamEl.clientHeight + 80;
 
-      renderMessagesStream();
+      // Append only newly added messages
+      const existingCount = activeMessages.length;
+      const newIncoming = incomingMessages.slice(existingCount);
 
-      if (isInitialSelect || isNewMessageArrived || isNearBottom) {
+      // If empty state was visible, clear it first
+      const emptyStateEl = messagesStreamEl.querySelector(".empty-state-canvas");
+      if (emptyStateEl) {
+        emptyStateEl.remove();
+      }
+
+      newIncoming.forEach((msg) => {
+        messagesStreamEl.appendChild(createMessageElement(msg));
+      });
+
+      activeMessages = incomingMessages;
+
+      // Auto-scroll only if was at bottom or received new message
+      if (isNearBottom || newIncoming.length > 0) {
         messagesStreamEl.scrollTop = messagesStreamEl.scrollHeight;
       }
     }
@@ -201,48 +277,7 @@ async function loadConversationMessages(isInitialSelect = false) {
   }
 }
 
-// 5. Render Messages Stream
-function renderMessagesStream() {
-  if (!activeTargetUser) return;
-
-  if (activeMessages.length === 0) {
-    messagesStreamEl.innerHTML = `
-      <div class="empty-state-canvas">
-        <i data-lucide="message-square" class="empty-icon"></i>
-        <h3>EMPTY TRANSCRIPT</h3>
-        <p>No messages recorded for ${escapeHtml(activeTargetUser.firstName)}. Start the conversation below!</p>
-      </div>
-    `;
-    refreshIcons();
-    return;
-  }
-
-  messagesStreamEl.innerHTML = activeMessages
-    .map((msg) => {
-      const isBot = msg.role === "assistant";
-      const senderLabel = isBot ? "ATHARVAOS // PROXY" : (activeTargetUser.firstName || "USER").toUpperCase();
-      const timeStr = msg.createdAt
-        ? new Date(msg.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })
-        : "";
-
-      return `
-        <div class="msg-row ${isBot ? "bot-msg" : "user-msg"}">
-          <div class="msg-sender-tag">
-            <span>${escapeHtml(senderLabel)}</span>
-          </div>
-          <div class="msg-card">
-            ${escapeHtml(msg.content)}
-          </div>
-          <div class="msg-time">${escapeHtml(timeStr)}</div>
-        </div>
-      `;
-    })
-    .join("");
-
-  refreshIcons();
-}
-
-// 6. Send Message as Bot (Human Proxy)
+// 5. Send Message as Bot (Human Proxy)
 async function sendMessage() {
   if (!activeTargetUser) {
     alert("Please select a user thread first!");
@@ -254,6 +289,11 @@ async function sendMessage() {
 
   if (!text && !media) return;
 
+  // Clear Input & Staged Media immediately
+  chatMessageInput.value = "";
+  chatMessageInput.style.height = "auto";
+  clearStagedMedia();
+
   // Optimistic UI Append
   const optimisticContent = media ? `[Photo] ${text}`.trim() : text;
   const tempMsg = {
@@ -262,15 +302,12 @@ async function sendMessage() {
     createdAt: new Date().toISOString(),
   };
 
-  activeMessages.push(tempMsg);
-  lastKnownMsgCount++;
-  renderMessagesStream();
-  messagesStreamEl.scrollTop = messagesStreamEl.scrollHeight;
+  const emptyStateEl = messagesStreamEl.querySelector(".empty-state-canvas");
+  if (emptyStateEl) emptyStateEl.remove();
 
-  // Clear Input & Staged Media
-  chatMessageInput.value = "";
-  chatMessageInput.style.height = "auto";
-  clearStagedMedia();
+  messagesStreamEl.appendChild(createMessageElement(tempMsg));
+  activeMessages.push(tempMsg);
+  messagesStreamEl.scrollTop = messagesStreamEl.scrollHeight;
 
   try {
     const res = await fetch(`${API_BASE_URL}/admin/send-message`, {
@@ -294,7 +331,7 @@ async function sendMessage() {
   }
 }
 
-// 7. Media Handling & Base64 Converter
+// 6. Media Handling & Base64 Converter
 attachMediaBtn.addEventListener("click", () => {
   mediaFileInput.click();
 });
@@ -324,7 +361,7 @@ function clearStagedMedia() {
 
 clearMediaBtn.addEventListener("click", clearStagedMedia);
 
-// 8. Event Listeners & Shortcuts
+// 7. Event Listeners & Shortcuts
 sendBtn.addEventListener("click", sendMessage);
 
 chatMessageInput.addEventListener("keydown", (e) => {
@@ -351,17 +388,16 @@ autoPollToggleBtn.addEventListener("click", () => {
   autoPollToggleBtn.querySelector("span").textContent = isAutoPollActive ? "AUTO-SYNC: ON" : "AUTO-SYNC: OFF";
 });
 
-// Real-Time Polling Loop (Every 2 seconds for live message stream & user activity)
+// Real-Time Polling Loop (Smooth zero-flicker sync every 1.5 seconds)
 function startPolling() {
   setInterval(async () => {
     if (isAutoPollActive) {
       if (activeTargetUser) {
         await loadConversationMessages();
       }
-      // Also poll user list to update recent order and new incoming messages
       await fetchUsers();
     }
-  }, 2000);
+  }, 1500);
 }
 
 // Initialization
