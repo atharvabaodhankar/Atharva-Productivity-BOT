@@ -10,6 +10,7 @@ let activeTargetUser = null;
 let activeMessages = [];
 let stagedMediaBase64 = null;
 let stagedMediaFileName = "";
+let stagedMediaType = "";
 let isAutoPollActive = true;
 
 // DOM Elements
@@ -28,7 +29,9 @@ const manualRefreshBtn = document.getElementById("manualRefreshBtn");
 const messagesStreamEl = document.getElementById("messagesStreamEl");
 const mediaStagingBar = document.getElementById("mediaStagingBar");
 const mediaPreviewImg = document.getElementById("mediaPreviewImg");
+const mediaPreviewVid = document.getElementById("mediaPreviewVid");
 const mediaFileName = document.getElementById("mediaFileName");
+const mediaReadyTag = document.getElementById("mediaReadyTag");
 const clearMediaBtn = document.getElementById("clearMediaBtn");
 
 const mediaFileInput = document.getElementById("mediaFileInput");
@@ -277,7 +280,7 @@ async function loadConversationMessages(isInitialSelect = false) {
   }
 }
 
-// 5. Send Message as Bot (Human Proxy)
+// 5. Send Message as Bot (Human Proxy with Video & Photo)
 async function sendMessage() {
   if (!activeTargetUser) {
     alert("Please select a user thread first!");
@@ -286,6 +289,8 @@ async function sendMessage() {
 
   const text = chatMessageInput.value.trim();
   const media = stagedMediaBase64;
+  const mType = stagedMediaType;
+  const fName = stagedMediaFileName;
 
   if (!text && !media) return;
 
@@ -295,7 +300,9 @@ async function sendMessage() {
   clearStagedMedia();
 
   // Optimistic UI Append
-  const optimisticContent = media ? `[Photo] ${text}`.trim() : text;
+  const isVideo = mType.startsWith("video/") || /\.(mp4|mov|webm|mkv|avi)$/i.test(fName);
+  const mediaPrefix = isVideo ? "[Video]" : "[Photo]";
+  const optimisticContent = media ? `${mediaPrefix} ${text}`.trim() : text;
   const tempMsg = {
     role: "assistant",
     content: optimisticContent,
@@ -318,6 +325,8 @@ async function sendMessage() {
         targetChatId: activeTargetUser.telegramId,
         text,
         mediaBase64: media,
+        mediaType: mType,
+        fileName: fName,
         caption: text,
       }),
     });
@@ -331,7 +340,7 @@ async function sendMessage() {
   }
 }
 
-// 6. Media Handling & Base64 Converter
+// 6. Media Handling & Base64 Converter (Images & Videos)
 attachMediaBtn.addEventListener("click", () => {
   mediaFileInput.click();
 });
@@ -341,11 +350,27 @@ mediaFileInput.addEventListener("change", (e) => {
   if (!file) return;
 
   stagedMediaFileName = file.name;
+  stagedMediaType = file.type || "application/octet-stream";
+
+  const isVideo = file.type.startsWith("video/") || /\.(mp4|mov|webm|mkv|avi)$/i.test(file.name);
+
   const reader = new FileReader();
   reader.onload = () => {
     stagedMediaBase64 = reader.result;
-    mediaPreviewImg.src = stagedMediaBase64;
     mediaFileName.textContent = file.name;
+
+    if (isVideo) {
+      mediaPreviewImg.style.display = "none";
+      mediaPreviewVid.style.display = "block";
+      mediaPreviewVid.src = stagedMediaBase64;
+      if (mediaReadyTag) mediaReadyTag.textContent = "VIDEO READY TO TRANSMIT";
+    } else {
+      mediaPreviewVid.style.display = "none";
+      mediaPreviewImg.style.display = "block";
+      mediaPreviewImg.src = stagedMediaBase64;
+      if (mediaReadyTag) mediaReadyTag.textContent = "PHOTO READY TO TRANSMIT";
+    }
+
     mediaStagingBar.style.display = "block";
     chatMessageInput.focus();
   };
@@ -355,7 +380,12 @@ mediaFileInput.addEventListener("change", (e) => {
 function clearStagedMedia() {
   stagedMediaBase64 = null;
   stagedMediaFileName = "";
+  stagedMediaType = "";
   mediaFileInput.value = "";
+  mediaPreviewImg.src = "";
+  mediaPreviewImg.style.display = "none";
+  mediaPreviewVid.src = "";
+  mediaPreviewVid.style.display = "none";
   mediaStagingBar.style.display = "none";
 }
 

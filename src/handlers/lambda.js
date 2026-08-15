@@ -338,6 +338,8 @@ exports.handler = async (event, context) => {
         const targetChatId = payload.targetChatId;
         const text = payload.text || "";
         const mediaBase64 = payload.mediaBase64 || null;
+        const mediaType = payload.mediaType || "";
+        const fileName = payload.fileName || "";
         const caption = payload.caption || text;
 
         if (!targetChatId) {
@@ -349,28 +351,45 @@ exports.handler = async (event, context) => {
         }
 
         let sentMsg = null;
+        let recordedContent = text;
         try {
           if (mediaBase64) {
             const cleanBase64 = mediaBase64.replace(/^data:[^;]+;base64,/, "");
             const buffer = Buffer.from(cleanBase64, "base64");
-            sentMsg = await bot.telegram.sendPhoto(
-              targetChatId,
-              { source: buffer },
-              caption ? { caption } : undefined
-            );
+            const isVideo = mediaType.startsWith("video/") || /\.(mp4|mov|webm|mkv|avi)$/i.test(fileName);
+            const isImage = mediaType.startsWith("image/") || /\.(png|jpg|jpeg|gif|webp)$/i.test(fileName);
+
+            if (isVideo) {
+              sentMsg = await bot.telegram.sendVideo(
+                targetChatId,
+                { source: buffer, filename: fileName || "video.mp4" },
+                caption ? { caption } : undefined
+              );
+              recordedContent = `[Video] ${caption || ""}`.trim();
+            } else if (isImage) {
+              sentMsg = await bot.telegram.sendPhoto(
+                targetChatId,
+                { source: buffer, filename: fileName || "image.jpg" },
+                caption ? { caption } : undefined
+              );
+              recordedContent = `[Photo] ${caption || ""}`.trim();
+            } else {
+              sentMsg = await bot.telegram.sendDocument(
+                targetChatId,
+                { source: buffer, filename: fileName || "file" },
+                caption ? { caption } : undefined
+              );
+              recordedContent = `[Document: ${fileName || "file"}] ${caption || ""}`.trim();
+            }
           } else if (text) {
             sentMsg = await bot.telegram.sendMessage(targetChatId, text);
           } else {
             return {
               statusCode: 400,
               headers: CORS_HEADERS,
-              body: JSON.stringify({ error: "Either text or media is required." }),
+              body: JSON.stringify({ error: "Either text, photo, or video is required." }),
             };
           }
-
-          const recordedContent = mediaBase64
-            ? `[Photo] ${caption || ""}`.trim()
-            : text;
 
           const historyDoc = await History.create({
             chatId: targetChatId,
