@@ -532,17 +532,24 @@ function stageMediaFile(file) {
     stagedMediaFileName = file.name;
     stagedMediaType = file.type;
 
-    mediaPreviewName.textContent = file.name;
-    const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
-    mediaPreviewMeta.textContent = `${file.type.toUpperCase()} // ${sizeMb} MB`;
+    const pName = document.getElementById("mediaPreviewName") || mediaPreviewName;
+    const pMeta = document.getElementById("mediaPreviewMeta") || mediaPreviewMeta;
+    const pThumb = document.getElementById("mediaPreviewThumb") || mediaPreviewThumb;
+    const pBar = document.getElementById("mediaPreviewBar") || mediaPreviewBar;
 
-    if (file.type.startsWith("image/")) {
-      mediaPreviewThumb.src = stagedMediaBase64;
-    } else {
-      mediaPreviewThumb.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='%2523f59e0b' stroke-width='2'><path d='m22 8-6 4 6 4V8Z'/><rect width='14' height='12' x='2' y='6' rx='2'/></svg>";
+    if (pName) pName.textContent = file.name;
+    const sizeMb = (file.size / (1024 * 1024)).toFixed(2);
+    if (pMeta) pMeta.textContent = `${file.type.toUpperCase()} // ${sizeMb} MB`;
+
+    if (pThumb) {
+      if (file.type.startsWith("image/")) {
+        pThumb.src = stagedMediaBase64;
+      } else {
+        pThumb.src = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='40' height='40' viewBox='0 0 24 24' fill='none' stroke='%2523f59e0b' stroke-width='2'><path d='m22 8-6 4 6 4V8Z'/><rect width='14' height='12' x='2' y='6' rx='2'/></svg>";
+      }
     }
 
-    mediaPreviewBar.style.display = "flex";
+    if (pBar) pBar.style.display = "flex";
     showToast(`📸 Media staged: ${file.name}`, "success");
   };
 
