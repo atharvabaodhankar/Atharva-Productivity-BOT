@@ -67,18 +67,48 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-/* Background Organic Curves (Flo Style) */
-.bg-waves {
+/* Background Glitter / Sparkle Stars */
+.bg-glitter-stars {
   position: fixed;
   inset: 0;
   pointer-events: none;
   z-index: 0;
-  opacity: 0.85;
+  overflow: hidden;
 }
 
-.bg-waves svg {
+.glitter-svg {
   width: 100%;
   height: 100%;
+}
+
+.sparkle {
+  transform-origin: center;
+  filter: drop-shadow(0 0 6px rgba(186, 171, 255, 0.7));
+  animation: twinkle 3s ease-in-out infinite alternate;
+}
+
+.star-1 { animation-delay: 0.2s; animation-duration: 2.8s; }
+.star-2 { animation-delay: 1.1s; animation-duration: 3.4s; }
+.star-3 { animation-delay: 0.6s; animation-duration: 2.5s; }
+.star-4 { animation-delay: 1.8s; animation-duration: 3.2s; }
+.star-5 { animation-delay: 0.9s; animation-duration: 2.9s; }
+.star-6 { animation-delay: 2.2s; animation-duration: 3.6s; }
+.star-7 { animation-delay: 1.4s; animation-duration: 2.7s; }
+.star-8 { animation-delay: 0.5s; animation-duration: 3.1s; }
+
+@keyframes twinkle {
+  0% {
+    opacity: 0.3;
+    transform: scale(0.75) rotate(0deg);
+  }
+  50% {
+    opacity: 0.85;
+    transform: scale(1.1) rotate(6deg);
+  }
+  100% {
+    opacity: 0.35;
+    transform: scale(0.85) rotate(-4deg);
+  }
 }
 
 .app-shell {
