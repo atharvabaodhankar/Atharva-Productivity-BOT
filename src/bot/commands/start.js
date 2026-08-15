@@ -1,3 +1,5 @@
+const { Markup } = require("telegraf");
+
 module.exports = (bot) => {
   bot.start((ctx) => {
     const name = ctx.state.user ? ctx.state.user.firstName : "Champ";
@@ -10,6 +12,17 @@ module.exports = (bot) => {
     ];
 
     const greeting = funGreetings[Math.floor(Math.random() * funGreetings.length)];
+    const webappUrl = process.env.WEBAPP_URL;
+
+    if (webappUrl) {
+      return ctx.reply(
+        greeting,
+        Markup.inlineKeyboard([
+          [Markup.button.webApp("🚀 Open Web Dashboard", webappUrl)],
+        ])
+      );
+    }
+
     ctx.reply(greeting);
   });
 };

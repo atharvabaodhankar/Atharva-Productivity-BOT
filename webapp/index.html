@@ -1,0 +1,169 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>AtharvaOS — Productivity Copilot</title>
+  
+  <!-- Telegram Web App JS SDK -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+  
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Canvas Confetti for task completion celebration -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
+  
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    
+    <!-- Top Header -->
+    <header class="app-header">
+      <div class="user-profile">
+        <div class="avatar" id="userAvatar">A</div>
+        <div class="user-info">
+          <h1 id="greetingText">Hey Champ! 👋</h1>
+          <p id="subGreeting">Let's dominate today!</p>
+        </div>
+      </div>
+      <div class="header-badge" id="onlineBadge">
+        <span class="pulse-dot"></span> Online
+      </div>
+    </header>
+
+    <!-- Hero Stats Card -->
+    <section class="hero-card">
+      <div class="progress-section">
+        <div class="circular-progress">
+          <svg class="progress-ring" width="100" height="100">
+            <circle class="progress-ring__bg" stroke-width="8" fill="transparent" r="40" cx="50" cy="50"/>
+            <circle class="progress-ring__circle" id="progressCircle" stroke-width="8" stroke-dasharray="251.2" stroke-dashoffset="251.2" stroke-linecap="round" fill="transparent" r="40" cx="50" cy="50"/>
+          </svg>
+          <div class="progress-value" id="progressPercent">0%</div>
+        </div>
+        <div class="hero-details">
+          <div class="streak-pill">
+            <span class="fire-icon">🔥</span> Daily Momentum
+          </div>
+          <h2 id="taskSummaryText">0 of 0 Completed</h2>
+          <p class="quote-text" id="vibeQuote">"Small daily wins lead to giant yearly victories."</p>
+        </div>
+      </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <nav class="filter-tabs">
+      <button class="tab-btn active" data-filter="all">All</button>
+      <button class="tab-btn" data-filter="task">⚡ Tasks</button>
+      <button class="tab-btn" data-filter="assignment">📚 Study</button>
+      <button class="tab-btn" data-filter="goal">🎯 Goals</button>
+      <button class="tab-btn" data-filter="reminder">🔔 Reminders</button>
+      <button class="tab-btn admin-only-tab" id="adminTabBtn" data-filter="admin" style="display:none;">📊 Admin</button>
+    </nav>
+
+    <!-- Search & Quick Filter -->
+    <div class="search-bar-wrapper">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" placeholder="Search tasks, goals, notes...">
+    </div>
+
+    <!-- Main Content Area -->
+    <main class="content-section">
+      
+      <!-- Tasks View -->
+      <div id="tasksView" class="view-panel active">
+        <div class="task-list" id="taskList">
+          <!-- Dynamically populated tasks -->
+          <div class="skeleton-loader">
+            <div class="skeleton-card"></div>
+            <div class="skeleton-card"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Admin View (Owner Only) -->
+      <div id="adminView" class="view-panel" style="display:none;">
+        <div class="admin-dashboard" id="adminContent">
+          <!-- Dynamically populated stats -->
+        </div>
+      </div>
+
+    </main>
+
+    <!-- Floating Action Button -->
+    <button class="fab-btn" id="openAddModalBtn" aria-label="Add new task">
+      <span class="fab-icon">+</span>
+      <span class="fab-label">Add Task</span>
+    </button>
+
+    <!-- Add Task Modal -->
+    <div class="modal-overlay" id="addModal">
+      <div class="modal-sheet">
+        <div class="modal-header">
+          <h3>⚡ Create New Item</h3>
+          <button class="modal-close" id="closeAddModalBtn">✕</button>
+        </div>
+        <form id="addTaskForm" class="modal-form">
+          <div class="form-group">
+            <label>Category</label>
+            <div class="type-selector">
+              <label class="type-pill">
+                <input type="radio" name="type" value="task" checked>
+                <span>⚡ Task</span>
+              </label>
+              <label class="type-pill">
+                <input type="radio" name="type" value="assignment">
+                <span>📚 Study</span>
+              </label>
+              <label class="type-pill">
+                <input type="radio" name="type" value="goal">
+                <span>🎯 Goal</span>
+              </label>
+              <label class="type-pill">
+                <input type="radio" name="type" value="reminder">
+                <span>🔔 Reminder</span>
+              </label>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="taskContentInput">What needs to be done?</label>
+            <input type="text" id="taskContentInput" placeholder="e.g. Finish DSA Assignment by 8 PM" required>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group half">
+              <label for="taskDateInput">Due Date / Time</label>
+              <input type="datetime-local" id="taskDateInput">
+            </div>
+            <div class="form-group half">
+              <label for="taskPriorityInput">Priority</label>
+              <select id="taskPriorityInput">
+                <option value="high">🔥 High</option>
+                <option value="medium" selected>⚡ Medium</option>
+                <option value="low">🟢 Low</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="taskTagsInput">Tags (comma separated)</label>
+            <input type="text" id="taskTagsInput" placeholder="e.g. work, dsa, project">
+          </div>
+
+          <button type="submit" class="submit-btn" id="submitTaskBtn">
+            <span>Add to AtharvaOS</span> 🚀
+          </button>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>

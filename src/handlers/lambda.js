@@ -1,26 +1,185 @@
 const bot = require("../bot");
 const { connectToDatabase } = require("../config/db");
+const { CHAT_ID } = require("../config/env");
+const User = require("../models/User");
+const Memory = require("../models/Memory");
+const History = require("../models/History");
 const {
   checkUpcomingReminders,
   sendDailySummary,
   sendNightlyReflection,
 } = require("../services/reminderService");
 
+// Standard CORS headers for Telegram Mini App
+const CORS_HEADERS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+  "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
+  "Content-Type": "application/json",
+};
+
 exports.handler = async (event, context) => {
   if (context) {
     context.callbackWaitsForEmptyEventLoop = false;
   }
 
+  // Handle CORS Preflight
+  const httpMethod = event.httpMethod || (event.requestContext && event.requestContext.http && event.requestContext.http.method) || "GET";
+  if (httpMethod === "OPTIONS") {
+    return {
+      statusCode: 200,
+      headers: CORS_HEADERS,
+      body: JSON.stringify({ message: "OK" }),
+    };
+  }
+
   try {
     await connectToDatabase();
 
-    // 1. Scheduled EventBridge Triggers
+    const rawPath = event.path || (event.rawPath) || "/";
+    const queryParams = event.queryStringParameters || {};
+
+    // -------------------------------------------------------------
+    // 1. REST API ENDPOINTS FOR TELEGRAM MINI APP
+    // -------------------------------------------------------------
+    if (rawPath.startsWith("/api/")) {
+      // GET /api/tasks?chatId=12345
+      if (rawPath === "/api/tasks" && httpMethod === "GET") {
+        const chatId = queryParams.chatId;
+        if (!chatId) {
+          return {
+            statusCode: 400,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ error: "chatId query parameter is required" }),
+          };
+        }
+
+        const user = await User.findOne({ telegramId: chatId });
+        const tasks = await Memory.find({ chatId }).sort({ completed: 1, date: 1, createdAt: -1 });
+        const total = tasks.length;
+        const completed = tasks.filter((t) => t.completed).length;
+        const pending = total - completed;
+
+        return {
+          statusCode: 200,
+          headers: CORS_HEADERS,
+          body: JSON.stringify({
+            user: user || { firstName: "Champ", telegramId: chatId },
+            stats: { total, completed, pending, progress: total > 0 ? Math.round((completed / total) * 100) : 0 },
+            tasks,
+          }),
+        };
+      }
+
+      // POST /api/tasks
+      if (rawPath === "/api/tasks" && httpMethod === "POST") {
+        const payload = typeof event.body === "string" ? JSON.parse(event.body || "{}") : event.body || {};
+        if (!payload.chatId || !payload.content) {
+          return {
+            statusCode: 400,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ error: "chatId and content are required" }),
+          };
+        }
+
+        const newTask = await Memory.create({
+          chatId: payload.chatId,
+          type: payload.type || "task",
+          content: payload.content,
+          date: payload.date ? new Date(payload.date) : null,
+          priority: payload.priority || "medium",
+          tags: Array.isArray(payload.tags) ? payload.tags : [],
+        });
+
+        return {
+          statusCode: 201,
+          headers: CORS_HEADERS,
+          body: JSON.stringify({ message: "Task created successfully", task: newTask }),
+        };
+      }
+
+      // PATCH /api/tasks/toggle
+      if (rawPath === "/api/tasks/toggle" && httpMethod === "PATCH") {
+        const payload = typeof event.body === "string" ? JSON.parse(event.body || "{}") : event.body || {};
+        const { id, chatId, completed } = payload;
+
+        const updated = await Memory.findOneAndUpdate(
+          { _id: id, chatId },
+          { completed: completed !== undefined ? completed : true },
+          { new: true }
+        );
+
+        if (!updated) {
+          return {
+            statusCode: 404,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ error: "Task not found" }),
+          };
+        }
+
+        return {
+          statusCode: 200,
+          headers: CORS_HEADERS,
+          body: JSON.stringify({ message: "Task updated", task: updated }),
+        };
+      }
+
+      // DELETE /api/tasks
+      if (rawPath === "/api/tasks" && httpMethod === "DELETE") {
+        const payload = typeof event.body === "string" ? JSON.parse(event.body || "{}") : event.body || {};
+        const id = payload.id || queryParams.id;
+        const chatId = payload.chatId || queryParams.chatId;
+
+        await Memory.findOneAndDelete({ _id: id, chatId });
+
+        return {
+          statusCode: 200,
+          headers: CORS_HEADERS,
+          body: JSON.stringify({ message: "Task deleted" }),
+        };
+      }
+
+      // GET /api/stats (Admin only)
+      if (rawPath === "/api/stats" && httpMethod === "GET") {
+        const chatId = String(queryParams.chatId || "");
+        if (chatId !== String(CHAT_ID)) {
+          return {
+            statusCode: 403,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ error: "Unauthorized" }),
+          };
+        }
+
+        const totalUsers = await User.countDocuments();
+        const users = await User.find().sort({ createdAt: -1 }).limit(20);
+        const totalTasks = await Memory.countDocuments();
+        const pendingTasks = await Memory.countDocuments({ completed: false });
+        const completedTasks = await Memory.countDocuments({ completed: true });
+        const totalMessages = await History.countDocuments();
+
+        return {
+          statusCode: 200,
+          headers: CORS_HEADERS,
+          body: JSON.stringify({
+            totalUsers,
+            totalTasks,
+            pendingTasks,
+            completedTasks,
+            totalMessages,
+            users,
+          }),
+        };
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 2. AWS EVENTBRIDGE TRIGGER (Scheduled Crons)
+    // -------------------------------------------------------------
     if (
       event.source === "aws.events" ||
       event["detail-type"] === "Scheduled Event" ||
       event.cron
     ) {
-      console.log("Triggered by EventBridge:", event.task || "default");
       if (event.task === "dailySummary") {
         await sendDailySummary(bot);
       } else if (event.task === "nightlyReflection") {
@@ -31,34 +190,43 @@ exports.handler = async (event, context) => {
 
       return {
         statusCode: 200,
-        headers: { "Content-Type": "application/json" },
+        headers: CORS_HEADERS,
         body: JSON.stringify({ message: "Scheduled task executed" }),
       };
     }
 
-    // 2. Telegram Webhook HTTP POST
+    // -------------------------------------------------------------
+    // 3. TELEGRAM WEBHOOK (Incoming Telegram Messages)
+    // -------------------------------------------------------------
     if (event.body) {
-      const body = typeof event.body === "string" ? JSON.parse(event.body) : event.body;
-      await bot.handleUpdate(body);
+      let body;
+      try {
+        body = typeof event.body === "string" ? JSON.parse(event.body) : event.body;
+      } catch (e) {
+        body = null;
+      }
 
-      return {
-        statusCode: 200,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: "Update processed successfully" }),
-      };
+      if (body && (body.update_id || body.message)) {
+        await bot.handleUpdate(body);
+        return {
+          statusCode: 200,
+          headers: CORS_HEADERS,
+          body: JSON.stringify({ message: "Update processed" }),
+        };
+      }
     }
 
     // Health check ping
     return {
       statusCode: 200,
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: "AtharvaOS Lambda is online 🚀" }),
+      headers: CORS_HEADERS,
+      body: JSON.stringify({ status: "AtharvaOS Lambda & Web API is online 🚀" }),
     };
   } catch (error) {
     console.error("Lambda error:", error);
     return {
       statusCode: 500,
-      headers: { "Content-Type": "application/json" },
+      headers: CORS_HEADERS,
       body: JSON.stringify({ error: error.message }),
     };
   }
