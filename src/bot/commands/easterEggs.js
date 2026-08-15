@@ -145,7 +145,7 @@ module.exports = (bot) => {
       const username = ctx.from?.username || "";
 
       const waitMsg =
-        "Theek hai bhai, hold tight! ⏳ Finding the spiciest meme from Reddit for you...\n\nRequest sent to Atharva for verification! Tab tak wait karo! 🌶️👀";
+        "Theek hai bhai, hold tight! ⏳ Finding the spiciest meme from Reddit for you...";
 
       try {
         await ctx.editMessageText(waitMsg);

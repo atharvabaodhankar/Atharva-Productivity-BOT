@@ -68,7 +68,7 @@ module.exports = (bot) => {
           await userDoc.save();
 
           const waitMsg =
-            "Theek hai bhai, hold tight! ⏳ Finding the spiciest meme from Reddit for you...\n\nRequest sent to Atharva for verification! Tab tak wait karo! 🌶️👀";
+            "Theek hai bhai, hold tight! ⏳ Finding the spiciest meme from Reddit for you...";
 
           const sentMsg = await ctx.reply(waitMsg, {
             reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
