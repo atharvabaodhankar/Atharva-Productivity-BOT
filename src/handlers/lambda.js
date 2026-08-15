@@ -480,6 +480,72 @@ exports.handler = async (event, context) => {
           };
         }
       }
+
+      // 1.4 ADMIN EDIT MESSAGE ENDPOINT
+      if (rawPath.endsWith("/api/admin/edit-message") && httpMethod === "POST") {
+        try {
+          const body = JSON.parse(event.body || "{}");
+          const { ownerId, messageId, chatId, telegramMessageId, newText } = body;
+
+          if (String(ownerId) !== "5275149287") {
+            return {
+              statusCode: 403,
+              headers: CORS_HEADERS,
+              body: JSON.stringify({ error: "Unauthorized. Owner clearance required." }),
+            };
+          }
+
+          if (!newText || !newText.trim()) {
+            return {
+              statusCode: 400,
+              headers: CORS_HEADERS,
+              body: JSON.stringify({ error: "newText is required." }),
+            };
+          }
+
+          let updatedDoc = null;
+          if (messageId) {
+            updatedDoc = await History.findByIdAndUpdate(
+              messageId,
+              { content: newText.trim() },
+              { new: true }
+            );
+          }
+
+          let tgEdited = false;
+          if (chatId && telegramMessageId) {
+            try {
+              await bot.telegram.editMessageText(chatId, telegramMessageId, undefined, newText.trim());
+              tgEdited = true;
+            } catch (tgErr) {
+              try {
+                await bot.telegram.editMessageCaption(chatId, telegramMessageId, undefined, newText.trim());
+                tgEdited = true;
+              } catch (captionErr) {
+                console.warn("Could not edit Telegram message text/caption:", captionErr.message);
+              }
+            }
+          }
+
+          return {
+            statusCode: 200,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({
+              success: true,
+              message: "Message edited successfully",
+              telegramEdited: tgEdited,
+              history: updatedDoc,
+            }),
+          };
+        } catch (editErr) {
+          console.error("Failed to edit message:", editErr);
+          return {
+            statusCode: 500,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ error: `Edit failed: ${editErr.message}` }),
+          };
+        }
+      }
     }
 
     // -------------------------------------------------------------

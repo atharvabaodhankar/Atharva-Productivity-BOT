@@ -561,41 +561,112 @@ html, body {
 .msg-content-wrapper {
   position: relative;
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 8px;
 }
 
-.msg-delete-btn {
+.msg-row.bot-msg .msg-content-wrapper {
+  flex-direction: row-reverse;
+}
+
+.msg-actions-bar {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   opacity: 0;
   visibility: hidden;
-  background: var(--bg-card);
-  border: 1px solid var(--border-strong);
-  color: var(--text-muted);
-  width: 28px;
-  height: 28px;
+  transition: var(--transition);
+  background-color: var(--bg-sidebar);
+  border: 1px solid var(--border-subtle);
+  padding: 2px 4px;
+  border-radius: var(--radius-sm);
+  align-self: center;
+}
+
+.msg-row:hover .msg-actions-bar,
+.msg-row:focus-within .msg-actions-bar {
+  opacity: 1;
+  visibility: visible;
+}
+
+.msg-action-btn {
+  background: none;
+  border: none;
+  color: var(--text-secondary);
+  width: 26px;
+  height: 26px;
   border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
   cursor: pointer;
   transition: var(--transition);
-  flex-shrink: 0;
 }
 
-.msg-row:hover .msg-delete-btn {
-  opacity: 1;
-  visibility: visible;
+.msg-action-btn:hover {
+  background-color: var(--bg-card);
+  color: var(--text-pure-white);
 }
 
-.msg-delete-btn:hover {
+.msg-action-btn.delete-btn:hover {
   background-color: rgba(255, 60, 60, 0.2);
-  border-color: #FF6B6B;
   color: #FF6B6B;
 }
 
-.msg-delete-btn svg {
-  width: 14px;
-  height: 14px;
+.msg-action-btn svg {
+  width: 13px;
+  height: 13px;
+}
+
+/* Inline Edit Box */
+.inline-edit-box {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 100%;
+  min-width: 240px;
+}
+
+.inline-edit-textarea {
+  width: 100%;
+  background-color: var(--bg-pitch);
+  border: 1px solid var(--border-highlight);
+  color: var(--text-pure-white);
+  padding: 8px 12px;
+  border-radius: var(--radius-md);
+  font-family: inherit;
+  font-size: 0.9rem;
+  resize: vertical;
+  min-height: 50px;
+}
+
+.inline-edit-buttons {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.inline-btn {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  border: none;
+  transition: var(--transition);
+}
+
+.inline-btn.save {
+  background-color: var(--text-pure-white);
+  color: var(--bg-pitch);
+}
+
+.inline-btn.cancel {
+  background-color: var(--bg-card);
+  color: var(--text-secondary);
+  border: 1px solid var(--border-subtle);
 }
 
 .spoiler-bubble-badge {

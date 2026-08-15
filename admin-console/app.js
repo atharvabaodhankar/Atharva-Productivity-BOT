@@ -220,7 +220,7 @@ async function selectUserThread(user) {
   chatMessageInput.focus();
 }
 
-// Create a single message DOM element with Spoiler Badge & Delete Action
+// Create a single message DOM element with Spoiler Badge, Edit & Delete Actions
 function createMessageElement(msg) {
   const isBot = msg.role === "assistant";
   const senderLabel = isBot ? "ATHARVAOS // PROXY" : (activeTargetUser?.firstName || "USER").toUpperCase();
@@ -242,18 +242,32 @@ function createMessageElement(msg) {
       ${hasSpoilerBadge ? `<span class="spoiler-bubble-badge"><i data-lucide="eye-off"></i> SPOILER</span>` : ""}
     </div>
     <div class="msg-content-wrapper">
-      <div class="msg-card">
+      <div class="msg-card" id="msgCardText_${msg._id || Math.random().toString(36).substring(2, 7)}">
         ${escapeHtml(msg.content)}
       </div>
-      <button class="msg-delete-btn" title="Delete message from conversation transcript & Telegram" data-msg-id="${msg._id || ""}" data-tg-id="${msg.telegramMessageId || ""}">
-        <i data-lucide="trash-2"></i>
-      </button>
+      <div class="msg-actions-bar">
+        <button class="msg-action-btn edit-btn" title="Edit message text">
+          <i data-lucide="pencil"></i>
+        </button>
+        <button class="msg-action-btn delete-btn" title="Delete message from conversation & Telegram">
+          <i data-lucide="trash-2"></i>
+        </button>
+      </div>
     </div>
     <div class="msg-time">${escapeHtml(timeStr)}</div>
   `;
 
-  // Attach delete event
-  const deleteBtn = div.querySelector(".msg-delete-btn");
+  // Attach Edit event
+  const editBtn = div.querySelector(".edit-btn");
+  if (editBtn) {
+    editBtn.addEventListener("click", (e) => {
+      e.stopPropagation();
+      startInlineEdit(msg, div);
+    });
+  }
+
+  // Attach Delete event
+  const deleteBtn = div.querySelector(".delete-btn");
   if (deleteBtn) {
     deleteBtn.addEventListener("click", async (e) => {
       e.stopPropagation();
@@ -262,6 +276,79 @@ function createMessageElement(msg) {
   }
 
   return div;
+}
+
+// Inline Message Editor
+function startInlineEdit(msg, rowEl) {
+  const contentWrapper = rowEl.querySelector(".msg-content-wrapper");
+  const originalText = msg.content || "";
+
+  contentWrapper.innerHTML = `
+    <div class="inline-edit-box">
+      <textarea class="inline-edit-textarea" rows="2">${escapeHtml(originalText)}</textarea>
+      <div class="inline-edit-buttons">
+        <button class="inline-btn cancel">Cancel</button>
+        <button class="inline-btn save">Save Changes</button>
+      </div>
+    </div>
+  `;
+
+  const textarea = contentWrapper.querySelector(".inline-edit-textarea");
+  const cancelBtn = contentWrapper.querySelector(".inline-btn.cancel");
+  const saveBtn = contentWrapper.querySelector(".inline-btn.save");
+
+  textarea.focus();
+  textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+  cancelBtn.addEventListener("click", () => {
+    // Restore message element
+    const newElem = createMessageElement(msg);
+    rowEl.replaceWith(newElem);
+    refreshIcons();
+  });
+
+  saveBtn.addEventListener("click", async () => {
+    const updatedText = textarea.value.trim();
+    if (!updatedText) return;
+
+    saveBtn.disabled = true;
+    saveBtn.textContent = "Saving...";
+
+    try {
+      const endpoint = window.location.origin.includes("localhost")
+        ? "/api/local-edit-message"
+        : `${API_BASE_URL}/admin/edit-message`;
+
+      const res = await fetch(endpoint, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ownerId: OWNER_CHAT_ID,
+          messageId: msg._id,
+          chatId: activeTargetUser ? activeTargetUser.telegramId : null,
+          telegramMessageId: msg.telegramMessageId,
+          newText: updatedText,
+        }),
+      });
+
+      const data = await res.json();
+      if (data.ok || data.success) {
+        msg.content = updatedText;
+        const newElem = createMessageElement(msg);
+        rowEl.replaceWith(newElem);
+        refreshIcons();
+        showToast("✏️ Message updated in transcript & Telegram!", "success");
+      } else {
+        saveBtn.disabled = false;
+        saveBtn.textContent = "Save Changes";
+        showToast(`⚠️ Edit failed: ${data.error || "Unknown error"}`, "error");
+      }
+    } catch (err) {
+      saveBtn.disabled = false;
+      saveBtn.textContent = "Save Changes";
+      showToast("❌ Network error saving edit.", "error");
+    }
+  });
 }
 
 // Delete Message from Transcript & Telegram
@@ -382,6 +469,7 @@ async function sendMessage() {
   const media = stagedMediaBase64;
   const mType = stagedMediaType;
   const fName = stagedMediaFileName;
+  const spoilerFlag = Boolean(isSpoilerActive);
 
   if (!text && !media) return;
 
@@ -397,6 +485,7 @@ async function sendMessage() {
   const tempMsg = {
     role: "assistant",
     content: optimisticContent,
+    hasSpoiler: spoilerFlag,
     createdAt: new Date().toISOString(),
   };
 
@@ -463,7 +552,7 @@ async function sendMessage() {
         mediaType: mType,
         fileName: fName,
         caption: text,
-        hasSpoiler: isSpoilerActive,
+        hasSpoiler: spoilerFlag,
       })
     );
   } else {

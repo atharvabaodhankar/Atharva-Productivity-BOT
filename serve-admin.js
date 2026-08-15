@@ -217,7 +217,86 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 2. Static File Server
+  // 3. Direct Telegram Message Edit API
+  if (req.url === "/api/local-edit-message" && req.method === "POST") {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+    });
+
+    req.on("end", async () => {
+      try {
+        const payload = JSON.parse(body || "{}");
+        const { messageId, chatId, telegramMessageId, newText } = payload;
+
+        if (!newText || !newText.trim()) {
+          res.writeHead(400, { "Content-Type": "application/json" });
+          return res.end(JSON.stringify({ ok: false, error: "newText is required." }));
+        }
+
+        let updatedDoc = null;
+        if (messageId) {
+          updatedDoc = await History.findByIdAndUpdate(
+            messageId,
+            { content: newText.trim() },
+            { new: true }
+          );
+        }
+
+        let tgEdited = false;
+        if (chatId && telegramMessageId) {
+          try {
+            // First try editing as text message
+            const editRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageText`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: String(chatId),
+                message_id: Number(telegramMessageId),
+                text: newText.trim(),
+              }),
+            });
+            const editData = await editRes.json();
+            if (editData.ok) {
+              tgEdited = true;
+            } else {
+              // If it was a photo/video caption, edit caption!
+              const captionRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/editMessageCaption`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  chat_id: String(chatId),
+                  message_id: Number(telegramMessageId),
+                  caption: newText.trim(),
+                }),
+              });
+              const captionData = await captionRes.json();
+              tgEdited = captionData.ok || false;
+            }
+          } catch (tgErr) {
+            console.warn("Telegram edit error:", tgErr.message);
+          }
+        }
+
+        res.writeHead(200, { "Content-Type": "application/json" });
+        return res.end(
+          JSON.stringify({
+            ok: true,
+            message: "Message updated successfully",
+            telegramEdited: tgEdited,
+            history: updatedDoc,
+          })
+        );
+      } catch (err) {
+        console.error("Edit server error:", err);
+        res.writeHead(500, { "Content-Type": "application/json" });
+        return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // 4. Static File Server
   let filePath = path.join(ADMIN_DIR, req.url === "/" ? "index.html" : req.url.split("?")[0]);
   const ext = path.extname(filePath).toLowerCase();
   const contentType = MIME_TYPES[ext] || "application/octet-stream";
