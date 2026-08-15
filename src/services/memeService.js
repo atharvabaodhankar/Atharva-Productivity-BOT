@@ -101,7 +101,11 @@ async function requestOwnerMemeApproval(bot, { chatId, userName, username }) {
     username: username || "",
     type: "NSFW_TRIGGER",
     trigger: "Meme Approval Pending",
-    message: `User requested NSFW meme: "${meme.title}". Waiting for owner Telegram approval...`,
+    message: `User requested NSFW meme: "${meme.title}". Approve to deliver with spoiler.`,
+    memeRequestId: reqDoc._id,
+    memeUrl: meme.url,
+    mediaType: reqDoc.mediaType,
+    memeStatus: "PENDING",
   });
 
   // 3. Send Approval Message to Atharva's Telegram
@@ -130,23 +134,22 @@ async function requestOwnerMemeApproval(bot, { chatId, userName, username }) {
   return reqDoc;
 }
 
-async function handleMemeApprovalAction(bot, ctx, requestId, isApproved) {
+// Universal Approval & Delivery Processor (Invoked by Telegram Callback OR Admin Console Webhook)
+async function processMemeApproval(bot, requestId, isApproved) {
   const reqDoc = await MemeRequest.findById(requestId);
   if (!reqDoc) {
-    return ctx.answerCbQuery("Request not found or already expired.");
+    throw new Error("Meme request not found or expired.");
   }
 
   if (reqDoc.status !== "PENDING") {
-    return ctx.answerCbQuery(`Request already ${reqDoc.status.toLowerCase()}!`);
+    return { ok: true, status: reqDoc.status, message: `Request already ${reqDoc.status.toLowerCase()}` };
   }
 
   if (isApproved) {
     reqDoc.status = "APPROVED";
     await reqDoc.save();
 
-    await ctx.answerCbQuery("Approved! Delivering meme to user... 🌶️");
-
-    // Deliver to User
+    // Deliver to User with Telegram native spoiler
     const userCaption = `🌶️ <b>${escapeHtml(reqDoc.memeTitle)}</b>\n\n<i>(Approved & delivered by AtharvaOS)</i>`;
 
     const sentMsg = await sendTelegramMediaSafely(bot, reqDoc.chatId, reqDoc.memeUrl, {
@@ -165,25 +168,13 @@ async function handleMemeApprovalAction(bot, ctx, requestId, isApproved) {
       hasSpoiler: true,
     });
 
-    // Update Owner Message
-    const updatedOwnerHtml =
-      `✅ <b>[APPROVED & DELIVERED]</b>\n\n` +
-      `👤 <b>User:</b> ${escapeHtml(reqDoc.userName)} (@${escapeHtml(reqDoc.username || "none")})\n` +
-      `🌶️ <b>Title:</b> ${escapeHtml(reqDoc.memeTitle)}\n` +
-      `🚀 <b>Status:</b> Transmitted to user chat with spoiler blur!`;
+    // Update related alerts
+    await Alert.updateMany({ memeRequestId: reqDoc._id }, { memeStatus: "APPROVED", isRead: true });
 
-    try {
-      await ctx.editMessageCaption(updatedOwnerHtml, { parse_mode: "HTML" });
-    } catch (e) {
-      try {
-        await ctx.editMessageText(updatedOwnerHtml, { parse_mode: "HTML" });
-      } catch (e2) {}
-    }
+    return { ok: true, status: "APPROVED", reqDoc };
   } else {
     reqDoc.status = "REJECTED";
     await reqDoc.save();
-
-    await ctx.answerCbQuery("Request rejected.");
 
     // Inform User
     const rejectNotice = "Sorry bhai! 😇 Admin ne meme request approve nahi ki. Sharafat me hi bhalai hai, wapas kaam pe lago! 🚀✨";
@@ -195,20 +186,56 @@ async function handleMemeApprovalAction(bot, ctx, requestId, isApproved) {
       content: rejectNotice,
     });
 
-    // Update Owner Message
-    const updatedOwnerHtml =
-      `❌ <b>[REJECTED & BLOCKED]</b>\n\n` +
-      `👤 <b>User:</b> ${escapeHtml(reqDoc.userName)} (@${escapeHtml(reqDoc.username || "none")})\n` +
-      `🌶️ <b>Title:</b> ${escapeHtml(reqDoc.memeTitle)}\n` +
-      `🛑 <b>Status:</b> Denied. User was notified to stay disciplined!`;
+    // Update related alerts
+    await Alert.updateMany({ memeRequestId: reqDoc._id }, { memeStatus: "REJECTED", isRead: true });
 
-    try {
-      await ctx.editMessageCaption(updatedOwnerHtml, { parse_mode: "HTML" });
-    } catch (e) {
-      try {
-        await ctx.editMessageText(updatedOwnerHtml, { parse_mode: "HTML" });
-      } catch (e2) {}
+    return { ok: true, status: "REJECTED", reqDoc };
+  }
+}
+
+async function handleMemeApprovalAction(bot, ctx, requestId, isApproved) {
+  try {
+    const res = await processMemeApproval(bot, requestId, isApproved);
+    if (!res.ok) {
+      return ctx.answerCbQuery(res.message || "Failed to process request");
     }
+
+    if (isApproved) {
+      await ctx.answerCbQuery("Approved! Delivering meme to user... 🌶️");
+      const reqDoc = res.reqDoc;
+      const updatedOwnerHtml =
+        `✅ <b>[APPROVED & DELIVERED]</b>\n\n` +
+        `👤 <b>User:</b> ${escapeHtml(reqDoc?.userName)} (@${escapeHtml(reqDoc?.username || "none")})\n` +
+        `🌶️ <b>Title:</b> ${escapeHtml(reqDoc?.memeTitle)}\n` +
+        `🚀 <b>Status:</b> Transmitted to user chat with spoiler blur!`;
+
+      try {
+        await ctx.editMessageCaption(updatedOwnerHtml, { parse_mode: "HTML" });
+      } catch (e) {
+        try {
+          await ctx.editMessageText(updatedOwnerHtml, { parse_mode: "HTML" });
+        } catch (e2) {}
+      }
+    } else {
+      await ctx.answerCbQuery("Request rejected.");
+      const reqDoc = res.reqDoc;
+      const updatedOwnerHtml =
+        `❌ <b>[REJECTED & BLOCKED]</b>\n\n` +
+        `👤 <b>User:</b> ${escapeHtml(reqDoc?.userName)} (@${escapeHtml(reqDoc?.username || "none")})\n` +
+        `🌶️ <b>Title:</b> ${escapeHtml(reqDoc?.memeTitle)}\n` +
+        `🛑 <b>Status:</b> Denied. User was notified to stay disciplined!`;
+
+      try {
+        await ctx.editMessageCaption(updatedOwnerHtml, { parse_mode: "HTML" });
+      } catch (e) {
+        try {
+          await ctx.editMessageText(updatedOwnerHtml, { parse_mode: "HTML" });
+        } catch (e2) {}
+      }
+    }
+  } catch (err) {
+    console.error("handleMemeApprovalAction error:", err);
+    ctx.answerCbQuery(err.message || "Error processing approval");
   }
 }
 
@@ -224,4 +251,5 @@ module.exports = {
   fetchRandomNsfwMeme,
   requestOwnerMemeApproval,
   handleMemeApprovalAction,
+  processMemeApproval,
 };

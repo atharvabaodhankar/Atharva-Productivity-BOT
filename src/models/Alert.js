@@ -32,6 +32,24 @@ const alertSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    memeRequestId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: "MemeRequest",
+      default: null,
+    },
+    memeUrl: {
+      type: String,
+      default: "",
+    },
+    mediaType: {
+      type: String,
+      default: "image",
+    },
+    memeStatus: {
+      type: String,
+      enum: ["NONE", "PENDING", "APPROVED", "REJECTED"],
+      default: "NONE",
+    },
   },
   {
     timestamps: true,

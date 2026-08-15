@@ -579,11 +579,36 @@ exports.handler = async (event, context) => {
             body: JSON.stringify({ ok: true, message: "Alerts marked as read" }),
           };
         } catch (markErr) {
-          console.error("Failed to mark alerts read:", markErr);
+          console.error("Failed to mark alerts as read:", markErr);
           return {
             statusCode: 500,
             headers: CORS_HEADERS,
-            body: JSON.stringify({ error: `Mark read failed: ${markErr.message}` }),
+            body: JSON.stringify({ error: `Alerts mark-read failed: ${markErr.message}` }),
+          };
+        }
+      }
+
+      // 1.6 ADMIN MEME APPROVAL / REJECTION ACTION
+      if (rawPath.endsWith("/api/admin/meme-action") && httpMethod === "POST") {
+        try {
+          const payload = typeof event.body === "string" ? JSON.parse(event.body || "{}") : event.body || {};
+          const { requestId, action } = payload;
+          const isApproved = action === "approve";
+
+          const { processMemeApproval } = require("../services/memeService");
+          const result = await processMemeApproval(bot, requestId, isApproved);
+
+          return {
+            statusCode: 200,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ ok: true, result }),
+          };
+        } catch (memeErr) {
+          console.error("Failed to process meme action:", memeErr);
+          return {
+            statusCode: 500,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ error: `Meme action failed: ${memeErr.message}` }),
           };
         }
       }

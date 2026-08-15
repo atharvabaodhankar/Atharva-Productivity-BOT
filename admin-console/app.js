@@ -837,6 +837,44 @@ function renderAlertsModal() {
 
       const typeLabel = alert.type === "NSFW_TRIGGER" ? "NSFW / SPOILER" : alert.type || "EASTER_EGG";
 
+      const hasMemeRequest = alert.memeRequestId && alert.memeUrl;
+      const isPendingMeme = hasMemeRequest && alert.memeStatus === "PENDING";
+      const isApprovedMeme = hasMemeRequest && alert.memeStatus === "APPROVED";
+      const isRejectedMeme = hasMemeRequest && alert.memeStatus === "REJECTED";
+
+      let memeActionDeck = "";
+      if (hasMemeRequest) {
+        if (isPendingMeme) {
+          memeActionDeck = `
+            <div class="alert-meme-preview-wrap">
+              <div class="alert-meme-thumb">
+                <img src="${escapeHtml(alert.memeUrl)}" alt="Meme Preview" onerror="this.style.display='none'">
+              </div>
+              <div class="alert-meme-actions">
+                <button class="meme-action-btn approve" data-req-id="${alert.memeRequestId}">
+                  <i data-lucide="check"></i> Approve & Send
+                </button>
+                <button class="meme-action-btn reject" data-req-id="${alert.memeRequestId}">
+                  <i data-lucide="x"></i> Reject
+                </button>
+              </div>
+            </div>
+          `;
+        } else if (isApprovedMeme) {
+          memeActionDeck = `
+            <div class="alert-status-badge approved">
+              <i data-lucide="check-circle-2"></i> APPROVED & DELIVERED (WITH SPOILER)
+            </div>
+          `;
+        } else if (isRejectedMeme) {
+          memeActionDeck = `
+            <div class="alert-status-badge rejected">
+              <i data-lucide="x-circle"></i> REJECTED BY ADMIN
+            </div>
+          `;
+        }
+      }
+
       return `
         <div class="alert-item-card ${alert.isRead ? "" : "unread"}" data-chat-id="${alert.chatId}">
           <div class="alert-item-header">
@@ -850,14 +888,37 @@ function renderAlertsModal() {
           <div class="alert-message-box">
             🎯 <strong>${escapeHtml(alert.trigger)}</strong>: "${escapeHtml(alert.message)}"
           </div>
+          ${memeActionDeck}
         </div>
       `;
     })
     .join("");
 
+  // Attach Approve / Reject Button handlers
+  alertsListBody.querySelectorAll(".meme-action-btn.approve").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const reqId = btn.dataset.reqId;
+      btn.disabled = true;
+      btn.innerHTML = `<span class="upload-spinner" style="width:10px;height:10px;"></span> Sending...`;
+      await executeMemeAction(reqId, "approve");
+    });
+  });
+
+  alertsListBody.querySelectorAll(".meme-action-btn.reject").forEach((btn) => {
+    btn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      const reqId = btn.dataset.reqId;
+      btn.disabled = true;
+      btn.innerHTML = `<span class="upload-spinner" style="width:10px;height:10px;"></span> Rejecting...`;
+      await executeMemeAction(reqId, "reject");
+    });
+  });
+
   // Attach click to jump into user thread
   alertsListBody.querySelectorAll(".alert-item-card").forEach((card) => {
-    card.addEventListener("click", () => {
+    card.addEventListener("click", (e) => {
+      if (e.target.closest(".meme-action-btn")) return;
       const targetChatId = Number(card.dataset.chatId);
       const user = allUsers.find((u) => u.telegramId === targetChatId);
       if (user) {
@@ -870,6 +931,34 @@ function renderAlertsModal() {
   });
 
   refreshIcons();
+}
+
+async function executeMemeAction(requestId, action) {
+  try {
+    const actionUrl = window.location.origin.includes("localhost")
+      ? "/api/admin/meme-action"
+      : `${API_BASE_URL}/admin/meme-action`;
+
+    const res = await fetch(actionUrl, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ requestId, action }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      showToast(
+        action === "approve"
+          ? "✅ Meme approved & delivered to user with spoiler blur!"
+          : "❌ Meme request rejected.",
+        "success"
+      );
+      await fetchAlerts();
+    } else {
+      showToast(`Error: ${data.error || "Failed to process"}`, "error");
+    }
+  } catch (err) {
+    showToast(`Action failed: ${err.message}`, "error");
+  }
 }
 
 function openAlertsModal() {

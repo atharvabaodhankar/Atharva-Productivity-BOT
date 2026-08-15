@@ -319,6 +319,34 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
+  // 5. Admin Meme Approval / Rejection API
+  if (req.url === "/api/admin/meme-action" && req.method === "POST") {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+    });
+
+    req.on("end", async () => {
+      try {
+        const payload = JSON.parse(body || "{}");
+        const { requestId, action } = payload;
+        const isApproved = action === "approve";
+
+        const bot = require("./src/bot");
+        const { processMemeApproval } = require("./src/services/memeService");
+        const result = await processMemeApproval(bot, requestId, isApproved);
+
+        res.writeHead(200, { "Content-Type": "application/json" });
+        return res.end(JSON.stringify({ ok: true, result }));
+      } catch (err) {
+        console.error("Meme action error:", err);
+        res.writeHead(500, { "Content-Type": "application/json" });
+        return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
   // 5. Static File Server
   let filePath = path.join(ADMIN_DIR, req.url === "/" ? "index.html" : req.url.split("?")[0]);
   const ext = path.extname(filePath).toLowerCase();
