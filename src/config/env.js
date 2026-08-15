@@ -25,6 +25,6 @@ module.exports = {
   CHAT_ID: getEnv("CHAT_ID"),
   WEBHOOK_DOMAIN: getEnv("WEBHOOK_DOMAIN"),
   GROQ_API_KEYS: getGroqKeys(),
-  MEME_API_URL: getEnv("MEME_API_URL", "https://redditreels.onrender.com"),
-  MEME_API_KEY: getEnv("MEME_API_KEY", "rr_live_9f8d7a6b5c4e3d2a1f0e8d7c6b5a4f3e"),
+  MEME_API_URL: getEnv("MEME_API_URL"),
+  MEME_API_KEY: getEnv("MEME_API_KEY"),
 };
