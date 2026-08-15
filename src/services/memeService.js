@@ -6,12 +6,15 @@ const { markdownToTelegramHtml } = require("../utils/telegramFormatter");
 const { Markup } = require("telegraf");
 
 const OWNER_ID = "5275149287";
-const DEFAULT_MEME_API_URL = "https://redditreels.onrender.com";
-const DEFAULT_MEME_API_KEY = "rr_live_9f8d7a6b5c4e3d2a1f0e8d7c6b5a4f3e";
 
 async function fetchRandomNsfwMeme() {
-  const apiUrl = MEME_API_URL || DEFAULT_MEME_API_URL;
-  const apiKey = MEME_API_KEY || DEFAULT_MEME_API_KEY;
+  const apiUrl = MEME_API_URL || process.env.MEME_API_URL;
+  const apiKey = MEME_API_KEY || process.env.MEME_API_KEY;
+
+  if (!apiUrl || !apiKey) {
+    console.error("fetchRandomNsfwMeme: MEME_API_URL or MEME_API_KEY is not configured in environment variables.");
+    return null;
+  }
 
   try {
     const res = await fetch(`${apiUrl}/api/memes/random?category=nsfw`, {

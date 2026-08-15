@@ -38,8 +38,8 @@ jobs:
           CHAT_ID: ${{ secrets.CHAT_ID }}
           MONGO_URI: ${{ secrets.MONGO_URI }}
           GROQ_API_KEY: ${{ secrets.GROQ_API_KEY }}
-          MEME_API_URL: ${{ secrets.MEME_API_URL || 'https://redditreels.onrender.com' }}
-          MEME_API_KEY: ${{ secrets.MEME_API_KEY || 'rr_live_9f8d7a6b5c4e3d2a1f0e8d7c6b5a4f3e' }}
+          MEME_API_URL: ${{ secrets.MEME_API_URL }}
+          MEME_API_KEY: ${{ secrets.MEME_API_KEY }}
         run: |
           echo "Packaging application..."
           zip -rq function.zip . -x ".git/*" ".github/*" ".env*" "README.md" "*.log"
