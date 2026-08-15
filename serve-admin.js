@@ -104,19 +104,20 @@ const server = http.createServer(async (req, res) => {
         if (mediaBase64) {
           const cleanBase64 = mediaBase64.replace(/^data:[^;]+;base64,/, "");
           const buffer = Buffer.from(cleanBase64, "base64");
-          const blob = new Blob([buffer], { type: mediaType || (isVideo ? "video/mp4" : "image/jpeg") });
+          const mime = mediaType || (isVideo ? "video/mp4" : "image/jpeg");
+          const file = new File([buffer], fileName || (isVideo ? "video.mp4" : "photo.jpg"), { type: mime });
 
           if (isVideo) {
             telegramApiUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendVideo`;
-            formData.append("video", blob, fileName || "video.mp4");
+            formData.append("video", file);
             if (hasSpoiler) formData.append("has_spoiler", "true");
           } else if (isPhoto) {
             telegramApiUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`;
-            formData.append("photo", blob, fileName || "photo.jpg");
+            formData.append("photo", file);
             if (hasSpoiler) formData.append("has_spoiler", "true");
           } else {
             telegramApiUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendDocument`;
-            formData.append("document", blob, fileName || "document");
+            formData.append("document", file);
           }
 
           if (caption || text) {
