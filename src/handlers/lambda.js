@@ -15,7 +15,7 @@ const {
 // Standard CORS headers for Telegram Mini App
 const CORS_HEADERS = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With",
+  "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Requested-With, x-admin-secret, X-Admin-Secret",
   "Access-Control-Allow-Methods": "GET, POST, PATCH, DELETE, OPTIONS",
   "Content-Type": "application/json",
 };
