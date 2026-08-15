@@ -388,16 +388,20 @@ const server = http.createServer(async (req, res) => {
         usersDocs.map(async (u) => {
           const count = await History.countDocuments({ chatId: u.telegramId });
           const lastMsg = await History.findOne({ chatId: u.telegramId }).sort({ createdAt: -1 });
+          const lastActiveTime = lastMsg ? lastMsg.createdAt : (u.updatedAt || u.createdAt);
           return {
             telegramId: u.telegramId,
             firstName: u.firstName || "User",
             username: u.username || "",
             messageCount: count,
-            lastActive: u.updatedAt || u.createdAt,
+            lastActive: lastActiveTime,
             lastMessageSnippet: lastMsg ? lastMsg.content : "No messages yet",
           };
         })
       );
+
+      // Sort users by most recent activity timestamp descending (most recent on top)
+      users.sort((a, b) => new Date(b.lastActive).getTime() - new Date(a.lastActive).getTime());
 
       res.writeHead(200, { "Content-Type": "application/json" });
       return res.end(JSON.stringify({ ok: true, users }));

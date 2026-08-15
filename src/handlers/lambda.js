@@ -608,6 +608,11 @@ exports.handler = async (event, context) => {
           return {
             statusCode: 500,
             headers: CORS_HEADERS,
+            body: JSON.stringify({ error: `Meme action failed: ${memeErr.message}` }),
+          };
+        }
+      }
+
       // 1.7 DIRECT QUICK-CAST RANDOM MEME API
       if (rawPath.endsWith("/api/admin/send-random-meme") && httpMethod === "POST") {
         try {

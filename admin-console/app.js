@@ -159,12 +159,14 @@ async function fetchUsers() {
 // 2. Render Users Directory
 function renderUsersList() {
   const query = userSearchInput.value.toLowerCase().trim();
-  const filtered = allUsers.filter((u) => {
-    const name = (u.firstName || "").toLowerCase();
-    const handle = (u.username || "").toLowerCase();
-    const id = String(u.telegramId || "");
-    return !query || name.includes(query) || handle.includes(query) || id.includes(query);
-  });
+  const filtered = allUsers
+    .filter((u) => {
+      const name = (u.firstName || "").toLowerCase();
+      const handle = (u.username || "").toLowerCase();
+      const id = String(u.telegramId || "");
+      return !query || name.includes(query) || handle.includes(query) || id.includes(query);
+    })
+    .sort((a, b) => new Date(b.lastActive || 0).getTime() - new Date(a.lastActive || 0).getTime());
 
   if (filtered.length === 0) {
     usersListEl.innerHTML = `<div style="color:var(--text-muted); font-size:0.8rem; padding: 12px; text-align:center;">No matching threads found</div>`;
