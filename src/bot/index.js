@@ -22,6 +22,7 @@ require("./commands/reminders")(bot);
 require("./commands/reflections")(bot);
 require("./commands/motivate")(bot);
 require("./commands/roast")(bot);
+require("./commands/admin")(bot);
 require("./commands/help")(bot);
 
 // 3. Attach message & photo handlers
