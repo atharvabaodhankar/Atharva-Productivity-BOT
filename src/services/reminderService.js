@@ -1,14 +1,13 @@
-const cron = require("node-cron");
 const Memory = require("../models/Memory");
 const User = require("../models/User");
 
-const sentReminders = new Set();
-
+// 1. Process 5-minute upcoming deadlines & scheduled routines
 async function checkUpcomingReminders(bot) {
   try {
     const now = new Date();
     const oneDayAgo = new Date(now.getTime() - 24 * 60 * 60 * 1000);
 
+    // 1.1 Process Specific Deadlines & Reminder Alerts
     const upcoming = await Memory.find({
       date: { $lte: now, $gte: oneDayAgo },
       type: { $in: ["reminder", "task", "assignment", "exam", "project"] },
@@ -37,115 +36,181 @@ async function checkUpcomingReminders(bot) {
         }
       }
     }
+
+    // 1.2 Process Morning Daily Briefings & Nightly Accountability
+    const allUsers = await User.find();
+    for (const user of allUsers) {
+      const tz = user.timezone || "Asia/Kolkata";
+      const userLocalDateStr = now.toLocaleDateString("en-CA", { timeZone: tz }); // YYYY-MM-DD
+      const userHour = parseInt(
+        now.toLocaleTimeString("en-US", { timeZone: tz, hour12: false, hour: "2-digit" }),
+        10
+      );
+
+      // Morning Briefing: Trigger between 8 AM and 9 AM once per day
+      if (userHour >= 8 && userHour < 9 && user.preferences?.lastDailySummaryDate !== userLocalDateStr) {
+        await sendDailySummaryForUser(bot, user, userLocalDateStr);
+      }
+
+      // Nightly Accountability: Trigger between 10 PM (22) and 11 PM (23) once per day
+      if (userHour >= 22 && userHour < 23 && user.preferences?.lastNightlyReflectionDate !== userLocalDateStr) {
+        await sendNightlyReflectionForUser(bot, user, userLocalDateStr);
+      }
+    }
   } catch (error) {
     console.error("Error in checkUpcomingReminders:", error.message);
   }
 }
 
-async function sendDailySummary(bot) {
+// 2. Send Morning Daily Briefing for a specific user
+async function sendDailySummaryForUser(bot, user, dateKey) {
   try {
-    const users = await User.find();
+    const chatId = user.telegramId;
+    if (!chatId) return;
 
-    for (const user of users) {
-      const chatId = user.telegramId;
-      if (!chatId) continue;
+    const tz = user.timezone || "Asia/Kolkata";
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const tomorrow = new Date(today);
+    tomorrow.setDate(tomorrow.getDate() + 1);
 
-      const today = new Date();
-      today.setHours(0, 0, 0, 0);
-      const tomorrow = new Date(today);
-      tomorrow.setDate(tomorrow.getDate() + 1);
+    const todayItems = await Memory.find({
+      chatId,
+      date: { $gte: today, $lt: tomorrow },
+      completed: false,
+    });
 
-      const todayItems = await Memory.find({
-        chatId,
-        date: { $gte: today, $lt: tomorrow },
-        completed: false,
+    const allPending = await Memory.find({
+      chatId,
+      type: { $in: ["task", "assignment", "project", "exam", "reminder"] },
+      completed: false,
+    })
+      .sort({ priority: 1, date: 1 })
+      .limit(6);
+
+    const name = user.firstName || "Champ";
+    const greetings = [
+      `🌅 *GOOD MORNING ${name.toUpperCase()}! Rise and grind! ☕*`,
+      `🌞 *Wakey wakey, ${name}! Time to make today LEGENDARY! 🔥*`,
+      `☀️ *Uth ja ${name}! Opportunities wait for no one! 💪*`,
+      `🌄 *New day, new chances to level up, ${name}! Let's go! 🚀*`,
+    ];
+
+    let message = greetings[Math.floor(Math.random() * greetings.length)] + "\n\n";
+
+    if (todayItems.length > 0) {
+      message += "🔥 *DUE TODAY (Priority Mode ON):*\n";
+      todayItems.forEach((item, i) => {
+        const pEmoji = item.priority === "high" ? "🔥" : item.priority === "low" ? "🟢" : "⚡";
+        message += `${i + 1}. ${pEmoji} *${item.content}*\n`;
+      });
+      message += "\n";
+    }
+
+    if (allPending.length > 0) {
+      message += "📋 *Top Pending Focus Items:*\n";
+      allPending.forEach((item, i) => {
+        const pEmoji = item.priority === "high" ? "🔥" : item.priority === "low" ? "🟢" : "⚡";
+        let dateStr = "";
+        if (item.date) {
+          dateStr = ` _(${new Date(item.date).toLocaleDateString("en-US", { timeZone: tz, month: "short", day: "numeric" })})_`;
+        }
+        message += `• ${pEmoji} ${item.content}${dateStr}\n`;
+      });
+    } else {
+      message += "✨ *Your task plate is completely clean!* What are we conquering today, bhai?\n";
+    }
+
+    message += "\n━━━━━━━━━━━━━━━━━━━━━\n";
+    message += "💪 _Let's make today count! Ready to crush it?_";
+
+    await bot.telegram.sendMessage(chatId, message, { parse_mode: "Markdown" });
+
+    // Mark today's summary as sent
+    await User.findByIdAndUpdate(user._id, {
+      "preferences.lastDailySummaryDate": dateKey,
+    });
+  } catch (err) {
+    console.error(`Error sending daily summary to ${user.telegramId}:`, err);
+  }
+}
+
+// 3. Send Nightly Accountability Check-In for a specific user
+async function sendNightlyReflectionForUser(bot, user, dateKey) {
+  try {
+    const chatId = user.telegramId;
+    if (!chatId) return;
+
+    const name = user.firstName || "Champ";
+
+    const pendingTasks = await Memory.find({
+      chatId,
+      completed: false,
+    });
+
+    const completedToday = await Memory.find({
+      chatId,
+      completed: true,
+      updatedAt: { $gte: new Date(new Date().setHours(0, 0, 0, 0)) },
+    });
+
+    let message = `🌙 *NIGHTLY ACCOUNTABILITY CHECK-IN*\n`;
+    message += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
+
+    if (pendingTasks.length === 0) {
+      message += `🏆 *BOOM! Zero pending tasks left, ${name}!* You completely dominated today! Sahi hai yaar! 🔥\n\n`;
+      message += `What was your biggest win today? Batade, let's celebrate it! ✍️`;
+    } else {
+      message += `Bhai ${name}, day end hone wala hai! ⏰ Let's do a quick accountability check:\n\n`;
+      message += `📋 *Still Pending (${pendingTasks.length} items):*\n`;
+      pendingTasks.slice(0, 5).forEach((t, i) => {
+        message += `${i + 1}. ⏳ *${t.content}*\n`;
       });
 
-      const allPending = await Memory.find({
-        chatId,
-        type: { $in: ["task", "assignment", "project", "exam"] },
-        completed: false,
-      })
-        .sort({ date: 1 })
-        .limit(5);
-
-      if (todayItems.length > 0 || allPending.length > 0) {
-        const greetings = [
-          `🌅 GOOD MORNING ${user.firstName.toUpperCase()}! Rise and grind! ☕`,
-          `🌞 Wakey wakey, ${user.firstName}! Time to make today LEGENDARY! 🔥`,
-          `☀️ Uth ja ${user.firstName}! Opportunities wait for no one! 💪`,
-          `🌄 New day, new chances to be AWESOME, ${user.firstName}! Let's go! 🚀`,
-        ];
-
-        let message = greetings[Math.floor(Math.random() * greetings.length)] + "\n\n";
-
-        if (todayItems.length > 0) {
-          message += "🔥 DUE TODAY (Priority mode ON!):\n";
-          todayItems.forEach((item) => {
-            message += `• ${item.content}\n`;
-          });
-          message += "\n";
-        }
-
-        if (allPending.length > 0) {
-          message += "📋 Coming Up Soon:\n";
-          allPending.forEach((item) => {
-            message += `• ${item.content}`;
-            if (item.date) {
-              message += ` (${new Date(item.date).toDateString()})`;
-            }
-            message += "\n";
-          });
-        }
-
-        const endings = [
-          "\n💪 Let's make today COUNT! You got this! 🎯",
-          "\n🚀 Time to show the world what you're made of! 💯",
-          "\n⚡ One step at a time, you'll conquer it all! 🏆",
-          "\n🔥 Today's the day! Let's CRUSH these goals! 💪",
-        ];
-
-        message += endings[Math.floor(Math.random() * endings.length)];
-        await bot.telegram.sendMessage(chatId, message);
+      if (completedToday.length > 0) {
+        message += `\n✅ *Crushed Today (${completedToday.length} items):*\n`;
+        completedToday.slice(0, 3).forEach((t) => {
+          message += `• ${t.content}\n`;
+        });
       }
+
+      message += `\n━━━━━━━━━━━━━━━━━━━━━\n`;
+      message += `✍️ *Kya hua bhai? Did you finish any of these, ya kal par taal diya?*\n`;
+      message += `_Reply with "done with [task name]" to mark it done, or tell me how today went!_ 💪`;
     }
-  } catch (error) {
-    console.error("Error in sendDailySummary:", error.message);
+
+    await bot.telegram.sendMessage(chatId, message, { parse_mode: "Markdown" });
+
+    // Mark tonight's reflection as sent
+    await User.findByIdAndUpdate(user._id, {
+      "preferences.lastNightlyReflectionDate": dateKey,
+    });
+  } catch (err) {
+    console.error(`Error sending nightly reflection to ${user.telegramId}:`, err);
+  }
+}
+
+// 4. Batch Helpers (backward compatible)
+async function sendDailySummary(bot) {
+  const users = await User.find();
+  const dateKey = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  for (const user of users) {
+    await sendDailySummaryForUser(bot, user, dateKey);
   }
 }
 
 async function sendNightlyReflection(bot) {
-  try {
-    const users = await User.find();
-    for (const user of users) {
-      const chatId = user.telegramId;
-      if (!chatId) continue;
-
-      const prompts = [
-        `Bhai ${user.firstName}, day end hone wala hai! 🌅 Aaj kya ukhada? 📒 Kuch seekha ya bas chill kiya? Batade, save kar leta hoon! 💪`,
-        `Ayee ${user.firstName}! Time for nightly reflection! 🌙 Pure din mein sabse best win kya thi aaj? ✍️`,
-        `Arre ${user.firstName}, bed par jaane se pehle batade - what did you achieve today? 🏆 Chhota ho ya bada, win is a win! 🔥`,
-        `Yooo ${user.firstName}! Mission update? 🚀 Aaj ka din kaisa raha? Key highlight batade! 📒`,
-      ];
-
-      const message = prompts[Math.floor(Math.random() * prompts.length)];
-      await bot.telegram.sendMessage(chatId, message);
-    }
-  } catch (error) {
-    console.error("Error in sendNightlyReflection:", error.message);
+  const users = await User.find();
+  const dateKey = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
+  for (const user of users) {
+    await sendNightlyReflectionForUser(bot, user, dateKey);
   }
 }
 
-function startReminderCron(bot) {
-  cron.schedule("* * * * *", () => checkUpcomingReminders(bot));
-  cron.schedule("0 8 * * *", () => sendDailySummary(bot));
-  cron.schedule("0 22 * * *", () => sendNightlyReflection(bot));
-  console.log("✅ Reminder service scheduled (node-cron)");
-}
-
 module.exports = {
-  startReminderCron,
   checkUpcomingReminders,
   sendDailySummary,
   sendNightlyReflection,
+  sendDailySummaryForUser,
+  sendNightlyReflectionForUser,
 };

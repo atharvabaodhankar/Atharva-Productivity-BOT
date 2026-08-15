@@ -38,6 +38,14 @@ const userSchema = new mongoose.Schema(
         type: String,
         default: "22:00",
       },
+      lastDailySummaryDate: {
+        type: String,
+        default: "",
+      },
+      lastNightlyReflectionDate: {
+        type: String,
+        default: "",
+      },
     },
   },
   {
