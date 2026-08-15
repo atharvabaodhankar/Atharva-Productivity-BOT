@@ -1,6 +1,7 @@
 const { executeWithFailover } = require("./groqPool");
 const { tools } = require("./tools");
 const { buildSystemPrompt } = require("./promptEngine");
+const { parseUserDate } = require("../utils/dateHelper");
 const Memory = require("../models/Memory");
 const User = require("../models/User");
 
@@ -21,7 +22,8 @@ function sanitizeOutput(text) {
 
 const CASUAL_GREETINGS = new Set([
   "hi", "hello", "hey", "yo", "ho", "haan", "ha", "ok", "okay",
-  "kya hal", "kya chal raha", "sup", "wassup", "good morning", "good night", "bye"
+  "kya hal", "kya chal raha", "sup", "wassup", "good morning", "good night", "bye",
+  "kesa he bro", "kaisa hai bro", "kaisa he", "who made you"
 ]);
 
 async function askAI({ message, chatId, historyContext = "", base64ImageUrl = null }) {
@@ -121,11 +123,12 @@ async function askAI({ message, chatId, historyContext = "", base64ImageUrl = nu
 
       try {
         if (functionName === "add_memory") {
+          const parsedDate = parseUserDate(args.date, user ? user.timezone : "Asia/Kolkata");
           const newMem = await Memory.create({
             chatId,
             type: args.type || "task",
             content: args.content,
-            date: args.date ? new Date(args.date) : null,
+            date: parsedDate,
             priority: args.priority || "medium",
             tags: args.tags || [],
           });
