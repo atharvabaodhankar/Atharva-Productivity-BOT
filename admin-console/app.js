@@ -56,7 +56,7 @@ const mediaPreviewBar = document.getElementById("mediaPreviewBar");
 const mediaPreviewThumb = document.getElementById("mediaPreviewThumb");
 const mediaPreviewName = document.getElementById("mediaPreviewName");
 const mediaPreviewMeta = document.getElementById("mediaPreviewMeta");
-const removeMediaBtn = document.getElementById("removeMediaBtn");
+const removeMediaBtn = document.getElementById("clearMediaBtn") || document.getElementById("removeMediaBtn");
 const toggleSpoilerBtn = document.getElementById("toggleSpoilerBtn");
 const dragDropOverlay = document.getElementById("dragDropOverlay");
 
@@ -490,38 +490,48 @@ function clearStagedMedia() {
   mediaPreviewBar.style.display = "none";
 }
 
-attachMediaBtn.addEventListener("click", () => mediaFileInput.click());
-mediaFileInput.addEventListener("change", (e) => {
-  if (e.target.files && e.target.files[0]) {
-    stageMediaFile(e.target.files[0]);
-  }
-});
-removeMediaBtn.addEventListener("click", clearStagedMedia);
+if (attachMediaBtn && mediaFileInput) {
+  attachMediaBtn.addEventListener("click", () => mediaFileInput.click());
+}
+if (mediaFileInput) {
+  mediaFileInput.addEventListener("change", (e) => {
+    if (e.target.files && e.target.files[0]) {
+      stageMediaFile(e.target.files[0]);
+    }
+  });
+}
+if (removeMediaBtn) {
+  removeMediaBtn.addEventListener("click", clearStagedMedia);
+}
 
-toggleSpoilerBtn.addEventListener("click", () => {
-  isSpoilerActive = !isSpoilerActive;
-  toggleSpoilerBtn.classList.toggle("active", isSpoilerActive);
-  showToast(isSpoilerActive ? "👁️‍🗨️ Spoiler mode ENABLED for media" : "👁️ Spoiler mode DISABLED", "info");
-});
+if (toggleSpoilerBtn) {
+  toggleSpoilerBtn.addEventListener("click", () => {
+    isSpoilerActive = !isSpoilerActive;
+    toggleSpoilerBtn.classList.toggle("active", isSpoilerActive);
+    showToast(isSpoilerActive ? "👁️‍🗨️ Spoiler mode ENABLED for media" : "👁️ Spoiler mode DISABLED", "info");
+  });
+}
 
 // Drag & Drop
-window.addEventListener("dragover", (e) => {
-  e.preventDefault();
-  if (activeTargetUser) dragDropOverlay.style.display = "flex";
-});
+if (dragDropOverlay) {
+  window.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    if (activeTargetUser) dragDropOverlay.style.display = "flex";
+  });
 
-dragDropOverlay.addEventListener("dragleave", (e) => {
-  e.preventDefault();
-  dragDropOverlay.style.display = "none";
-});
+  dragDropOverlay.addEventListener("dragleave", (e) => {
+    e.preventDefault();
+    dragDropOverlay.style.display = "none";
+  });
 
-window.addEventListener("drop", (e) => {
-  e.preventDefault();
-  dragDropOverlay.style.display = "none";
-  if (activeTargetUser && e.dataTransfer.files && e.dataTransfer.files[0]) {
-    stageMediaFile(e.dataTransfer.files[0]);
-  }
-});
+  window.addEventListener("drop", (e) => {
+    e.preventDefault();
+    dragDropOverlay.style.display = "none";
+    if (activeTargetUser && e.dataTransfer.files && e.dataTransfer.files[0]) {
+      stageMediaFile(e.dataTransfer.files[0]);
+    }
+  });
+}
 
 // ------------------------------------------------------------------
 // MESSAGE TRANSMISSION ENGINE (Proxy Bot POV Dispatch)
