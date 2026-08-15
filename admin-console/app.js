@@ -430,12 +430,12 @@ async function sendMessage() {
 const dragDropOverlay = document.getElementById("dragDropOverlay");
 const chatViewContainer = document.querySelector(".chat-view-container");
 
-// Spoiler / Censor Toggle Helper
+// Spoiler / Censor Toggle Helper (Telegram Native 'Hide with spoiler')
 function updateSpoilerUI() {
   if (toggleSpoilerBtn) {
     toggleSpoilerBtn.classList.toggle("active", isSpoilerActive);
     if (spoilerBtnText) {
-      spoilerBtnText.textContent = isSpoilerActive ? "CENSORED (ON)" : "CENSOR / SPOILER";
+      spoilerBtnText.textContent = isSpoilerActive ? "Hidden with spoiler (ON)" : "Hide with spoiler";
     }
   }
   if (previewMediaWrapper) {
@@ -457,7 +457,7 @@ if (toggleSpoilerBtn) {
   toggleSpoilerBtn.addEventListener("click", () => {
     isSpoilerActive = !isSpoilerActive;
     updateSpoilerUI();
-    showToast(isSpoilerActive ? "🙈 Censor / Spoiler turned ON" : "👁️ Censor / Spoiler turned OFF", "success");
+    showToast(isSpoilerActive ? "🙈 Telegram 'Hide with spoiler' enabled" : "👁️ Telegram 'Hide with spoiler' disabled", "success");
   });
 }
 
