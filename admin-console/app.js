@@ -11,6 +11,7 @@ let activeMessages = [];
 let stagedMediaBase64 = null;
 let stagedMediaFileName = "";
 let stagedMediaType = "";
+let isSpoilerActive = false;
 let isAutoPollActive = true;
 
 // DOM Elements
@@ -28,10 +29,14 @@ const manualRefreshBtn = document.getElementById("manualRefreshBtn");
 
 const messagesStreamEl = document.getElementById("messagesStreamEl");
 const mediaStagingBar = document.getElementById("mediaStagingBar");
+const previewMediaWrapper = document.getElementById("previewMediaWrapper");
 const mediaPreviewImg = document.getElementById("mediaPreviewImg");
 const mediaPreviewVid = document.getElementById("mediaPreviewVid");
+const spoilerBadgeOverlay = document.getElementById("spoilerBadgeOverlay");
 const mediaFileName = document.getElementById("mediaFileName");
 const mediaReadyTag = document.getElementById("mediaReadyTag");
+const toggleSpoilerBtn = document.getElementById("toggleSpoilerBtn");
+const spoilerBtnText = document.getElementById("spoilerBtnText");
 const clearMediaBtn = document.getElementById("clearMediaBtn");
 
 const uploadProgressWrapper = document.getElementById("uploadProgressWrapper");
@@ -396,6 +401,7 @@ async function sendMessage() {
         mediaType: mType,
         fileName: fName,
         caption: text,
+        hasSpoiler: isSpoilerActive,
       })
     );
   } else {
@@ -423,6 +429,37 @@ async function sendMessage() {
 
 const dragDropOverlay = document.getElementById("dragDropOverlay");
 const chatViewContainer = document.querySelector(".chat-view-container");
+
+// Spoiler / Censor Toggle Helper
+function updateSpoilerUI() {
+  if (toggleSpoilerBtn) {
+    toggleSpoilerBtn.classList.toggle("active", isSpoilerActive);
+    if (spoilerBtnText) {
+      spoilerBtnText.textContent = isSpoilerActive ? "CENSORED (ON)" : "CENSOR / SPOILER";
+    }
+  }
+  if (previewMediaWrapper) {
+    previewMediaWrapper.classList.toggle("has-spoiler", isSpoilerActive);
+  }
+  if (spoilerBadgeOverlay) {
+    spoilerBadgeOverlay.style.display = isSpoilerActive ? "flex" : "none";
+  }
+  if (mediaReadyTag) {
+    mediaReadyTag.classList.toggle("spoiler-active", isSpoilerActive);
+    const isVideo = stagedMediaType.startsWith("video/") || /\.(mp4|mov|webm|mkv|avi)$/i.test(stagedMediaFileName);
+    const baseTag = isVideo ? "VIDEO" : "PHOTO";
+    mediaReadyTag.textContent = isSpoilerActive ? `SPOILER ${baseTag} READY` : `${baseTag} READY TO TRANSMIT`;
+  }
+  refreshIcons();
+}
+
+if (toggleSpoilerBtn) {
+  toggleSpoilerBtn.addEventListener("click", () => {
+    isSpoilerActive = !isSpoilerActive;
+    updateSpoilerUI();
+    showToast(isSpoilerActive ? "🙈 Censor / Spoiler turned ON" : "👁️ Censor / Spoiler turned OFF", "success");
+  });
+}
 
 // 6. Media Handling & Base64 Converter (Images & Videos)
 function handleMediaFile(file) {
@@ -476,6 +513,8 @@ function clearStagedMedia() {
   stagedMediaBase64 = null;
   stagedMediaFileName = "";
   stagedMediaType = "";
+  isSpoilerActive = false;
+  updateSpoilerUI();
   mediaFileInput.value = "";
   mediaPreviewImg.src = "";
   mediaPreviewImg.style.display = "none";

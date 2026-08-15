@@ -356,21 +356,36 @@ exports.handler = async (event, context) => {
           if (mediaBase64) {
             const cleanBase64 = mediaBase64.replace(/^data:[^;]+;base64,/, "");
             const buffer = Buffer.from(cleanBase64, "base64");
+            const {
+              ownerId,
+              targetChatId,
+              text,
+              mediaBase64,
+              mediaType = "",
+              fileName = "",
+              caption,
+              hasSpoiler = false,
+            } = body;
+
             const isVideo = mediaType.startsWith("video/") || /\.(mp4|mov|webm|mkv|avi)$/i.test(fileName);
             const isImage = mediaType.startsWith("image/") || /\.(png|jpg|jpeg|gif|webp)$/i.test(fileName);
+
+            const mediaOptions = {};
+            if (caption) mediaOptions.caption = caption;
+            if (hasSpoiler) mediaOptions.has_spoiler = true;
 
             if (isVideo) {
               sentMsg = await bot.telegram.sendVideo(
                 targetChatId,
                 { source: buffer, filename: fileName || "video.mp4" },
-                caption ? { caption } : undefined
+                Object.keys(mediaOptions).length > 0 ? mediaOptions : undefined
               );
               recordedContent = `[Video] ${caption || ""}`.trim();
             } else if (isImage) {
               sentMsg = await bot.telegram.sendPhoto(
                 targetChatId,
                 { source: buffer, filename: fileName || "image.jpg" },
-                caption ? { caption } : undefined
+                Object.keys(mediaOptions).length > 0 ? mediaOptions : undefined
               );
               recordedContent = `[Photo] ${caption || ""}`.trim();
             } else {

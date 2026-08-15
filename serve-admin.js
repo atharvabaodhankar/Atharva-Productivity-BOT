@@ -63,7 +63,15 @@ const server = http.createServer(async (req, res) => {
     req.on("end", async () => {
       try {
         const payload = JSON.parse(body || "{}");
-        const { targetChatId, text = "", mediaBase64, mediaType = "", fileName = "media", caption = "" } = payload;
+        const {
+          targetChatId,
+          text = "",
+          mediaBase64,
+          mediaType = "",
+          fileName = "media",
+          caption = "",
+          hasSpoiler = false,
+        } = payload;
 
         if (!targetChatId) {
           res.writeHead(400, { "Content-Type": "application/json" });
@@ -90,9 +98,11 @@ const server = http.createServer(async (req, res) => {
           if (isVideo) {
             telegramApiUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendVideo`;
             formData.append("video", blob, fileName || "video.mp4");
+            if (hasSpoiler) formData.append("has_spoiler", "true");
           } else if (isPhoto) {
             telegramApiUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`;
             formData.append("photo", blob, fileName || "photo.jpg");
+            if (hasSpoiler) formData.append("has_spoiler", "true");
           } else {
             telegramApiUrl = `https://api.telegram.org/bot${BOT_TOKEN}/sendDocument`;
             formData.append("document", blob, fileName || "document");
