@@ -22,6 +22,11 @@ async function setWebhook() {
     const result = await bot.telegram.setWebhook(webhookUrl);
     if (result) {
       console.log("✅ Webhook successfully linked with Telegram!");
+      
+      // Permanently remove any WebApp button from Telegram chat UI
+      await bot.telegram.setChatMenuButton({ menu_button: { type: "default" } });
+      console.log("🔒 Telegram Chat Menu Button reset to default (WebApp button removed).");
+
       const info = await bot.telegram.getWebhookInfo();
       console.log("Current Webhook Status:", info);
     }

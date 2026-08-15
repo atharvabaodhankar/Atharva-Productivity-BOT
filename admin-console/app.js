@@ -20,6 +20,32 @@ function getApiUrl(path) {
   return `${REMOTE_API_BASE}${cleanPath.replace(/^\/api/, "")}`;
 }
 
+// Security Gate: Verify Owner Clearance
+function checkOwnerAccess() {
+  if (IS_LOCAL_DEV) return true;
+
+  const telegramUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
+  const isOwner = String(telegramUserId) === OWNER_CHAT_ID;
+
+  if (!isOwner) {
+    document.body.innerHTML = `
+      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#0B0E14; color:#F8FAFC; font-family:monospace; text-align:center; padding:20px;">
+        <div style="font-size:3rem; margin-bottom:12px;">🛑</div>
+        <h1 style="font-size:1.4rem; color:#EF4444; margin-bottom:8px;">ACCESS DENIED</h1>
+        <p style="font-size:0.85rem; color:#94A3B8; max-width:420px; line-height:1.5;">
+          AtharvaOS Mission Control is exclusively restricted to the Creator (Atharva Baodhankar). Unauthorized access is blocked.
+        </p>
+      </div>
+    `;
+    return false;
+  }
+  return true;
+}
+
+if (!checkOwnerAccess()) {
+  throw new Error("Unauthorized WebApp Access Blocked.");
+}
+
 // State
 let allUsers = [];
 let lastUsersSignature = "";
