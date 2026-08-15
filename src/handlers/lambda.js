@@ -613,7 +613,7 @@ exports.handler = async (event, context) => {
         body = null;
       }
 
-      if (body && (body.update_id || body.message)) {
+      if (body && (body.update_id || body.callback_query || body.message || body.channel_post)) {
         await bot.handleUpdate(body);
         return {
           statusCode: 200,

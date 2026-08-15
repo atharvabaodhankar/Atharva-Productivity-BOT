@@ -116,8 +116,8 @@ module.exports = (bot) => {
   // 3. User Confirmed "YES" to NSFW Memes
   bot.action("nsfw_meme_yes", async (ctx) => {
     try {
-      await ctx.answerCbQuery("Request acknowledged! 🌶️");
-      const chatId = ctx.chat.id;
+      await ctx.answerCbQuery("Request received! Please wait for the meme ⏳");
+      const chatId = ctx.chat?.id || ctx.from?.id;
       const userName = ctx.from?.first_name || "Friend";
       const username = ctx.from?.username || "";
 
@@ -128,13 +128,17 @@ module.exports = (bot) => {
         username,
         type: "NSFW_TRIGGER",
         trigger: "NSFW Meme Confirmed (YES!)",
-        text: "User confirmed 18+ and clicked YES to see NSFW memes. Waiting for delivery...",
+        text: `User ${userName} (@${username || "none"}) confirmed 18+ and is waiting for their meme!`,
       });
 
       const waitMsg =
-        "Theek hai bhai, hold tight! ⏳ Finding the spiciest meme for you... tab tak wait karo! 🌶️👀\n\n*(Admin verification & delivery in progress...)*";
+        "Theek hai bhai, hold tight! ⏳ Finding/preparing the meme for you... Please wait for your meme, it's on the way! 🌶️👀\n\n*(Admin verification & delivery in progress...)*";
 
-      await ctx.editMessageText(waitMsg, { parse_mode: "Markdown" });
+      try {
+        await ctx.editMessageText(waitMsg);
+      } catch (editErr) {
+        await ctx.reply(waitMsg);
+      }
 
       await History.create({
         chatId,
@@ -153,10 +157,14 @@ module.exports = (bot) => {
       await ctx.answerCbQuery("Cancelled");
       const cancelText = "Good boy/girl! 😇 Sharafat me hi bhalai hai. Chalo wapas focus karo apne goals aur tasks pe! 🚀✨";
 
-      await ctx.editMessageText(cancelText);
+      try {
+        await ctx.editMessageText(cancelText);
+      } catch (editErr) {
+        await ctx.reply(cancelText);
+      }
 
       await History.create({
-        chatId: ctx.chat.id,
+        chatId: ctx.chat?.id || ctx.from?.id,
         role: "assistant",
         content: cancelText,
         telegramMessageId: ctx.callbackQuery?.message?.message_id || null,
