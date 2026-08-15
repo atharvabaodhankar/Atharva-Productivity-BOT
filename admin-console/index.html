@@ -120,6 +120,33 @@
         </div>
       </div>
 
+      <!-- Confirm Quick Meme Dispatch Modal -->
+      <div class="alerts-modal-overlay" id="confirmMemeModalOverlay" style="display:none;">
+        <div class="alerts-modal-container" style="max-width: 440px;">
+          <div class="alerts-modal-header">
+            <div class="alerts-header-title">
+              <i data-lucide="flame" class="alert-header-icon" style="color: #F59E0B;"></i>
+              <h3>CONFIRM MEME DISPATCH</h3>
+            </div>
+            <button id="closeConfirmMemeModalBtn" class="clear-media-btn"><i data-lucide="x"></i></button>
+          </div>
+          <div style="padding: 20px; font-size: 0.9rem; color: var(--text-secondary); line-height: 1.6;">
+            <p>Are you sure you want to fetch a random NSFW meme from Reddit and transmit it directly to:</p>
+            <div style="margin: 14px 0; padding: 12px; background: rgba(245, 158, 11, 0.08); border: 1px solid rgba(245, 158, 11, 0.2); border-radius: var(--radius-md);">
+              <span id="confirmMemeTargetUser" style="font-weight: 600; color: var(--text-primary); font-family: var(--font-mono);">Atharva (@op_athu)</span>
+            </div>
+            <p style="font-size: 0.8rem; color: var(--text-muted);">The media will be delivered with Telegram native spoiler blur enabled.</p>
+          </div>
+          <div class="alerts-modal-header" style="border-top: 1px solid var(--border-subtle); border-bottom: none; justify-content: flex-end; gap: 10px;">
+            <button id="cancelConfirmMemeBtn" class="mono-btn">Cancel</button>
+            <button id="executeConfirmMemeBtn" class="mono-btn active" style="background: #F59E0B; color: #000; font-weight: 600;">
+              <i data-lucide="flame"></i>
+              <span>TRANSMIT MEME</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Drag & Drop Visual Overlay -->
       <div class="drag-drop-overlay" id="dragDropOverlay" style="display:none;">
         <div class="drag-drop-box">

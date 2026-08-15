@@ -864,14 +864,10 @@ function renderAlertsModal() {
   });
 
   alertsListBody.querySelectorAll(".send-direct-meme-btn").forEach((btn) => {
-    btn.addEventListener("click", async (e) => {
+    btn.addEventListener("click", (e) => {
       e.stopPropagation();
       const targetChatId = btn.dataset.chatId;
-      btn.disabled = true;
-      btn.innerHTML = `<span class="upload-spinner" style="width:10px;height:10px;"></span> Transmitting...`;
-      await quickCastMeme(targetChatId);
-      btn.innerHTML = `<i data-lucide="check"></i> Sent!`;
-      refreshIcons();
+      openConfirmMemeModal(targetChatId);
     });
   });
 
@@ -890,6 +886,62 @@ function renderAlertsModal() {
   });
 
   refreshIcons();
+}
+
+let pendingMemeTargetChatId = null;
+
+const quickCastMemeBtn = document.getElementById("quickCastMemeBtn");
+const confirmMemeModalOverlay = document.getElementById("confirmMemeModalOverlay");
+const closeConfirmMemeModalBtn = document.getElementById("closeConfirmMemeModalBtn");
+const cancelConfirmMemeBtn = document.getElementById("cancelConfirmMemeBtn");
+const executeConfirmMemeBtn = document.getElementById("executeConfirmMemeBtn");
+const confirmMemeTargetUser = document.getElementById("confirmMemeTargetUser");
+
+function openConfirmMemeModal(targetChatId) {
+  if (!targetChatId) {
+    showToast("Please select a target user conversation from the directory first.", "error");
+    return;
+  }
+  pendingMemeTargetChatId = targetChatId;
+  const user = allUsers.find((u) => String(u.telegramId) === String(targetChatId)) || activeTargetUser;
+  if (confirmMemeTargetUser) {
+    const handle = user?.username ? `@${user.username}` : `ID: ${targetChatId}`;
+    confirmMemeTargetUser.textContent = `${user?.firstName || "User"} (${handle})`;
+  }
+  if (confirmMemeModalOverlay) {
+    confirmMemeModalOverlay.style.display = "flex";
+    refreshIcons();
+  }
+}
+
+function closeConfirmMemeModal() {
+  pendingMemeTargetChatId = null;
+  if (confirmMemeModalOverlay) {
+    confirmMemeModalOverlay.style.display = "none";
+  }
+}
+
+if (quickCastMemeBtn) {
+  quickCastMemeBtn.addEventListener("click", () => {
+    if (!activeTargetUser) {
+      showToast("Please select a user conversation first.", "error");
+      return;
+    }
+    openConfirmMemeModal(activeTargetUser.telegramId);
+  });
+}
+
+if (closeConfirmMemeModalBtn) closeConfirmMemeModalBtn.addEventListener("click", closeConfirmMemeModal);
+if (cancelConfirmMemeBtn) cancelConfirmMemeBtn.addEventListener("click", closeConfirmMemeModal);
+
+if (executeConfirmMemeBtn) {
+  executeConfirmMemeBtn.addEventListener("click", async () => {
+    const targetId = pendingMemeTargetChatId || (activeTargetUser ? activeTargetUser.telegramId : null);
+    closeConfirmMemeModal();
+    if (targetId) {
+      await quickCastMeme(targetId);
+    }
+  });
 }
 
 async function quickCastMeme(targetChatId) {
@@ -983,18 +1035,6 @@ if (alertsModalOverlay) {
   });
 }
 
-const quickCastMemeBtn = document.getElementById("quickCastMemeBtn");
-if (quickCastMemeBtn) {
-  quickCastMemeBtn.addEventListener("click", async () => {
-    if (!activeTargetUser) {
-      showToast("Please select a user conversation from the directory first.", "error");
-      return;
-    }
-    quickCastMemeBtn.disabled = true;
-    await quickCastMeme(activeTargetUser.telegramId);
-    quickCastMemeBtn.disabled = false;
-  });
-}
 
 // ------------------------------------------------------------------
 // 7. EVENT LISTENERS & INITIALIZATION
