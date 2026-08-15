@@ -1,8 +1,24 @@
 {
   "rewrites": [
     {
-      "source": "/(.*)",
+      "source": "/admin-console/(.*)",
       "destination": "/admin-console/$1"
+    },
+    {
+      "source": "/admin",
+      "destination": "/admin-console/index.html"
+    },
+    {
+      "source": "/admin/(.*)",
+      "destination": "/admin-console/$1"
+    },
+    {
+      "source": "/webapp/(.*)",
+      "destination": "/webapp/$1"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/webapp/$1"
     }
   ]
 }

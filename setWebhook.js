@@ -23,9 +23,16 @@ async function setWebhook() {
     if (result) {
       console.log("✅ Webhook successfully linked with Telegram!");
       
-      // Permanently remove any WebApp button from Telegram chat UI
-      await bot.telegram.setChatMenuButton({ menu_button: { type: "default" } });
-      console.log("🔒 Telegram Chat Menu Button reset to default (WebApp button removed).");
+      // Configure Telegram Chat Menu Button to open safe User Productivity Copilot WebApp
+      const webAppUrl = process.env.WEBAPP_URL || "https://atharva-productivity-bot-owkf.vercel.app/webapp/";
+      await bot.telegram.setChatMenuButton({
+        menu_button: {
+          type: "web_app",
+          text: "🔲 Open AtharvaOS",
+          web_app: { url: webAppUrl },
+        },
+      });
+      console.log(`✅ Telegram Chat Menu Button set to: [🔲 Open AtharvaOS] -> ${webAppUrl}`);
 
       const info = await bot.telegram.getWebhookInfo();
       console.log("Current Webhook Status:", info);
