@@ -11,7 +11,11 @@ const ADMIN_DIR = path.join(__dirname, "admin-console");
 // Connect to MongoDB
 if (MONGO_URI) {
   mongoose
-    .connect(MONGO_URI)
+    .connect(MONGO_URI, {
+      maxPoolSize: 2,
+      minPoolSize: 1,
+      serverSelectionTimeoutMS: 5000,
+    })
     .then(() => console.log("📦 MongoDB connected to Local Admin Server"))
     .catch((err) => console.warn("MongoDB connection error in admin server:", err.message));
 }

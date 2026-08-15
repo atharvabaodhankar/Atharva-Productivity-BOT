@@ -556,16 +556,27 @@ autoPollToggleBtn.addEventListener("click", () => {
   autoPollToggleBtn.querySelector("span").textContent = isAutoPollActive ? "AUTO-SYNC: ON" : "AUTO-SYNC: OFF";
 });
 
-// Real-Time Polling Loop (Smooth zero-flicker sync every 1.5 seconds)
+// Real-Time Polling Loop (Smart visibility-aware sync to conserve MongoDB connection limits)
 function startPolling() {
   setInterval(async () => {
-    if (isAutoPollActive) {
+    // Only poll when the tab is actively visible to the user
+    if (isAutoPollActive && document.visibilityState === "visible") {
       if (activeTargetUser) {
         await loadConversationMessages();
       }
       await fetchUsers();
     }
-  }, 1500);
+  }, 4000);
+
+  // Instantly fetch latest updates when user switches back to this tab
+  document.addEventListener("visibilitychange", async () => {
+    if (document.visibilityState === "visible" && isAutoPollActive) {
+      if (activeTargetUser) {
+        await loadConversationMessages();
+      }
+      await fetchUsers();
+    }
+  });
 }
 
 // Initialization

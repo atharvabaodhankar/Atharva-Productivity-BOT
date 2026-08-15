@@ -12,13 +12,17 @@ async function connectToDatabase() {
     throw new Error("MONGO_URI environment variable is not defined");
   }
 
-  console.log("Connecting to MongoDB Atlas...");
+  // Optimize for AWS Lambda serverless execution to prevent connection exhaustion on MongoDB Atlas M0
   await mongoose.connect(mongoUri, {
     serverSelectionTimeoutMS: 5000,
+    maxPoolSize: 1, // Strict single connection per serverless container
+    minPoolSize: 1,
+    socketTimeoutMS: 20000,
+    connectTimeoutMS: 5000,
+    maxIdleTimeMS: 15000, // Reclaim idle connection slots quickly
   });
 
   isConnected = true;
-  console.log("MongoDB Atlas Connected Successfully");
   return mongoose.connection;
 }
 
