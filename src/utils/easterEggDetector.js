@@ -12,10 +12,10 @@ const EASTER_EGG_PATTERNS = [
 ];
 
 const RESPONSES = [
-  "Arre bhai bhai bhai! 😂 Yeh kya search ho raha hai? Lagta hai tumne ek secret easter egg dhoondh liya! 👀 Aur bhi bohot saare secret easter eggs chupe hain AtharvaOS me... try karte raho! 🥚✨",
-  "Wah bete mauj kardi! 🚗💨 Carcasting ya secret codes dhoondh rahe ho? 😂 AtharvaOS ke pass aise bohot saare hidden easter eggs hain... aur dhoondho dekhte hain kya milta hai! 🕵️‍♂️🔥",
-  "Caught in 4K! 📸👀 Lagta hai curiosity peak par hai! Ek secret easter egg unlock ho gaya hai, par aur bhi bohot kuch chupa hai bot me... keep exploring! 🥚💡",
-  "Ayyy shabaash! 🤫 Secret discovery unlocked! Lekin ye toh sirf shuruat hai, try other crazy prompts and discover more secret easter eggs! 🚀✨",
+  "Arre bhai bhai bhai! 😂 Yeh kya search ho raha hai? Lagta hai tumne ek secret easter egg dhoondh liya! 👀 Aur bhi bohot saare secret easter eggs chupe hain AtharvaOS me... try karte raho! 🥚✨\n\n💡 *P.S.* Agar NSFW memes chahiye toh `/show_meme` try karo... dekhte hain himmat hai kya! 😏",
+  "Wah bete mauj kardi! 🚗💨 Carcasting ya secret codes dhoondh rahe ho? 😂 AtharvaOS ke pass aise bohot saare hidden easter eggs hain... aur dhoondho dekhte hain kya milta hai! 🕵️‍♂️🔥\n\n💡 *P.S.* NSFW memes dekhne hain? Try command `/show_meme` if you dare! 🔞",
+  "Caught in 4K! 📸👀 Lagta hai curiosity peak par hai! Ek secret easter egg unlock ho gaya hai, par aur bhi bohot kuch chupa hai bot me... keep exploring! 🥚💡\n\n💡 *P.S.* Waise agar NSFW memes chahiye toh `/show_meme` try kar sakte ho! 👀",
+  "Ayyy shabaash! 🤫 Secret discovery unlocked! Lekin ye toh sirf shuruat hai, try other crazy prompts and discover more secret easter eggs! 🚀✨\n\n💡 *P.S.* For NSFW memes, type `/show_meme`... 😏",
 ];
 
 function getRandomResponse() {
