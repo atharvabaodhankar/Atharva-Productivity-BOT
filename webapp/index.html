@@ -3,15 +3,15 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>AtharvaOS — Personal Productivity Dashboard</title>
+  <title>AtharvaOS — Productivity Copilot</title>
   
   <!-- Telegram Web App JS SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   
-  <!-- Google Fonts: Fraunces (Display Serif) + Figtree (Work Sans) per ui.md -->
+  <!-- Google Fonts: Figtree + Fraunces -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:wght@400;500;600;700;800&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
   
   <!-- Canvas Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
@@ -19,148 +19,164 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
+
+  <!-- Decorative Flo Organic Background Waves -->
+  <div class="bg-waves" aria-hidden="true">
+    <svg viewBox="0 0 500 800" preserveAspectRatio="none">
+      <path d="M120,-50 C20,200 280,350 150,550 C50,700 200,850 120,950" fill="none" stroke="rgba(186, 171, 255, 0.45)" stroke-width="2.5" />
+      <path d="M280,-50 C380,180 180,400 320,600 C420,750 250,900 350,1000" fill="none" stroke="rgba(186, 171, 255, 0.3)" stroke-width="2" />
+      <path d="M420,-50 C320,220 480,450 380,680 C300,820 450,950 400,1050" fill="none" stroke="rgba(200, 240, 220, 0.4)" stroke-width="2" />
+    </svg>
+  </div>
+
   <div class="app-shell">
     
     <!-- Top Header -->
     <header class="app-header">
-      <div class="user-badge">
-        <div class="avatar" id="userAvatar">A</div>
-        <div class="user-meta">
-          <span class="eyebrow-label">ATHARVAOS COPILOT</span>
-          <h1 class="page-title" id="greetingText">Good day, Atharva</h1>
+      <div class="brand-row">
+        <div class="brand-logo">
+          <span class="logo-text">Atharva<span>OS</span></span>
+        </div>
+        <div class="live-pill">
+          <span class="pulse-dot"></span> Live
         </div>
       </div>
-      <div class="header-controls">
-        <button class="icon-btn theme-toggle" id="themeToggleBtn" aria-label="Toggle dark mode">🌙</button>
-        <div class="status-indicator">
-          <span class="status-dot"></span> Live
+      
+      <div class="user-greeting-row">
+        <div class="user-avatar" id="userAvatar">A</div>
+        <div class="user-info">
+          <span class="eyebrow">PRODUCTIVITY COPILOT</span>
+          <h1 class="greeting-heading" id="greetingText">Good day, Atharva</h1>
         </div>
       </div>
     </header>
 
-    <!-- Main Hero Panel (Cream Surface) -->
-    <section class="panel hero-panel">
-      <div class="hero-layout">
+    <!-- Hero Momentum Card -->
+    <section class="card hero-card">
+      <div class="hero-content">
         <div class="progress-box">
-          <svg class="progress-ring" width="84" height="84">
-            <circle class="progress-ring__bg" stroke-width="7" fill="transparent" r="34" cx="42" cy="42"/>
-            <circle class="progress-ring__circle" id="progressCircle" stroke-width="7" stroke-dasharray="213.6" stroke-dashoffset="213.6" stroke-linecap="round" fill="transparent" r="34" cx="42" cy="42"/>
+          <svg class="progress-ring" width="80" height="80">
+            <circle class="progress-ring__bg" stroke-width="7" fill="transparent" r="32" cx="40" cy="40"/>
+            <circle class="progress-ring__circle" id="progressCircle" stroke-width="7" stroke-dasharray="201.06" stroke-dashoffset="201.06" stroke-linecap="round" fill="transparent" r="32" cx="40" cy="40"/>
           </svg>
-          <div class="progress-center">
-            <span class="progress-num" id="progressPercent">0%</span>
-          </div>
+          <div class="progress-label" id="progressPercent">0%</div>
         </div>
 
-        <div class="hero-editorial">
-          <div class="streak-badge">
-            <span class="fire-icon">🔥</span> MOMENTUM ACTIVE
+        <div class="hero-text">
+          <div class="momentum-tag">
+            <span class="tag-icon">⚡</span> DAILY MOMENTUM
           </div>
-          <h2 class="hero-headline" id="taskSummaryHeadline">0 of 0 Completed Today</h2>
-          <p class="hero-subline" id="editorialQuote">"Small deliberate actions compound into undeniable mastery."</p>
+          <h2 class="hero-title" id="taskSummaryHeadline">0 of 0 Completed</h2>
+          <p class="hero-quote" id="vibeQuote">Small daily wins compound into unstoppable momentum.</p>
         </div>
       </div>
     </section>
 
-    <!-- Navigation & Filter Pills (Lavender for Active state per ui.md) -->
-    <nav class="nav-pills-bar" aria-label="Task categories">
-      <button class="pill-tab active" data-filter="all">
-        <span class="tab-indicator"></span>All
+    <!-- Dual Color Navigation Pills (Signature Flo Lavender) -->
+    <nav class="nav-pills-bar" aria-label="Categories">
+      <button class="pill-btn active" data-filter="all">
+        <span class="icon-chip">✦</span>
+        <span>All</span>
       </button>
-      <button class="pill-tab" data-filter="task">
-        <span class="tab-indicator"></span>⚡ Tasks
+      <button class="pill-btn" data-filter="task">
+        <span class="icon-chip">⚡</span>
+        <span>Tasks</span>
       </button>
-      <button class="pill-tab" data-filter="assignment">
-        <span class="tab-indicator"></span>📚 Study
+      <button class="pill-btn" data-filter="assignment">
+        <span class="icon-chip">📚</span>
+        <span>Study</span>
       </button>
-      <button class="pill-tab" data-filter="goal">
-        <span class="tab-indicator"></span>🎯 Goals
+      <button class="pill-btn" data-filter="goal">
+        <span class="icon-chip">🎯</span>
+        <span>Goals</span>
       </button>
-      <button class="pill-tab" data-filter="reminder">
-        <span class="tab-indicator"></span>🔔 Reminders
+      <button class="pill-btn" data-filter="reminder">
+        <span class="icon-chip">🔔</span>
+        <span>Reminders</span>
       </button>
-      <button class="pill-tab admin-tab" id="adminTabBtn" data-filter="admin" style="display:none;">
-        <span class="tab-indicator"></span>📊 Analytics
+      <button class="pill-btn admin-pill" id="adminTabBtn" data-filter="admin" style="display:none;">
+        <span class="icon-chip">📊</span>
+        <span>Analytics</span>
       </button>
     </nav>
 
-    <!-- Search Bar -->
-    <div class="search-container">
-      <span class="search-glyph">🔍</span>
-      <input type="text" id="searchInput" class="search-input" placeholder="Search by title, tag or subject..." aria-label="Search items">
+    <!-- Search Input -->
+    <div class="search-wrapper">
+      <span class="search-icon">🔍</span>
+      <input type="text" id="searchInput" class="search-field" placeholder="Search tasks, goals, or tags..." aria-label="Search">
     </div>
 
-    <!-- Main View Section -->
-    <main class="main-content">
+    <!-- Main View -->
+    <main class="main-view">
       
-      <!-- Tasks & Items View -->
-      <section id="tasksView" class="view-panel active">
-        <div class="items-grid" id="taskList">
-          <!-- Skeleton Cards on Load -->
+      <!-- Tasks List -->
+      <section id="tasksView" class="view-section active">
+        <div class="items-list" id="taskList">
           <div class="skeleton-card" aria-busy="true"></div>
           <div class="skeleton-card" aria-busy="true"></div>
         </div>
       </section>
 
-      <!-- Admin Analytics View (Warm Editorial Stats) -->
-      <section id="adminView" class="view-panel" style="display:none;">
-        <div class="panel admin-panel" id="adminContent">
+      <!-- Admin Analytics View (Dual Color Stat Row) -->
+      <section id="adminView" class="view-section" style="display:none;">
+        <div class="admin-panel" id="adminContent">
           <!-- Populated dynamically -->
         </div>
       </section>
 
     </main>
 
-    <!-- Floating Action Button (Warm Accent Pill) -->
-    <button class="fab-pill-cta" id="openAddModalBtn" aria-label="Create new task">
+    <!-- Lavender Floating Action Button -->
+    <button class="fab-btn" id="openAddModalBtn" aria-label="Add new item">
       <span class="fab-plus">+</span>
       <span>New Item</span>
     </button>
 
-    <!-- Modal Dialog (32px radius, blurred backdrop per ui.md) -->
+    <!-- Add Task Modal (Dual Color Clean Sheet) -->
     <div class="modal-backdrop" id="addModal" role="dialog" aria-modal="true" aria-hidden="true">
-      <div class="modal-card">
+      <div class="modal-sheet">
         <div class="modal-header">
           <div>
-            <span class="eyebrow-label">QUICK CREATION</span>
+            <span class="eyebrow">QUICK ACTION</span>
             <h3 class="modal-title">Create New Item</h3>
           </div>
-          <button class="icon-btn close-btn" id="closeAddModalBtn" aria-label="Close modal">✕</button>
+          <button class="close-btn" id="closeAddModalBtn" aria-label="Close">✕</button>
         </div>
 
         <form id="addTaskForm" class="modal-form">
           <div class="form-group">
-            <label class="form-label">SELECT CATEGORY</label>
-            <div class="category-pills-selector">
-              <label class="category-pill-opt">
+            <label class="form-label">CATEGORY</label>
+            <div class="category-options">
+              <label class="category-radio">
                 <input type="radio" name="type" value="task" checked>
-                <span class="pill-chip">⚡ Task</span>
+                <span class="radio-pill">⚡ Task</span>
               </label>
-              <label class="category-pill-opt">
+              <label class="category-radio">
                 <input type="radio" name="type" value="assignment">
-                <span class="pill-chip">📚 Study</span>
+                <span class="radio-pill">📚 Study</span>
               </label>
-              <label class="category-pill-opt">
+              <label class="category-radio">
                 <input type="radio" name="type" value="goal">
-                <span class="pill-chip">🎯 Goal</span>
+                <span class="radio-pill">🎯 Goal</span>
               </label>
-              <label class="category-pill-opt">
+              <label class="category-radio">
                 <input type="radio" name="type" value="reminder">
-                <span class="pill-chip">🔔 Reminder</span>
+                <span class="radio-pill">🔔 Reminder</span>
               </label>
             </div>
           </div>
 
           <div class="form-group">
-            <label for="taskContentInput" class="form-label">DESCRIPTION</label>
-            <input type="text" id="taskContentInput" class="form-input" placeholder="e.g. Finish DSA Assignment by 8 PM" required>
+            <label for="taskContentInput" class="form-label">TITLE / DESCRIPTION</label>
+            <input type="text" id="taskContentInput" class="form-input" placeholder="e.g. Complete DSA assignment by 8 PM" required>
           </div>
 
-          <div class="form-grid-two">
-            <div class="form-group">
-              <label for="taskDateInput" class="form-label">DUE DATE & TIME</label>
+          <div class="form-row">
+            <div class="form-group half">
+              <label for="taskDateInput" class="form-label">DUE DATE</label>
               <input type="datetime-local" id="taskDateInput" class="form-input">
             </div>
-            <div class="form-group">
+            <div class="form-group half">
               <label for="taskPriorityInput" class="form-label">PRIORITY</label>
               <select id="taskPriorityInput" class="form-select">
                 <option value="high">🔥 High</option>
@@ -172,11 +188,11 @@
 
           <div class="form-group">
             <label for="taskTagsInput" class="form-label">TAGS (COMMA SEPARATED)</label>
-            <input type="text" id="taskTagsInput" class="form-input" placeholder="e.g. study, project, urgent">
+            <input type="text" id="taskTagsInput" class="form-input" placeholder="e.g. project, study, urgent">
           </div>
 
-          <button type="submit" class="primary-btn full-btn" id="submitTaskBtn">
-            Save Item to AtharvaOS
+          <button type="submit" class="submit-pill-btn" id="submitTaskBtn">
+            Add to AtharvaOS 🚀
           </button>
         </form>
       </div>
