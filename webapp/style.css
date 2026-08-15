@@ -487,13 +487,147 @@ svg.lucide {
 .badge-parent-project { background: var(--flo-lavender-light); color: var(--flo-lavender-dark); font-weight: 700; border: 1px solid var(--flo-lavender-border); }
 .badge-video { background: rgba(186, 171, 255, 0.35); color: var(--ink-primary); font-weight: 700; border: 1px solid var(--flo-lavender-border); }
 
-.project-card {
-  border-left: 4px solid var(--flo-lavender-dark);
-  background: linear-gradient(135deg, #FFFFFF, rgba(186, 171, 255, 0.08));
+/* ==========================================================================
+   NESTED PROJECT CONTAINERS (LINEAR / NOTION STYLE)
+   ========================================================================== */
+.section-heading-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.72rem;
+  font-weight: 800;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-muted);
+  margin: 10px 0 4px 4px;
 }
 
-.video-card {
-  border-left: 4px solid var(--flo-lavender);
+.project-container {
+  background: var(--card-white);
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius-card);
+  padding: 18px 16px;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  border-left: 4px solid var(--flo-lavender-dark);
+  transition: transform var(--dur) var(--ease);
+}
+
+.project-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--panel-cream);
+}
+
+.project-title-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.project-icon-box {
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-control);
+  background: var(--flo-lavender-light);
+  color: var(--flo-lavender-dark);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.project-icon-box svg {
+  width: 18px;
+  height: 18px;
+}
+
+.project-name-heading {
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--ink-primary);
+}
+
+.project-counter-pill {
+  font-size: 0.7rem;
+  font-weight: 700;
+  background: var(--flo-lavender-light);
+  color: var(--flo-lavender-dark);
+  padding: 3px 8px;
+  border-radius: var(--radius-full);
+}
+
+.project-subtasks-tree {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-left: 12px;
+  border-left: 2px solid var(--flo-lavender-border);
+  margin-left: 14px;
+}
+
+.subtask-card {
+  background: var(--canvas-paper);
+  border: 1px solid var(--line-hairline);
+  border-radius: var(--radius-control);
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  transition: all var(--dur) var(--ease);
+}
+
+.subtask-card:hover {
+  background: #FFFFFF;
+  border-color: var(--flo-lavender);
+}
+
+.subtask-card.completed {
+  opacity: 0.55;
+  background: var(--panel-cream);
+}
+
+.subtask-card.completed .subtask-text {
+  text-decoration: line-through;
+  color: var(--ink-muted);
+}
+
+.subtask-text {
+  flex-grow: 1;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--ink-primary);
+  line-height: 1.3;
+}
+
+.subtask-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.add-subtask-btn {
+  align-self: flex-start;
+  margin-left: 14px;
+  background: none;
+  border: 1px dashed var(--flo-lavender-dark);
+  color: var(--flo-lavender-dark);
+  border-radius: var(--radius-full);
+  padding: 6px 14px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: all var(--dur) var(--ease);
+}
+
+.add-subtask-btn:hover {
+  background: var(--flo-lavender-light);
 }
 
 .link-action-pill {

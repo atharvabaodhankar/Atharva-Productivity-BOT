@@ -164,135 +164,285 @@ function updateProgress(stats) {
   taskSummaryHeadline.textContent = `${completed} of ${total} Completed`;
 }
 
-// Render Tasks with Project Badges, Videos & Grouping
+// Render Tasks with True Nested Project Containers & Subtasks
 function renderTasks() {
   taskListEl.innerHTML = "";
 
-  const filtered = allTasks.filter((task) => {
-    let matchesFilter = false;
-    if (activeFilter === "all") {
-      matchesFilter = true;
-    } else if (activeFilter === "project") {
-      matchesFilter = task.type === "project" || Boolean(task.projectName);
-    } else if (activeFilter === "video") {
-      matchesFilter = task.type === "video" || task.type === "link" || Boolean(task.url);
-    } else {
-      matchesFilter = task.type === activeFilter;
-    }
-
-    const matchesSearch =
-      !searchQuery ||
-      task.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      (task.url && task.url.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (task.projectName && task.projectName.toLowerCase().includes(searchQuery.toLowerCase())) ||
-      (task.tags && task.tags.some((t) => t.toLowerCase().includes(searchQuery.toLowerCase())));
-
-    return matchesFilter && matchesSearch;
+  // 1. Separate all projects vs tasks
+  const allProjects = allTasks.filter((t) => t.type === "project");
+  
+  // Find project subtasks map
+  const projectTasksMap = new Map();
+  allProjects.forEach((p) => {
+    const subtasks = allTasks.filter(
+      (t) =>
+        t.type !== "project" &&
+        ((t.projectId && String(t.projectId) === String(p._id)) ||
+          (t.projectName && t.projectName.toLowerCase().trim() === p.content.toLowerCase().trim()))
+    );
+    projectTasksMap.set(String(p._id), subtasks);
   });
 
-  if (filtered.length === 0) {
+  // Find standalone items (not in any project)
+  const standaloneItems = allTasks.filter((t) => {
+    if (t.type === "project") return false;
+    if (t.projectId && allProjects.some((p) => String(p._id) === String(t.projectId))) return false;
+    if (t.projectName && allProjects.some((p) => p.content.toLowerCase().trim() === t.projectName.toLowerCase().trim())) return false;
+    return true;
+  });
+
+  // Filter conditions
+  const filterMatches = (item) => {
+    if (activeFilter === "all") return true;
+    if (activeFilter === "project") return item.type === "project";
+    if (activeFilter === "video") return item.type === "video" || item.type === "link" || Boolean(item.url);
+    return item.type === activeFilter;
+  };
+
+  const searchMatches = (item) => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      item.content.toLowerCase().includes(q) ||
+      (item.url && item.url.toLowerCase().includes(q)) ||
+      (item.projectName && item.projectName.toLowerCase().includes(q)) ||
+      (item.tags && item.tags.some((tag) => tag.toLowerCase().includes(q)))
+    );
+  };
+
+  let renderedAny = false;
+
+  // 1. RENDER PROJECT CONTAINERS (With Subtasks Nested Inside)
+  if (activeFilter === "all" || activeFilter === "project") {
+    const matchingProjects = allProjects.filter((p) => {
+      const subtasks = projectTasksMap.get(String(p._id)) || [];
+      const projectMatches = searchMatches(p);
+      const anySubtaskMatches = subtasks.some(searchMatches);
+      return projectMatches || anySubtaskMatches;
+    });
+
+    if (matchingProjects.length > 0) {
+      const projectSectionTitle = document.createElement("div");
+      projectSectionTitle.className = "section-heading-pill";
+      projectSectionTitle.innerHTML = `<i data-lucide="folder-kanban" class="icon-inline"></i> <span>ACTIVE PROJECTS</span>`;
+      taskListEl.appendChild(projectSectionTitle);
+      renderedAny = true;
+
+      matchingProjects.forEach((proj) => {
+        const subtasks = (projectTasksMap.get(String(proj._id)) || []).filter(searchMatches);
+        const totalSub = subtasks.length;
+        const completedSub = subtasks.filter((s) => s.completed).length;
+
+        const container = document.createElement("div");
+        container.className = `project-container ${proj.completed ? "completed" : ""}`;
+        container.dataset.id = proj._id;
+
+        container.innerHTML = `
+          <div class="project-header-row">
+            <div class="project-title-left">
+              <button class="custom-checkbox project-checkbox" aria-label="Toggle Project Completion"></button>
+              <div class="project-icon-box">
+                <i data-lucide="folder"></i>
+              </div>
+              <div>
+                <h4 class="project-name-heading">${escapeHtml(proj.content)}</h4>
+                <span class="project-counter-pill">${completedSub}/${totalSub} Done</span>
+              </div>
+            </div>
+            <button class="delete-btn" title="Delete Project" aria-label="Delete">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </div>
+
+          <div class="project-subtasks-tree">
+            ${
+              subtasks.length === 0
+                ? `<div style="font-size:0.8rem; color:var(--ink-muted); padding: 4px 0;">No tasks inside this project yet.</div>`
+                : subtasks
+                    .map((sub) => {
+                      const pClass = sub.priority || "medium";
+                      const pLabel = pClass === "high" ? "High" : pClass === "low" ? "Low" : "Med";
+                      let dueText = "";
+                      if (sub.date) {
+                        const d = new Date(sub.date).toLocaleDateString("en-US", { month: "short", day: "numeric" });
+                        dueText = `<span class="due-indicator"><i data-lucide="calendar" class="icon-inline"></i> ${d}</span>`;
+                      }
+
+                      let urlHtml = "";
+                      if (sub.url) {
+                        urlHtml = `<a href="${escapeHtml(sub.url)}" target="_blank" class="link-action-pill" onclick="event.stopPropagation()"><i data-lucide="external-link" class="icon-inline"></i> Link</a>`;
+                      }
+
+                      return `
+                      <div class="subtask-card ${sub.completed ? "completed" : ""}" data-id="${sub._id}">
+                        <button class="custom-checkbox subtask-checkbox" aria-label="Toggle Subtask"></button>
+                        <span class="subtask-text">${escapeHtml(sub.content)}</span>
+                        <div class="subtask-meta">
+                          <span class="badge badge-${pClass}">${pLabel}</span>
+                          ${dueText}
+                          ${urlHtml}
+                          <button class="delete-btn delete-subtask-btn" title="Delete Task" aria-label="Delete">
+                            <i data-lucide="trash-2"></i>
+                          </button>
+                        </div>
+                      </div>
+                    `;
+                    })
+                    .join("")
+            }
+          </div>
+
+          <button class="add-subtask-btn" data-project-name="${escapeHtml(proj.content)}">
+            <i data-lucide="plus"></i>
+            <span>Add Task to ${escapeHtml(proj.content)}</span>
+          </button>
+        `;
+
+        // Checkbox toggle for project
+        const pCheckbox = container.querySelector(".project-checkbox");
+        pCheckbox.addEventListener("click", () => toggleTask(proj));
+
+        // Delete project
+        const delProjBtn = container.querySelector(".delete-btn");
+        delProjBtn.addEventListener("click", (e) => {
+          e.stopPropagation();
+          deleteTask(proj._id);
+        });
+
+        // Subtask events
+        container.querySelectorAll(".subtask-card").forEach((subCard) => {
+          const subId = subCard.dataset.id;
+          const subTaskObj = allTasks.find((t) => String(t._id) === String(subId));
+          if (!subTaskObj) return;
+
+          const subCheckbox = subCard.querySelector(".subtask-checkbox");
+          subCheckbox.addEventListener("click", () => toggleTask(subTaskObj));
+
+          const delSubBtn = subCard.querySelector(".delete-subtask-btn");
+          delSubBtn.addEventListener("click", (e) => {
+            e.stopPropagation();
+            deleteTask(subId);
+          });
+        });
+
+        // Quick add subtask button
+        const quickAddBtn = container.querySelector(".add-subtask-btn");
+        quickAddBtn.addEventListener("click", () => {
+          triggerHaptic("light");
+          if (taskProjectInput) {
+            taskProjectInput.value = proj.content;
+          }
+          addModal.classList.add("active");
+          addModal.setAttribute("aria-hidden", "false");
+          document.getElementById("taskContentInput").focus();
+        });
+
+        taskListEl.appendChild(container);
+      });
+    }
+  }
+
+  // 2. RENDER STANDALONE ITEMS & BOOKMARKS
+  const filteredStandalone = standaloneItems.filter(filterMatches).filter(searchMatches);
+
+  if (filteredStandalone.length > 0) {
+    if (activeFilter === "all") {
+      const standaloneTitle = document.createElement("div");
+      standaloneTitle.className = "section-heading-pill";
+      standaloneTitle.style.marginTop = "18px";
+      standaloneTitle.innerHTML = `<i data-lucide="check-square" class="icon-inline"></i> <span>TASKS & BOOKMARKS</span>`;
+      taskListEl.appendChild(standaloneTitle);
+    }
+    renderedAny = true;
+
+    filteredStandalone.forEach((task) => {
+      const card = document.createElement("div");
+      const isVideo = task.type === "video" || task.type === "link" || Boolean(task.url);
+      card.className = `item-card ${isVideo ? "video-card" : ""} ${task.completed ? "completed" : ""}`;
+      card.dataset.id = task._id;
+
+      // Due date
+      let dueHtml = "";
+      if (task.date) {
+        const dueDate = new Date(task.date);
+        const formatted = dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
+        dueHtml = `<span class="due-indicator"><i data-lucide="calendar" class="icon-inline"></i> ${formatted}</span>`;
+      }
+
+      // Priority badge
+      const priority = task.priority || "medium";
+      const priorityLabel = priority === "high" ? "High" : priority === "low" ? "Low" : "Med";
+      const priorityBadge = `<span class="badge badge-${priority}">${priorityLabel}</span>`;
+
+      // Type Badge
+      let typeBadge = "";
+      if (isVideo) {
+        typeBadge = `<span class="badge badge-video"><i data-lucide="video" class="icon-inline"></i> SAVED LINK</span>`;
+      } else if (task.type === "goal") {
+        typeBadge = `<span class="badge badge-tag"><i data-lucide="target" class="icon-inline"></i> GOAL</span>`;
+      } else if (task.type === "reminder") {
+        typeBadge = `<span class="badge badge-tag"><i data-lucide="bell" class="icon-inline"></i> REMINDER</span>`;
+      }
+
+      // URL Button
+      let urlBtnHtml = "";
+      if (task.url) {
+        urlBtnHtml = `
+          <a href="${escapeHtml(task.url)}" target="_blank" rel="noopener noreferrer" class="link-action-pill" onclick="event.stopPropagation()">
+            <i data-lucide="external-link" class="icon-inline"></i>
+            <span>Open Link</span>
+          </a>
+        `;
+      }
+
+      // Tags
+      const tagsHtml = (task.tags || [])
+        .map((tag) => `<span class="badge badge-tag">#${escapeHtml(tag)}</span>`)
+        .join("");
+
+      card.innerHTML = `
+        <button class="custom-checkbox" aria-label="Toggle completion"></button>
+        <div class="card-body">
+          <div class="card-top-row">
+            <span class="card-title">${escapeHtml(task.content)}</span>
+            <button class="delete-btn" title="Delete item" aria-label="Delete">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </div>
+          <div class="card-meta-row">
+            ${typeBadge}
+            ${priorityBadge}
+            ${dueHtml}
+            ${urlBtnHtml}
+            ${tagsHtml}
+          </div>
+        </div>
+      `;
+
+      const checkbox = card.querySelector(".custom-checkbox");
+      checkbox.addEventListener("click", () => toggleTask(task));
+
+      const delBtn = card.querySelector(".delete-btn");
+      delBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        deleteTask(task._id);
+      });
+
+      taskListEl.appendChild(card);
+    });
+  }
+
+  if (!renderedAny) {
     taskListEl.innerHTML = `
       <div class="empty-state">
         <div class="empty-icon-wrap">
           <i data-lucide="inbox" class="empty-svg-icon"></i>
         </div>
         <h3 class="display-serif">Your Slate is Clear</h3>
-        <p>No active items in this category. Enjoy your stillness or plan your next breakthrough.</p>
+        <p>No active items in this category. Enjoy your stillness or create a new project.</p>
       </div>
     `;
-    refreshIcons();
-    return;
   }
-
-  filtered.forEach((task) => {
-    const card = document.createElement("div");
-    const isProject = task.type === "project";
-    const isVideo = task.type === "video" || task.type === "link" || Boolean(task.url);
-    card.className = `item-card ${isProject ? "project-card" : ""} ${isVideo ? "video-card" : ""} ${task.completed ? "completed" : ""}`;
-    card.dataset.id = task._id;
-
-    // Due date
-    let dueHtml = "";
-    if (task.date) {
-      const dueDate = new Date(task.date);
-      const daysLeft = Math.ceil((dueDate - new Date()) / (1000 * 60 * 60 * 24));
-      const formatted = dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
-
-      let dueClass = "due-indicator";
-      let dueText = `<i data-lucide="calendar" class="icon-inline"></i> ${formatted}`;
-      if (daysLeft < 0) {
-        dueClass += " due-overdue";
-        dueText = `<i data-lucide="alert-circle" class="icon-inline"></i> Overdue (${formatted})`;
-      } else if (daysLeft === 0) {
-        dueClass += " due-today";
-        dueText = `<i data-lucide="clock" class="icon-inline"></i> Due Today`;
-      }
-      dueHtml = `<span class="${dueClass}">${dueText}</span>`;
-    }
-
-    // Priority badge
-    const priority = task.priority || "medium";
-    const priorityLabel = priority === "high" ? "High" : priority === "low" ? "Low" : "Med";
-    const priorityBadge = `<span class="badge badge-${priority}">${priorityLabel}</span>`;
-
-    // Type / Project / Video Badge
-    let typeBadge = "";
-    if (isProject) {
-      typeBadge = `<span class="badge badge-project"><i data-lucide="folder" class="icon-inline"></i> PROJECT</span>`;
-    } else if (isVideo) {
-      typeBadge = `<span class="badge badge-video"><i data-lucide="video" class="icon-inline"></i> SAVED LINK</span>`;
-    } else if (task.projectName) {
-      typeBadge = `<span class="badge badge-parent-project"><i data-lucide="folder-git-2" class="icon-inline"></i> ${escapeHtml(task.projectName)}</span>`;
-    }
-
-    // URL Button
-    let urlBtnHtml = "";
-    if (task.url) {
-      urlBtnHtml = `
-        <a href="${escapeHtml(task.url)}" target="_blank" rel="noopener noreferrer" class="link-action-pill" onclick="event.stopPropagation()">
-          <i data-lucide="external-link" class="icon-inline"></i>
-          <span>Open Link</span>
-        </a>
-      `;
-    }
-
-    // Tags
-    const tagsHtml = (task.tags || [])
-      .map((tag) => `<span class="badge badge-tag">#${escapeHtml(tag)}</span>`)
-      .join("");
-
-    card.innerHTML = `
-      <button class="custom-checkbox" aria-label="Toggle completion"></button>
-      <div class="card-body">
-        <div class="card-top-row">
-          <span class="card-title">${escapeHtml(task.content)}</span>
-          <button class="delete-btn" title="Delete item" aria-label="Delete">
-            <i data-lucide="trash-2"></i>
-          </button>
-        </div>
-        <div class="card-meta-row">
-          ${typeBadge}
-          ${priorityBadge}
-          ${dueHtml}
-          ${urlBtnHtml}
-          ${tagsHtml}
-        </div>
-      </div>
-    `;
-
-    // Checkbox toggle
-    const checkbox = card.querySelector(".custom-checkbox");
-    checkbox.addEventListener("click", () => toggleTask(task));
-
-    // Delete button
-    const delBtn = card.querySelector(".delete-btn");
-    delBtn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      deleteTask(task._id);
-    });
-
-    taskListEl.appendChild(card);
-  });
 
   refreshIcons();
 }
