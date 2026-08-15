@@ -35,8 +35,9 @@ require("./commands/owner")(bot);
 require("./commands/groupToggle")(bot);
 require("./commands/help")(bot);
 
-// 3. Attach message & photo handlers
+// 3. Attach message, photo & video handlers
 require("./handlers/textHandler")(bot);
 require("./handlers/photoHandler")(bot);
+require("./handlers/videoHandler")(bot);
 
 module.exports = bot;
