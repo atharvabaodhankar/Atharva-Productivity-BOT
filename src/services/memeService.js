@@ -39,16 +39,31 @@ async function fetchRandomNsfwMeme() {
 // Helper to send media to Telegram with format detection
 async function sendTelegramMediaSafely(bot, targetChatId, mediaUrl, options = {}) {
   const isGif = /\.gif(\?.*)?$/i.test(mediaUrl) || options.mediaType === "gif";
-  const isVideo = /\.mp4(\?.*)?$/i.test(mediaUrl) || options.mediaType === "video";
+  const isVideo = /\.mp4(\?.*)?$/i.test(mediaUrl) || options.mediaType === "video" || mediaUrl.includes("v.redd.it");
   const isPhoto = /\.(jpg|jpeg|png|webp)(\?.*)?$/i.test(mediaUrl) || options.mediaType === "image";
 
   const { mediaType, ...tgOptions } = options;
 
   try {
-    if (isGif) {
+    if (isVideo && !isGif) {
+      // Buffer download for videos guarantees Telegram renders full native video player with audio
+      try {
+        const vidRes = await fetch(mediaUrl);
+        if (vidRes.ok) {
+          const arrayBuffer = await vidRes.arrayBuffer();
+          const buffer = Buffer.from(arrayBuffer);
+          return await bot.telegram.sendVideo(
+            targetChatId,
+            { source: buffer, filename: "video.mp4" },
+            { ...tgOptions, supports_streaming: true }
+          );
+        }
+      } catch (bufErr) {
+        console.warn("sendTelegramMediaSafely buffer download failed, trying direct URL sendVideo:", bufErr.message);
+      }
+      return await bot.telegram.sendVideo(targetChatId, mediaUrl, { ...tgOptions, supports_streaming: true });
+    } else if (isGif) {
       return await bot.telegram.sendAnimation(targetChatId, mediaUrl, tgOptions);
-    } else if (isVideo) {
-      return await bot.telegram.sendVideo(targetChatId, mediaUrl, tgOptions);
     } else if (isPhoto) {
       return await bot.telegram.sendPhoto(targetChatId, mediaUrl, tgOptions);
     } else {
