@@ -24,7 +24,11 @@ exports.handler = async (event, context) => {
   }
 
   // Handle CORS Preflight
-  const httpMethod = event.httpMethod || (event.requestContext && event.requestContext.http && event.requestContext.http.method) || "GET";
+  const httpMethod =
+    event.httpMethod ||
+    (event.requestContext && event.requestContext.http && event.requestContext.http.method) ||
+    "GET";
+
   if (httpMethod === "OPTIONS") {
     return {
       statusCode: 200,
@@ -36,13 +40,13 @@ exports.handler = async (event, context) => {
   try {
     await connectToDatabase();
 
-    const rawPath = event.path || (event.rawPath) || "/";
+    const rawPath = (event.path || event.rawPath || "/").replace(/\/$/, "");
     const queryParams = event.queryStringParameters || {};
 
     // -------------------------------------------------------------
     // 1. REST API ENDPOINTS FOR TELEGRAM MINI APP
     // -------------------------------------------------------------
-    if (rawPath.startsWith("/api/")) {
+    if (rawPath.startsWith("/api")) {
       // GET /api/tasks?chatId=12345
       if (rawPath === "/api/tasks" && httpMethod === "GET") {
         const chatId = queryParams.chatId;
@@ -64,8 +68,13 @@ exports.handler = async (event, context) => {
           statusCode: 200,
           headers: CORS_HEADERS,
           body: JSON.stringify({
-            user: user || { firstName: "Champ", telegramId: chatId },
-            stats: { total, completed, pending, progress: total > 0 ? Math.round((completed / total) * 100) : 0 },
+            user: user || { firstName: "Friend", telegramId: chatId },
+            stats: {
+              total,
+              completed,
+              pending,
+              progress: total > 0 ? Math.round((completed / total) * 100) : 0,
+            },
             tasks,
           }),
         };
@@ -73,7 +82,9 @@ exports.handler = async (event, context) => {
 
       // POST /api/tasks
       if (rawPath === "/api/tasks" && httpMethod === "POST") {
-        const payload = typeof event.body === "string" ? JSON.parse(event.body || "{}") : event.body || {};
+        const payload =
+          typeof event.body === "string" ? JSON.parse(event.body || "{}") : event.body || {};
+
         if (!payload.chatId || !payload.content) {
           return {
             statusCode: 400,
@@ -100,7 +111,8 @@ exports.handler = async (event, context) => {
 
       // PATCH /api/tasks/toggle
       if (rawPath === "/api/tasks/toggle" && httpMethod === "PATCH") {
-        const payload = typeof event.body === "string" ? JSON.parse(event.body || "{}") : event.body || {};
+        const payload =
+          typeof event.body === "string" ? JSON.parse(event.body || "{}") : event.body || {};
         const { id, chatId, completed } = payload;
 
         const updated = await Memory.findOneAndUpdate(
@@ -126,7 +138,8 @@ exports.handler = async (event, context) => {
 
       // DELETE /api/tasks
       if (rawPath === "/api/tasks" && httpMethod === "DELETE") {
-        const payload = typeof event.body === "string" ? JSON.parse(event.body || "{}") : event.body || {};
+        const payload =
+          typeof event.body === "string" ? JSON.parse(event.body || "{}") : event.body || {};
         const id = payload.id || queryParams.id;
         const chatId = payload.chatId || queryParams.chatId;
 
@@ -141,12 +154,15 @@ exports.handler = async (event, context) => {
 
       // GET /api/stats (Admin only)
       if (rawPath === "/api/stats" && httpMethod === "GET") {
-        const chatId = String(queryParams.chatId || "");
-        if (chatId !== String(CHAT_ID)) {
+        const reqChatId = String(queryParams.chatId || "").trim();
+        const configuredAdminId = String(process.env.CHAT_ID || CHAT_ID || "5275149287").trim();
+
+        // Allow owner ID 5275149287 or configured CHAT_ID
+        if (reqChatId !== "5275149287" && reqChatId !== configuredAdminId) {
           return {
             statusCode: 403,
             headers: CORS_HEADERS,
-            body: JSON.stringify({ error: "Unauthorized" }),
+            body: JSON.stringify({ error: "Unauthorized access to admin analytics." }),
           };
         }
 

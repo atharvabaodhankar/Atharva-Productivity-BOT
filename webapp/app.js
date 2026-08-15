@@ -1,4 +1,4 @@
-// AtharvaOS Telegram Mini App Controller
+// AtharvaOS Warm Editorial Mini App Controller
 
 const API_BASE_URL = "https://ged2lb24hngndlzk5b73dmvdqy0ydsmo.lambda-url.ap-south-1.on.aws/api";
 const OWNER_CHAT_ID = "5275149287";
@@ -8,11 +8,14 @@ const tg = window.Telegram?.WebApp;
 
 if (tg) {
   tg.ready();
-  tg.expand(); // Open to full height inside Telegram
-  document.body.classList.add("theme-tg");
+  tg.expand();
+  // Auto-detect Telegram color scheme
+  if (tg.colorScheme === "dark") {
+    document.documentElement.setAttribute("data-theme", "dark");
+  }
 }
 
-// 2. Extract User Context
+// 2. User Context
 let currentUser = {
   id: OWNER_CHAT_ID,
   first_name: "Atharva",
@@ -27,6 +30,7 @@ if (tg?.initDataUnsafe?.user) {
 let allTasks = [];
 let activeFilter = "all";
 let searchQuery = "";
+let currentTheme = document.documentElement.getAttribute("data-theme") || "light";
 
 // DOM Elements
 const userAvatar = document.getElementById("userAvatar");
@@ -34,9 +38,9 @@ const greetingText = document.getElementById("greetingText");
 const taskListEl = document.getElementById("taskList");
 const progressCircle = document.getElementById("progressCircle");
 const progressPercent = document.getElementById("progressPercent");
-const taskSummaryText = document.getElementById("taskSummaryText");
+const taskSummaryHeadline = document.getElementById("taskSummaryHeadline");
 const searchInput = document.getElementById("searchInput");
-const filterTabs = document.querySelectorAll(".tab-btn");
+const filterTabs = document.querySelectorAll(".pill-tab");
 const adminTabBtn = document.getElementById("adminTabBtn");
 const tasksView = document.getElementById("tasksView");
 const adminView = document.getElementById("adminView");
@@ -45,16 +49,17 @@ const addModal = document.getElementById("addModal");
 const openAddModalBtn = document.getElementById("openAddModalBtn");
 const closeAddModalBtn = document.getElementById("closeAddModalBtn");
 const addTaskForm = document.getElementById("addTaskForm");
+const themeToggleBtn = document.getElementById("themeToggleBtn");
 
-// Init UI with user profile
+// Initialize User Profile
 function setupUserProfile() {
   const initial = (currentUser.first_name || "A").charAt(0).toUpperCase();
   userAvatar.textContent = initial;
-  greetingText.textContent = `Hey ${currentUser.first_name || "Champ"}! 👋`;
+  greetingText.textContent = `Good day, ${currentUser.first_name || "Champ"}`;
 
-  // Show Admin Tab if owner
-  if (String(currentUser.id) === OWNER_CHAT_ID) {
-    adminTabBtn.style.display = "block";
+  // Always show Admin Tab for owner
+  if (String(currentUser.id) === OWNER_CHAT_ID || String(currentUser.id) === "5275149287") {
+    adminTabBtn.style.display = "inline-flex";
   }
 }
 
@@ -67,6 +72,19 @@ function triggerHaptic(type = "light") {
   }
 }
 
+// Theme Toggle
+themeToggleBtn.addEventListener("click", () => {
+  triggerHaptic("light");
+  currentTheme = currentTheme === "dark" ? "light" : "dark";
+  if (currentTheme === "dark") {
+    document.documentElement.setAttribute("data-theme", "dark");
+    themeToggleBtn.textContent = "☀️";
+  } else {
+    document.documentElement.removeAttribute("data-theme");
+    themeToggleBtn.textContent = "🌙";
+  }
+});
+
 // Fetch Tasks from API
 async function fetchTasks() {
   try {
@@ -75,50 +93,47 @@ async function fetchTasks() {
 
     if (data && data.tasks) {
       allTasks = data.tasks;
-      updateStats(data.stats);
+      updateProgress(data.stats);
       renderTasks();
     }
   } catch (err) {
     console.error("Failed to load tasks:", err);
-    // Offline / Fallback sample data if network fails
     if (allTasks.length === 0) {
       allTasks = [
         {
           _id: "demo1",
           type: "task",
-          content: "Welcome to AtharvaOS Mini App! Tap checkbox to test 🎉",
+          content: "Welcome to AtharvaOS! Tap the checkbox to complete this task.",
           completed: false,
           priority: "high",
-          tags: ["quickstart"],
+          tags: ["welcome"],
         },
       ];
-      updateStats({ total: 1, completed: 0, progress: 0 });
+      updateProgress({ total: 1, completed: 0, progress: 0 });
       renderTasks();
     }
   }
 }
 
-// Update Circular Progress & Stats
-function updateStats(stats) {
+// Update Progress Ring (Circumference 213.6 for r=34)
+function updateProgress(stats) {
   if (!stats) return;
   const total = stats.total || 0;
   const completed = stats.completed || 0;
   const percent = total > 0 ? Math.round((completed / total) * 100) : 0;
 
-  // SVG Circumference: 2 * PI * 40 ≈ 251.2
-  const circumference = 251.2;
+  const circumference = 213.6;
   const offset = circumference - (percent / 100) * circumference;
 
   progressCircle.style.strokeDashoffset = offset;
   progressPercent.textContent = `${percent}%`;
-  taskSummaryText.textContent = `${completed} of ${total} Completed`;
+  taskSummaryHeadline.textContent = `${completed} of ${total} Completed`;
 }
 
 // Render Tasks
 function renderTasks() {
   taskListEl.innerHTML = "";
 
-  // Apply Filter & Search
   const filtered = allTasks.filter((task) => {
     const matchesFilter = activeFilter === "all" || task.type === activeFilter;
     const matchesSearch =
@@ -130,10 +145,10 @@ function renderTasks() {
 
   if (filtered.length === 0) {
     taskListEl.innerHTML = `
-      <div class="empty-state">
-        <div class="empty-icon">🏖️</div>
-        <h3>No items found!</h3>
-        <p>All caught up or nothing matching your search. Enjoy your free time or add a new goal!</p>
+      <div class="empty-state-editorial">
+        <div class="empty-symbol">🖋️</div>
+        <h3 class="display-serif">Your Slate is Clear</h3>
+        <p>No active items in this category. Enjoy your stillness or plan your next breakthrough.</p>
       </div>
     `;
     return;
@@ -141,17 +156,18 @@ function renderTasks() {
 
   filtered.forEach((task) => {
     const card = document.createElement("div");
-    card.className = `task-card ${task.completed ? "completed" : ""}`;
+    card.className = `item-card ${task.completed ? "completed" : ""}`;
+    card.dataset.type = task.type || "task";
     card.dataset.id = task._id;
 
-    // Due date label
+    // Due date
     let dueHtml = "";
     if (task.date) {
       const dueDate = new Date(task.date);
       const daysLeft = Math.ceil((dueDate - new Date()) / (1000 * 60 * 60 * 24));
       const formatted = dueDate.toLocaleDateString("en-US", { month: "short", day: "numeric" });
 
-      let dueClass = "due-pill";
+      let dueClass = "due-indicator";
       let dueText = `📅 ${formatted}`;
       if (daysLeft < 0) {
         dueClass += " due-overdue";
@@ -160,30 +176,27 @@ function renderTasks() {
         dueClass += " due-today";
         dueText = `🔥 Due Today`;
       }
-
       dueHtml = `<span class="${dueClass}">${dueText}</span>`;
     }
 
     // Priority badge
     const priority = task.priority || "medium";
     const priorityLabel = priority === "high" ? "🔥 High" : priority === "low" ? "🟢 Low" : "⚡ Med";
-    const priorityBadge = `<span class="badge badge-${priority}">${priorityLabel}</span>`;
+    const priorityBadge = `<span class="meta-badge badge-${priority}">${priorityLabel}</span>`;
 
     // Tags
     const tagsHtml = (task.tags || [])
-      .map((tag) => `<span class="badge badge-tag">#${tag}</span>`)
+      .map((tag) => `<span class="meta-badge badge-tag">#${escapeHtml(tag)}</span>`)
       .join("");
 
     card.innerHTML = `
-      <button class="custom-checkbox" aria-label="Toggle task completion"></button>
-      <div class="task-content">
-        <div class="task-header-row">
-          <span class="task-title">${escapeHtml(task.content)}</span>
-          <div class="task-actions">
-            <button class="delete-btn" title="Delete">🗑️</button>
-          </div>
+      <button class="editorial-checkbox" aria-label="Toggle completion"></button>
+      <div class="card-body">
+        <div class="card-top-row">
+          <span class="card-title">${escapeHtml(task.content)}</span>
+          <button class="delete-action-btn" title="Delete item">🗑️</button>
         </div>
-        <div class="task-meta">
+        <div class="card-meta-row">
           ${priorityBadge}
           ${dueHtml}
           ${tagsHtml}
@@ -191,12 +204,12 @@ function renderTasks() {
       </div>
     `;
 
-    // Click checkbox to toggle
-    const checkbox = card.querySelector(".custom-checkbox");
+    // Checkbox toggle
+    const checkbox = card.querySelector(".editorial-checkbox");
     checkbox.addEventListener("click", () => toggleTask(task));
 
     // Delete button
-    const delBtn = card.querySelector(".delete-btn");
+    const delBtn = card.querySelector(".delete-action-btn");
     delBtn.addEventListener("click", (e) => {
       e.stopPropagation();
       deleteTask(task._id);
@@ -206,29 +219,26 @@ function renderTasks() {
   });
 }
 
-// Toggle Task Complete
+// Toggle Task
 async function toggleTask(task) {
   triggerHaptic(task.completed ? "light" : "success");
   const newStatus = !task.completed;
   task.completed = newStatus;
 
-  // Confetti on complete
   if (newStatus && typeof confetti === "function") {
     confetti({
-      particleCount: 50,
-      spread: 60,
+      particleCount: 45,
+      spread: 65,
       origin: { y: 0.8 },
-      colors: ["#38bdf8", "#a855f7", "#10b981", "#f59e0b"],
+      colors: ["#C44A1A", "#BAABFF", "#2D7A3E", "#E89B5C"],
     });
   }
 
-  // Recalculate stats & re-render locally for instant UI response
   const total = allTasks.length;
   const completed = allTasks.filter((t) => t.completed).length;
-  updateStats({ total, completed });
+  updateProgress({ total, completed });
   renderTasks();
 
-  // Sync with API
   try {
     await fetch(`${API_BASE_URL}/tasks/toggle`, {
       method: "PATCH",
@@ -236,7 +246,7 @@ async function toggleTask(task) {
       body: JSON.stringify({ id: task._id, chatId: currentUser.id, completed: newStatus }),
     });
   } catch (err) {
-    console.error("Failed to sync task toggle:", err);
+    console.error("Failed to sync status:", err);
   }
 }
 
@@ -247,7 +257,7 @@ async function deleteTask(taskId) {
 
   const total = allTasks.length;
   const completed = allTasks.filter((t) => t.completed).length;
-  updateStats({ total, completed });
+  updateProgress({ total, completed });
   renderTasks();
 
   try {
@@ -257,11 +267,11 @@ async function deleteTask(taskId) {
       body: JSON.stringify({ id: taskId, chatId: currentUser.id }),
     });
   } catch (err) {
-    console.error("Failed to delete task on server:", err);
+    console.error("Failed to delete task:", err);
   }
 }
 
-// Add New Task
+// Add Task Form
 addTaskForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   triggerHaptic("success");
@@ -291,7 +301,7 @@ addTaskForm.addEventListener("submit", async (e) => {
   allTasks.unshift(tempTask);
   const total = allTasks.length;
   const completed = allTasks.filter((t) => t.completed).length;
-  updateStats({ total, completed });
+  updateProgress({ total, completed });
   renderTasks();
 
   closeModal();
@@ -315,54 +325,67 @@ addTaskForm.addEventListener("submit", async (e) => {
       tempTask._id = data.task._id;
     }
   } catch (err) {
-    console.error("Failed to create task on server:", err);
+    console.error("Failed to create task:", err);
   }
 });
 
-// Fetch Admin Stats
+// Fetch Admin Stats (Real Live Data)
 async function fetchAdminStats() {
+  adminContent.innerHTML = `
+    <div class="skeleton-card" aria-busy="true"></div>
+    <div class="skeleton-card" aria-busy="true"></div>
+  `;
+
   try {
     const res = await fetch(`${API_BASE_URL}/stats?chatId=${currentUser.id}`);
     const data = await res.json();
 
-    if (data) {
+    if (data && data.totalUsers !== undefined) {
       adminContent.innerHTML = `
-        <div class="admin-metric-grid">
-          <div class="admin-metric-card">
-            <span class="num">${data.totalUsers || 0}</span>
-            <span class="label">👥 Total Users</span>
+        <div class="stat-row-grid">
+          <div class="stat-box">
+            <span class="eyebrow-label">TOTAL USERS</span>
+            <span class="big-stat-number">${data.totalUsers}</span>
           </div>
-          <div class="admin-metric-card">
-            <span class="num">${data.totalTasks || 0}</span>
-            <span class="label">📋 Total Tasks</span>
+          <div class="stat-box">
+            <span class="eyebrow-label">TOTAL TASKS</span>
+            <span class="big-stat-number">${data.totalTasks}</span>
           </div>
-          <div class="admin-metric-card">
-            <span class="num" style="color:var(--accent-emerald)">${data.completedTasks || 0}</span>
-            <span class="label">✅ Completed Tasks</span>
+          <div class="stat-box">
+            <span class="eyebrow-label">COMPLETED</span>
+            <span class="big-stat-number" style="color:rgb(var(--color-success))">${data.completedTasks}</span>
           </div>
-          <div class="admin-metric-card">
-            <span class="num" style="color:var(--accent-purple)">${data.totalMessages || 0}</span>
-            <span class="label">💬 AI Messages</span>
+          <div class="stat-box">
+            <span class="eyebrow-label">AI MESSAGES</span>
+            <span class="big-stat-number" style="color:rgb(var(--color-accent))">${data.totalMessages}</span>
           </div>
         </div>
 
-        <div class="admin-user-list">
-          <h4>🌟 Registered Users</h4>
+        <div class="users-list-card">
+          <span class="eyebrow-label">REGISTERED USER ROSTER</span>
+          <h4 class="users-list-title display-serif">Active Profiles</h4>
           ${(data.users || [])
             .map(
               (u) => `
-            <div class="admin-user-item">
-              <span><strong>${escapeHtml(u.firstName)}</strong> ${u.username ? `(@${escapeHtml(u.username)})` : ""}</span>
-              <span style="color:var(--text-muted)">${new Date(u.createdAt).toLocaleDateString()}</span>
+            <div class="user-row">
+              <div>
+                <strong>${escapeHtml(u.firstName)}</strong>
+                ${u.username ? `<span style="color:rgb(var(--color-muted))"> (@${escapeHtml(u.username)})</span>` : ""}
+              </div>
+              <span style="color:rgb(var(--color-muted)); font-size: 0.78rem;">
+                ${new Date(u.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
+              </span>
             </div>
           `
             )
             .join("")}
         </div>
       `;
+    } else {
+      adminContent.innerHTML = `<p style="color:rgb(var(--color-danger))">Access restricted or error loading stats.</p>`;
     }
   } catch (err) {
-    adminContent.innerHTML = `<p style="color:var(--accent-rose)">Failed to load admin stats: ${err.message}</p>`;
+    adminContent.innerHTML = `<p style="color:rgb(var(--color-danger))">Failed loading analytics: ${err.message}</p>`;
   }
 }
 
@@ -388,16 +411,17 @@ filterTabs.forEach((tab) => {
   });
 });
 
-// Search input
+// Search Filter
 searchInput.addEventListener("input", (e) => {
   searchQuery = e.target.value;
   renderTasks();
 });
 
-// Modal open / close
+// Modal Handlers
 openAddModalBtn.addEventListener("click", () => {
   triggerHaptic("medium");
   addModal.classList.add("active");
+  addModal.setAttribute("aria-hidden", "false");
 });
 
 closeAddModalBtn.addEventListener("click", closeModal);
@@ -408,6 +432,7 @@ addModal.addEventListener("click", (e) => {
 function closeModal() {
   triggerHaptic("light");
   addModal.classList.remove("active");
+  addModal.setAttribute("aria-hidden", "true");
 }
 
 function escapeHtml(text) {

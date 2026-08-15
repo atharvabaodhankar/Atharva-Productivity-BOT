@@ -3,146 +3,166 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>AtharvaOS — Productivity Copilot</title>
+  <title>AtharvaOS — Personal Productivity Dashboard</title>
   
   <!-- Telegram Web App JS SDK -->
   <script src="https://telegram.org/js/telegram-web-app.js"></script>
   
-  <!-- Google Fonts: Plus Jakarta Sans -->
+  <!-- Google Fonts: Fraunces (Display Serif) + Figtree (Work Sans) per ui.md -->
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Figtree:ital,wght@0,400;0,500;0,600;0,700;1,400&family=Fraunces:ital,opsz,wght@0,9..144,400;0,9..144,500;0,9..144,600;1,9..144,400&display=swap" rel="stylesheet">
   
-  <!-- Canvas Confetti for task completion celebration -->
+  <!-- Canvas Confetti -->
   <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.9.2/dist/confetti.browser.min.js"></script>
   
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div class="app-container">
+  <div class="app-shell">
     
     <!-- Top Header -->
     <header class="app-header">
-      <div class="user-profile">
+      <div class="user-badge">
         <div class="avatar" id="userAvatar">A</div>
-        <div class="user-info">
-          <h1 id="greetingText">Hey Champ! 👋</h1>
-          <p id="subGreeting">Let's dominate today!</p>
+        <div class="user-meta">
+          <span class="eyebrow-label">ATHARVAOS COPILOT</span>
+          <h1 class="page-title" id="greetingText">Good day, Atharva</h1>
         </div>
       </div>
-      <div class="header-badge" id="onlineBadge">
-        <span class="pulse-dot"></span> Online
+      <div class="header-controls">
+        <button class="icon-btn theme-toggle" id="themeToggleBtn" aria-label="Toggle dark mode">🌙</button>
+        <div class="status-indicator">
+          <span class="status-dot"></span> Live
+        </div>
       </div>
     </header>
 
-    <!-- Hero Stats Card -->
-    <section class="hero-card">
-      <div class="progress-section">
-        <div class="circular-progress">
-          <svg class="progress-ring" width="100" height="100">
-            <circle class="progress-ring__bg" stroke-width="8" fill="transparent" r="40" cx="50" cy="50"/>
-            <circle class="progress-ring__circle" id="progressCircle" stroke-width="8" stroke-dasharray="251.2" stroke-dashoffset="251.2" stroke-linecap="round" fill="transparent" r="40" cx="50" cy="50"/>
+    <!-- Main Hero Panel (Cream Surface) -->
+    <section class="panel hero-panel">
+      <div class="hero-layout">
+        <div class="progress-box">
+          <svg class="progress-ring" width="84" height="84">
+            <circle class="progress-ring__bg" stroke-width="7" fill="transparent" r="34" cx="42" cy="42"/>
+            <circle class="progress-ring__circle" id="progressCircle" stroke-width="7" stroke-dasharray="213.6" stroke-dashoffset="213.6" stroke-linecap="round" fill="transparent" r="34" cx="42" cy="42"/>
           </svg>
-          <div class="progress-value" id="progressPercent">0%</div>
-        </div>
-        <div class="hero-details">
-          <div class="streak-pill">
-            <span class="fire-icon">🔥</span> Daily Momentum
+          <div class="progress-center">
+            <span class="progress-num" id="progressPercent">0%</span>
           </div>
-          <h2 id="taskSummaryText">0 of 0 Completed</h2>
-          <p class="quote-text" id="vibeQuote">"Small daily wins lead to giant yearly victories."</p>
+        </div>
+
+        <div class="hero-editorial">
+          <div class="streak-badge">
+            <span class="fire-icon">🔥</span> MOMENTUM ACTIVE
+          </div>
+          <h2 class="hero-headline" id="taskSummaryHeadline">0 of 0 Completed Today</h2>
+          <p class="hero-subline" id="editorialQuote">"Small deliberate actions compound into undeniable mastery."</p>
         </div>
       </div>
     </section>
 
-    <!-- Navigation Tabs -->
-    <nav class="filter-tabs">
-      <button class="tab-btn active" data-filter="all">All</button>
-      <button class="tab-btn" data-filter="task">⚡ Tasks</button>
-      <button class="tab-btn" data-filter="assignment">📚 Study</button>
-      <button class="tab-btn" data-filter="goal">🎯 Goals</button>
-      <button class="tab-btn" data-filter="reminder">🔔 Reminders</button>
-      <button class="tab-btn admin-only-tab" id="adminTabBtn" data-filter="admin" style="display:none;">📊 Admin</button>
+    <!-- Navigation & Filter Pills (Lavender for Active state per ui.md) -->
+    <nav class="nav-pills-bar" aria-label="Task categories">
+      <button class="pill-tab active" data-filter="all">
+        <span class="tab-indicator"></span>All
+      </button>
+      <button class="pill-tab" data-filter="task">
+        <span class="tab-indicator"></span>⚡ Tasks
+      </button>
+      <button class="pill-tab" data-filter="assignment">
+        <span class="tab-indicator"></span>📚 Study
+      </button>
+      <button class="pill-tab" data-filter="goal">
+        <span class="tab-indicator"></span>🎯 Goals
+      </button>
+      <button class="pill-tab" data-filter="reminder">
+        <span class="tab-indicator"></span>🔔 Reminders
+      </button>
+      <button class="pill-tab admin-tab" id="adminTabBtn" data-filter="admin" style="display:none;">
+        <span class="tab-indicator"></span>📊 Analytics
+      </button>
     </nav>
 
-    <!-- Search & Quick Filter -->
-    <div class="search-bar-wrapper">
-      <span class="search-icon">🔍</span>
-      <input type="text" id="searchInput" placeholder="Search tasks, goals, notes...">
+    <!-- Search Bar -->
+    <div class="search-container">
+      <span class="search-glyph">🔍</span>
+      <input type="text" id="searchInput" class="search-input" placeholder="Search by title, tag or subject..." aria-label="Search items">
     </div>
 
-    <!-- Main Content Area -->
-    <main class="content-section">
+    <!-- Main View Section -->
+    <main class="main-content">
       
-      <!-- Tasks View -->
-      <div id="tasksView" class="view-panel active">
-        <div class="task-list" id="taskList">
-          <!-- Dynamically populated tasks -->
-          <div class="skeleton-loader">
-            <div class="skeleton-card"></div>
-            <div class="skeleton-card"></div>
-          </div>
+      <!-- Tasks & Items View -->
+      <section id="tasksView" class="view-panel active">
+        <div class="items-grid" id="taskList">
+          <!-- Skeleton Cards on Load -->
+          <div class="skeleton-card" aria-busy="true"></div>
+          <div class="skeleton-card" aria-busy="true"></div>
         </div>
-      </div>
+      </section>
 
-      <!-- Admin View (Owner Only) -->
-      <div id="adminView" class="view-panel" style="display:none;">
-        <div class="admin-dashboard" id="adminContent">
-          <!-- Dynamically populated stats -->
+      <!-- Admin Analytics View (Warm Editorial Stats) -->
+      <section id="adminView" class="view-panel" style="display:none;">
+        <div class="panel admin-panel" id="adminContent">
+          <!-- Populated dynamically -->
         </div>
-      </div>
+      </section>
 
     </main>
 
-    <!-- Floating Action Button -->
-    <button class="fab-btn" id="openAddModalBtn" aria-label="Add new task">
-      <span class="fab-icon">+</span>
-      <span class="fab-label">Add Task</span>
+    <!-- Floating Action Button (Warm Accent Pill) -->
+    <button class="fab-pill-cta" id="openAddModalBtn" aria-label="Create new task">
+      <span class="fab-plus">+</span>
+      <span>New Item</span>
     </button>
 
-    <!-- Add Task Modal -->
-    <div class="modal-overlay" id="addModal">
-      <div class="modal-sheet">
+    <!-- Modal Dialog (32px radius, blurred backdrop per ui.md) -->
+    <div class="modal-backdrop" id="addModal" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal-card">
         <div class="modal-header">
-          <h3>⚡ Create New Item</h3>
-          <button class="modal-close" id="closeAddModalBtn">✕</button>
+          <div>
+            <span class="eyebrow-label">QUICK CREATION</span>
+            <h3 class="modal-title">Create New Item</h3>
+          </div>
+          <button class="icon-btn close-btn" id="closeAddModalBtn" aria-label="Close modal">✕</button>
         </div>
+
         <form id="addTaskForm" class="modal-form">
           <div class="form-group">
-            <label>Category</label>
-            <div class="type-selector">
-              <label class="type-pill">
+            <label class="form-label">SELECT CATEGORY</label>
+            <div class="category-pills-selector">
+              <label class="category-pill-opt">
                 <input type="radio" name="type" value="task" checked>
-                <span>⚡ Task</span>
+                <span class="pill-chip">⚡ Task</span>
               </label>
-              <label class="type-pill">
+              <label class="category-pill-opt">
                 <input type="radio" name="type" value="assignment">
-                <span>📚 Study</span>
+                <span class="pill-chip">📚 Study</span>
               </label>
-              <label class="type-pill">
+              <label class="category-pill-opt">
                 <input type="radio" name="type" value="goal">
-                <span>🎯 Goal</span>
+                <span class="pill-chip">🎯 Goal</span>
               </label>
-              <label class="type-pill">
+              <label class="category-pill-opt">
                 <input type="radio" name="type" value="reminder">
-                <span>🔔 Reminder</span>
+                <span class="pill-chip">🔔 Reminder</span>
               </label>
             </div>
           </div>
 
           <div class="form-group">
-            <label for="taskContentInput">What needs to be done?</label>
-            <input type="text" id="taskContentInput" placeholder="e.g. Finish DSA Assignment by 8 PM" required>
+            <label for="taskContentInput" class="form-label">DESCRIPTION</label>
+            <input type="text" id="taskContentInput" class="form-input" placeholder="e.g. Finish DSA Assignment by 8 PM" required>
           </div>
 
-          <div class="form-row">
-            <div class="form-group half">
-              <label for="taskDateInput">Due Date / Time</label>
-              <input type="datetime-local" id="taskDateInput">
+          <div class="form-grid-two">
+            <div class="form-group">
+              <label for="taskDateInput" class="form-label">DUE DATE & TIME</label>
+              <input type="datetime-local" id="taskDateInput" class="form-input">
             </div>
-            <div class="form-group half">
-              <label for="taskPriorityInput">Priority</label>
-              <select id="taskPriorityInput">
+            <div class="form-group">
+              <label for="taskPriorityInput" class="form-label">PRIORITY</label>
+              <select id="taskPriorityInput" class="form-select">
                 <option value="high">🔥 High</option>
                 <option value="medium" selected>⚡ Medium</option>
                 <option value="low">🟢 Low</option>
@@ -151,12 +171,12 @@
           </div>
 
           <div class="form-group">
-            <label for="taskTagsInput">Tags (comma separated)</label>
-            <input type="text" id="taskTagsInput" placeholder="e.g. work, dsa, project">
+            <label for="taskTagsInput" class="form-label">TAGS (COMMA SEPARATED)</label>
+            <input type="text" id="taskTagsInput" class="form-input" placeholder="e.g. study, project, urgent">
           </div>
 
-          <button type="submit" class="submit-btn" id="submitTaskBtn">
-            <span>Add to AtharvaOS</span> 🚀
+          <button type="submit" class="primary-btn full-btn" id="submitTaskBtn">
+            Save Item to AtharvaOS
           </button>
         </form>
       </div>
