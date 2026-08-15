@@ -10,6 +10,7 @@ function sanitizeOutput(text) {
   if (!text) return "Chal bhai, sorted! Anything else?";
 
   return text
+    .replace(/<think>[\s\S]*?<\/think>/gi, "") // strip reasoning traces
     .replace(/<function=[\s\S]*?<\/function>/gi, "")
     .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, "")
     .replace(/<[\s\S]*?>/g, "") // remove any stray HTML/XML tags
@@ -46,7 +47,7 @@ async function askAI({ message, chatId, historyContext = "", base64ImageUrl = nu
   });
 
   const model = base64ImageUrl
-    ? "llama-3.2-11b-vision-preview"
+    ? "qwen/qwen3.6-27b"
     : "llama-3.3-70b-versatile";
 
   const textPrompt =
