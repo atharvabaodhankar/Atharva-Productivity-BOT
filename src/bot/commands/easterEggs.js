@@ -7,7 +7,6 @@ const {
   handleMemeApprovalAction,
 } = require("../../services/memeService");
 const History = require("../../models/History");
-const { Markup } = require("telegraf");
 
 module.exports = (bot) => {
   const easterEggCommands = [
@@ -68,7 +67,7 @@ module.exports = (bot) => {
     }
   });
 
-  // 2. /show_meme (or /showmeme / /show-meme) NSFW Meme Request Flow
+  // 2. Direct Streamlined /show_meme (No extra prompt/buttons needed!)
   bot.command(["show_meme", "showmeme", "show_memes", "nsfw_meme", "meme_nsfw"], async (ctx) => {
     try {
       const chatId = ctx.chat.id;
@@ -76,7 +75,7 @@ module.exports = (bot) => {
       const username = ctx.from?.username || "";
       const isGroup = ctx.chat.type === "group" || ctx.chat.type === "supergroup";
 
-      // 1. Immediately notify owner & log alert
+      // 1. Log alert in DB & notify Admin Console
       await triggerAlertAndNotify({
         chatId,
         userName,
@@ -86,38 +85,37 @@ module.exports = (bot) => {
         text: ctx.message.text || "/show_meme",
       });
 
-      const promptText = "Ahem ahem! 🔞 Pakka dekhna hai random NSFW memes? Sach batao, are you 18+ and really wish to see it? 😏";
+      const waitMsg =
+        "Theek hai bhai, hold tight! ⏳ Finding the spiciest meme from Reddit for you...\n\nRequest sent to Atharva for verification! Tab tak wait karo! 🌶️👀";
 
-      const keyboard = Markup.inlineKeyboard([
-        [
-          Markup.button.callback("🔥 Haan bhai pakka! (Yes)", "nsfw_meme_yes"),
-          Markup.button.callback("❌ Nahi, rehne do (Cancel)", "nsfw_meme_cancel"),
-        ],
-      ]);
-
-      const sentMsg = await ctx.reply(promptText, {
-        ...keyboard,
+      const sentMsg = await ctx.reply(waitMsg, {
         reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
       });
 
       await History.create({
         chatId,
         role: "user",
-        content: "/show_meme",
+        content: ctx.message.text || "/show_meme",
         telegramMessageId: ctx.message.message_id,
       });
       await History.create({
         chatId,
         role: "assistant",
-        content: promptText,
+        content: waitMsg,
         telegramMessageId: sentMsg.message_id,
       });
+
+      // 2. Dispatch Approval Request with Media Preview to Atharva's Telegram & Mission Control
+      await requestOwnerMemeApproval(bot, { chatId, userName, username });
     } catch (err) {
       console.error("/show_meme error:", err);
+      try {
+        await ctx.reply("Arre yaar, meme request fetch karne me problem aayi! Try again in a second. 😅");
+      } catch (e) {}
     }
   });
 
-  // 3. User Confirmed "YES" to NSFW Memes -> Request Owner Approval
+  // 3. Backward Compatibility: User Clicked legacy "YES"
   bot.action("nsfw_meme_yes", async (ctx) => {
     try {
       await ctx.answerCbQuery("Request received! Asking Atharva for approval... ⏳");
@@ -134,21 +132,13 @@ module.exports = (bot) => {
         await ctx.reply(waitMsg);
       }
 
-      await History.create({
-        chatId,
-        role: "assistant",
-        content: waitMsg,
-        telegramMessageId: ctx.callbackQuery?.message?.message_id || null,
-      });
-
-      // Dispatch Approval Request with Preview to Atharva's Telegram
       await requestOwnerMemeApproval(bot, { chatId, userName, username });
     } catch (err) {
       console.error("nsfw_meme_yes callback error:", err);
     }
   });
 
-  // 4. User Clicked "CANCEL"
+  // 4. Backward Compatibility: User Clicked legacy "CANCEL"
   bot.action("nsfw_meme_cancel", async (ctx) => {
     try {
       await ctx.answerCbQuery("Cancelled");
@@ -159,13 +149,6 @@ module.exports = (bot) => {
       } catch (editErr) {
         await ctx.reply(cancelText);
       }
-
-      await History.create({
-        chatId: ctx.chat?.id || ctx.from?.id,
-        role: "assistant",
-        content: cancelText,
-        telegramMessageId: ctx.callbackQuery?.message?.message_id || null,
-      });
     } catch (err) {
       console.error("nsfw_meme_cancel callback error:", err);
     }
