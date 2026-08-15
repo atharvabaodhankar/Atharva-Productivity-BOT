@@ -53,6 +53,53 @@ module.exports = (bot) => {
         }
       }
 
+      // 1.5 Check if user is replying to NSFW Meme confirmation (YES / NO)
+      const User = require("../../models/User");
+      const { requestOwnerMemeApproval } = require("../../services/memeService");
+      const userDoc = await User.findOne({ telegramId: chatId });
+
+      if (userDoc && userDoc.awaitingMemeConfirmation) {
+        const cleanText = userMessage.toLowerCase().trim();
+        const isYes = /\b(yes|haan|ha|yeah|yep|y|pakka|18\+|ok|sure|show)\b/i.test(cleanText);
+        const isNo = /\b(no|nahi|na|nope|n|cancel|rehne do)\b/i.test(cleanText);
+
+        if (isYes) {
+          userDoc.awaitingMemeConfirmation = false;
+          await userDoc.save();
+
+          const waitMsg =
+            "Theek hai bhai, hold tight! ⏳ Finding the spiciest meme from Reddit for you...\n\nRequest sent to Atharva for verification! Tab tak wait karo! 🌶️👀";
+
+          const sentMsg = await ctx.reply(waitMsg, {
+            reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
+          });
+
+          await History.create({ chatId, role: "user", content: userMessage, telegramMessageId: ctx.message.message_id });
+          await History.create({ chatId, role: "assistant", content: waitMsg, telegramMessageId: sentMsg.message_id });
+
+          // Send approval request to owner Telegram & Mission Control
+          await requestOwnerMemeApproval(bot, {
+            chatId,
+            userName: ctx.from?.first_name || "Friend",
+            username: ctx.from?.username || "",
+          });
+          return;
+        } else if (isNo) {
+          userDoc.awaitingMemeConfirmation = false;
+          await userDoc.save();
+
+          const cancelText = "Good boy/girl! 😇 Sharafat me hi bhalai hai. Chalo wapas focus karo apne goals aur tasks pe! 🚀✨";
+
+          const sentMsg = await ctx.reply(cancelText, {
+            reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
+          });
+
+          await History.create({ chatId, role: "user", content: userMessage, telegramMessageId: ctx.message.message_id });
+          await History.create({ chatId, role: "assistant", content: cancelText, telegramMessageId: sentMsg.message_id });
+          return;
+        }
+      }
+
       // 2. Check for Easter Eggs or NSFW triggers
       const detectedTrigger = checkEasterEggOrNsfw(userMessage);
       if (detectedTrigger) {

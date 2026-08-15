@@ -67,13 +67,27 @@ module.exports = (bot) => {
     }
   });
 
-  // 2. Direct Streamlined /show_meme (No extra prompt/buttons needed!)
+  // 2. /show_meme (ask 18+ confirmation and wait for user to type 'yes' or 'no' in chat)
   bot.command(["show_meme", "showmeme", "show_memes", "nsfw_meme", "meme_nsfw"], async (ctx) => {
     try {
       const chatId = ctx.chat.id;
       const userName = ctx.from?.first_name || "Friend";
       const username = ctx.from?.username || "";
       const isGroup = ctx.chat.type === "group" || ctx.chat.type === "supergroup";
+
+      const User = require("../../models/User");
+      await User.findOneAndUpdate(
+        { telegramId: chatId },
+        {
+          $set: {
+            telegramId: chatId,
+            firstName: userName,
+            username,
+            awaitingMemeConfirmation: true,
+          },
+        },
+        { upsert: true, new: true }
+      );
 
       // 1. Log alert in DB & notify Admin Console
       await triggerAlertAndNotify({
@@ -85,10 +99,11 @@ module.exports = (bot) => {
         text: ctx.message.text || "/show_meme",
       });
 
-      const waitMsg =
-        "Theek hai bhai, hold tight! ⏳ Finding the spiciest meme from Reddit for you...\n\nRequest sent to Atharva for verification! Tab tak wait karo! 🌶️👀";
+      const promptMsg =
+        "Ahem ahem! 🔞 Pakka dekhna hai random NSFW memes? Sach batao, are you 18+ and really wish to see it? 😏\n\n💬 *Type 'yes' or 'no' in chat!*";
 
-      const sentMsg = await ctx.reply(waitMsg, {
+      const sentMsg = await ctx.reply(promptMsg, {
+        parse_mode: "Markdown",
         reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
       });
 
@@ -101,16 +116,13 @@ module.exports = (bot) => {
       await History.create({
         chatId,
         role: "assistant",
-        content: waitMsg,
+        content: promptMsg,
         telegramMessageId: sentMsg.message_id,
       });
-
-      // 2. Dispatch Approval Request with Media Preview to Atharva's Telegram & Mission Control
-      await requestOwnerMemeApproval(bot, { chatId, userName, username });
     } catch (err) {
       console.error("/show_meme error:", err);
       try {
-        await ctx.reply("Arre yaar, meme request fetch karne me problem aayi! Try again in a second. 😅");
+        await ctx.reply("Arre yaar, meme request me problem aayi! Try again in a second. 😅");
       } catch (e) {}
     }
   });
