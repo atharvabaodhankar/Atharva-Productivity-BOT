@@ -174,21 +174,20 @@ function renderUsersList() {
   usersListEl.innerHTML = filtered
     .map((u) => {
       const displayName = u.firstName || (u.username ? `@${u.username}` : `User #${u.telegramId}`);
-      const handleDisplay = u.username ? `@${u.username}` : `ID: ${u.telegramId}`;
       const isActive = activeTargetUser && activeTargetUser.telegramId === u.telegramId;
       const initials = (u.firstName || "U").substring(0, 2).toUpperCase();
 
       return `
-        <div class="user-item-card ${isActive ? "active" : ""}" data-id="${u.telegramId}">
+        <div class="user-item ${isActive ? "active" : ""}" data-id="${u.telegramId}">
           <div class="user-avatar-mini">${initials}</div>
-          <div class="user-info-body">
-            <div class="user-top-row">
-              <span class="user-display-name">${escapeHtml(displayName)}</span>
+          <div class="user-info-col">
+            <div class="user-top-line">
+              <span class="user-name-text">${escapeHtml(displayName)}</span>
               <span class="user-last-time">${formatRelativeTime(u.lastActive)}</span>
             </div>
-            <div class="user-sub-row">
-              <span class="user-snippet">${escapeHtml(u.lastMessageSnippet || "No messages yet")}</span>
-              <span class="user-msg-count">${u.messageCount || 0}</span>
+            <div class="user-sub-line">
+              <span class="user-snippet-text">${escapeHtml(u.lastMessageSnippet || "No messages yet")}</span>
+              <span class="msg-count-tag">${u.messageCount || 0}</span>
             </div>
           </div>
         </div>
@@ -196,7 +195,7 @@ function renderUsersList() {
     })
     .join("");
 
-  usersListEl.querySelectorAll(".user-item-card").forEach((card) => {
+  usersListEl.querySelectorAll(".user-item").forEach((card) => {
     card.addEventListener("click", () => {
       const targetId = Number(card.dataset.id);
       const targetUser = allUsers.find((u) => u.telegramId === targetId);
