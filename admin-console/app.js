@@ -220,7 +220,7 @@ async function selectUserThread(user) {
   chatMessageInput.focus();
 }
 
-// Create a single message DOM element
+// Create a single message DOM element with Spoiler Badge & Delete Action
 function createMessageElement(msg) {
   const isBot = msg.role === "assistant";
   const senderLabel = isBot ? "ATHARVAOS // PROXY" : (activeTargetUser?.firstName || "USER").toUpperCase();
@@ -228,19 +228,81 @@ function createMessageElement(msg) {
     ? new Date(msg.createdAt).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit", hour12: true })
     : "";
 
+  const hasSpoilerBadge =
+    msg.hasSpoiler ||
+    (typeof msg.content === "string" && msg.content.includes("🙈")) ||
+    (typeof msg.content === "string" && msg.content.toLowerCase().includes("spoiler"));
+
   const div = document.createElement("div");
   div.className = `msg-row ${isBot ? "bot-msg" : "user-msg"}`;
   div.dataset.msgKey = msg._id || `${msg.role}-${msg.content}-${msg.createdAt}`;
   div.innerHTML = `
     <div class="msg-sender-tag">
       <span>${escapeHtml(senderLabel)}</span>
+      ${hasSpoilerBadge ? `<span class="spoiler-bubble-badge"><i data-lucide="eye-off"></i> SPOILER</span>` : ""}
     </div>
-    <div class="msg-card">
-      ${escapeHtml(msg.content)}
+    <div class="msg-content-wrapper">
+      <div class="msg-card">
+        ${escapeHtml(msg.content)}
+      </div>
+      <button class="msg-delete-btn" title="Delete message from conversation transcript & Telegram" data-msg-id="${msg._id || ""}" data-tg-id="${msg.telegramMessageId || ""}">
+        <i data-lucide="trash-2"></i>
+      </button>
     </div>
     <div class="msg-time">${escapeHtml(timeStr)}</div>
   `;
+
+  // Attach delete event
+  const deleteBtn = div.querySelector(".msg-delete-btn");
+  if (deleteBtn) {
+    deleteBtn.addEventListener("click", async (e) => {
+      e.stopPropagation();
+      await deleteAdminMessage(msg, div);
+    });
+  }
+
   return div;
+}
+
+// Delete Message from Transcript & Telegram
+async function deleteAdminMessage(msg, rowEl) {
+  if (!confirm("Are you sure you want to delete this message? It will be removed from the conversation and Telegram.")) {
+    return;
+  }
+
+  rowEl.classList.add("deleting");
+
+  try {
+    const endpoint = window.location.origin.includes("localhost")
+      ? "/api/local-delete-message"
+      : `${API_BASE_URL}/admin/delete-message`;
+
+    const res = await fetch(endpoint, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        ownerId: OWNER_CHAT_ID,
+        messageId: msg._id,
+        chatId: activeTargetUser ? activeTargetUser.telegramId : null,
+        telegramMessageId: msg.telegramMessageId,
+      }),
+    });
+
+    const data = await res.json();
+    if (data.ok || data.success) {
+      setTimeout(() => {
+        rowEl.remove();
+        activeMessages = activeMessages.filter((m) => m._id !== msg._id);
+        showToast("🗑️ Message deleted from transcript & Telegram!", "success");
+      }, 250);
+    } else {
+      rowEl.classList.remove("deleting");
+      showToast(`⚠️ Delete failed: ${data.error || "Unknown error"}`, "error");
+    }
+  } catch (err) {
+    rowEl.classList.remove("deleting");
+    showToast("❌ Network error deleting message.", "error");
+  }
 }
 
 // 4. Load Conversation Messages (Robust Key-Based Zero-Flicker Diffing)

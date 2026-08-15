@@ -16,6 +16,14 @@ const historySchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    telegramMessageId: {
+      type: Number,
+      default: null,
+    },
+    hasSpoiler: {
+      type: Boolean,
+      default: false,
+    },
   },
   {
     timestamps: true,
@@ -24,4 +32,4 @@ const historySchema = new mongoose.Schema(
 
 historySchema.index({ chatId: 1, createdAt: -1 });
 
-module.exports = mongoose.model("History", historySchema);
+module.exports = mongoose.models.History || mongoose.model("History", historySchema);

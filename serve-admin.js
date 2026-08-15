@@ -140,10 +140,12 @@ const server = http.createServer(async (req, res) => {
           ? (isVideo ? `[Video] ${caption || text}` : `[Photo] ${caption || text}`).trim()
           : text;
 
-        await History.create({
+        const historyDoc = await History.create({
           chatId: targetChatId,
           role: "assistant",
           content: recordedContent,
+          telegramMessageId: tgData.result?.message_id || null,
+          hasSpoiler: Boolean(hasSpoiler),
         });
 
         res.writeHead(200, { "Content-Type": "application/json" });
@@ -152,10 +154,62 @@ const server = http.createServer(async (req, res) => {
             ok: true,
             message: "Delivered to Telegram successfully!",
             telegramResult: tgData.result,
+            history: historyDoc,
           })
         );
       } catch (err) {
         console.error("Upload server error:", err);
+        res.writeHead(500, { "Content-Type": "application/json" });
+        return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    });
+    return;
+  }
+
+  // 2. Direct Telegram Message Deletion API
+  if (req.url === "/api/local-delete-message" && req.method === "POST") {
+    let body = "";
+    req.on("data", (chunk) => {
+      body += chunk;
+    });
+
+    req.on("end", async () => {
+      try {
+        const payload = JSON.parse(body || "{}");
+        const { messageId, chatId, telegramMessageId } = payload;
+
+        if (messageId) {
+          await History.findByIdAndDelete(messageId);
+        }
+
+        let tgDeleted = false;
+        if (chatId && telegramMessageId) {
+          try {
+            const delRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/deleteMessage`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: String(chatId),
+                message_id: Number(telegramMessageId),
+              }),
+            });
+            const delData = await delRes.json();
+            tgDeleted = delData.ok || false;
+          } catch (tgErr) {
+            console.warn("Telegram delete error:", tgErr.message);
+          }
+        }
+
+        res.writeHead(200, { "Content-Type": "application/json" });
+        return res.end(
+          JSON.stringify({
+            ok: true,
+            message: "Message deleted successfully",
+            telegramDeleted: tgDeleted,
+          })
+        );
+      } catch (err) {
+        console.error("Delete server error:", err);
         res.writeHead(500, { "Content-Type": "application/json" });
         return res.end(JSON.stringify({ ok: false, error: err.message }));
       }

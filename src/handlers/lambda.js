@@ -410,6 +410,8 @@ exports.handler = async (event, context) => {
             chatId: targetChatId,
             role: "assistant",
             content: recordedContent,
+            telegramMessageId: sentMsg?.message_id || null,
+            hasSpoiler: Boolean(hasSpoiler),
           });
 
           return {
@@ -428,6 +430,53 @@ exports.handler = async (event, context) => {
             statusCode: 500,
             headers: CORS_HEADERS,
             body: JSON.stringify({ error: `Bot delivery failed: ${botErr.message}` }),
+          };
+        }
+      }
+
+      // 1.3 ADMIN DELETE MESSAGE ENDPOINT
+      if (rawPath.endsWith("/api/admin/delete-message") && httpMethod === "POST") {
+        try {
+          const body = JSON.parse(event.body || "{}");
+          const { ownerId, messageId, chatId, telegramMessageId } = body;
+
+          if (String(ownerId) !== "5275149287") {
+            return {
+              statusCode: 403,
+              headers: CORS_HEADERS,
+              body: JSON.stringify({ error: "Unauthorized. Owner clearance required." }),
+            };
+          }
+
+          if (messageId) {
+            await History.findByIdAndDelete(messageId);
+          }
+
+          let tgDeleted = false;
+          if (chatId && telegramMessageId) {
+            try {
+              await bot.telegram.deleteMessage(chatId, telegramMessageId);
+              tgDeleted = true;
+            } catch (tgErr) {
+              console.warn("Could not delete message on Telegram:", tgErr.message);
+            }
+          }
+
+          return {
+            statusCode: 200,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({
+              success: true,
+              message: "Message deleted successfully",
+              telegramDeleted: tgDeleted,
+            }),
+          };
+        } catch (delErr) {
+          console.error("Failed to delete message:", delErr);
+          return {
+            statusCode: 500,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ error: `Delete failed: ${delErr.message}` }),
           };
         }
       }
