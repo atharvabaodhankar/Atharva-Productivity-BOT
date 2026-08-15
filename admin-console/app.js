@@ -131,6 +131,15 @@ const alertsListBody = document.getElementById("alertsListBody");
 
 // Toast Notification Engine
 function showToast(message, type = "info") {
+  let container = document.getElementById("toastContainer");
+  if (!container) {
+    container = document.createElement("div");
+    container.id = "toastContainer";
+    container.className = "toast-container";
+    container.style.cssText = "position:fixed; bottom:20px; right:20px; z-index:9999; display:flex; flex-direction:column; gap:8px;";
+    document.body.appendChild(container);
+  }
+
   const toast = document.createElement("div");
   toast.className = `toast ${type}`;
 
@@ -140,7 +149,7 @@ function showToast(message, type = "info") {
     <span>${escapeHtml(message)}</span>
   `;
 
-  toastContainer.appendChild(toast);
+  container.appendChild(toast);
   refreshIcons();
 
   setTimeout(() => {
