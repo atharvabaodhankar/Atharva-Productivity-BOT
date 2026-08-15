@@ -1,4 +1,4 @@
-// AtharvaOS Dual-Color (Flo 101) Mini App Controller with Telegram Profile Photos
+// AtharvaOS Dual-Color (Flo 101) Mini App Controller with Real-Time Conversation Viewer
 
 const API_BASE_URL = "https://ged2lb24hngndlzk5b73dmvdqy0ydsmo.lambda-url.ap-south-1.on.aws/api";
 const OWNER_CHAT_ID = "5275149287";
@@ -30,6 +30,7 @@ if (tg?.initDataUnsafe?.user) {
 let allTasks = [];
 let activeFilter = "all";
 let searchQuery = "";
+let currentOpenConvoChatId = null;
 
 // DOM Elements
 const userAvatar = document.getElementById("userAvatar");
@@ -48,6 +49,15 @@ const addModal = document.getElementById("addModal");
 const openAddModalBtn = document.getElementById("openAddModalBtn");
 const closeAddModalBtn = document.getElementById("closeAddModalBtn");
 const addTaskForm = document.getElementById("addTaskForm");
+
+// Conversation Modal Elements
+const convoModal = document.getElementById("convoModal");
+const closeConvoModalBtn = document.getElementById("closeConvoModalBtn");
+const convoAvatar = document.getElementById("convoAvatar");
+const convoUserName = document.getElementById("convoUserName");
+const convoUserMeta = document.getElementById("convoUserMeta");
+const convoMessagesList = document.getElementById("convoMessagesList");
+const refreshConvoBtn = document.getElementById("refreshConvoBtn");
 
 // Helper to refresh Lucide icons
 function refreshIcons() {
@@ -394,30 +404,45 @@ async function fetchAdminStats() {
 
         <div class="users-list-card">
           <div class="user-list-header">
-            <span class="eyebrow">REGISTERED USER ROSTER</span>
-            <i data-lucide="user-check" class="stat-icon"></i>
+            <span class="eyebrow">USER CONVERSATIONS & PROFILES</span>
+            <i data-lucide="messages-square" class="stat-icon"></i>
           </div>
-          <h4 class="display-serif" style="margin-bottom: 8px;">Active Profiles</h4>
+          <h4 class="display-serif" style="margin-bottom: 8px;">Tap User to View Full Chat</h4>
           ${(data.users || [])
             .map(
               (u) => `
-            <div class="user-row">
+            <div class="user-row clickable-user-row" data-chat-id="${u.telegramId}" data-name="${escapeHtml(u.firstName)}">
               <div class="user-row-left">
                 <div class="mini-avatar">${escapeHtml(u.firstName.charAt(0).toUpperCase())}</div>
-                <div>
-                  <strong>${escapeHtml(u.firstName)}</strong>
-                  ${u.username ? `<span style="color:var(--ink-muted)"> (@${escapeHtml(u.username)})</span>` : ""}
+                <div class="user-text-meta">
+                  <div class="user-name-line">
+                    <strong>${escapeHtml(u.firstName)}</strong>
+                    ${u.username ? `<span style="color:var(--ink-muted); font-size:0.8rem;"> (@${escapeHtml(u.username)})</span>` : ""}
+                    <span class="msg-count-pill">${u.messageCount || 0} msgs</span>
+                  </div>
+                  <div class="user-last-msg">${escapeHtml(u.lastMessageSnippet || "No message")}</div>
                 </div>
               </div>
-              <span style="color:var(--ink-muted); font-size: 0.78rem;">
-                ${new Date(u.createdAt).toLocaleDateString("en-US", { month: "short", day: "numeric" })}
-              </span>
+              <button class="convo-open-btn" aria-label="Open conversation">
+                <i data-lucide="chevron-right"></i>
+              </button>
             </div>
           `
             )
             .join("")}
         </div>
       `;
+
+      // Wire click events on user rows to open full conversation history
+      document.querySelectorAll(".clickable-user-row").forEach((row) => {
+        row.addEventListener("click", () => {
+          triggerHaptic("medium");
+          const targetId = row.dataset.chatId;
+          const targetName = row.dataset.name;
+          openConversation(targetId, targetName);
+        });
+      });
+
       refreshIcons();
     } else {
       adminContent.innerHTML = `<p style="color:var(--badge-high)">Access restricted or error loading stats.</p>`;
@@ -425,6 +450,101 @@ async function fetchAdminStats() {
   } catch (err) {
     adminContent.innerHTML = `<p style="color:var(--badge-high)">Failed loading analytics: ${err.message}</p>`;
   }
+}
+
+// Open and Fetch User Conversation History
+async function openConversation(targetChatId, targetName) {
+  currentOpenConvoChatId = targetChatId;
+  convoUserName.textContent = targetName || "User Chat";
+  convoUserMeta.textContent = `Telegram ID: ${targetChatId}`;
+  convoAvatar.textContent = (targetName || "U").charAt(0).toUpperCase();
+
+  convoModal.classList.add("active");
+  convoModal.setAttribute("aria-hidden", "false");
+
+  convoMessagesList.innerHTML = `
+    <div class="skeleton-card" aria-busy="true"></div>
+    <div class="skeleton-card" aria-busy="true"></div>
+  `;
+
+  await loadConversationMessages(targetChatId);
+}
+
+// Load Conversation Messages
+async function loadConversationMessages(targetChatId) {
+  try {
+    const res = await fetch(
+      `${API_BASE_URL}/admin/conversations?chatId=${currentUser.id}&targetChatId=${targetChatId}`
+    );
+    const data = await res.json();
+
+    if (data && data.messages) {
+      if (data.messages.length === 0) {
+        convoMessagesList.innerHTML = `
+          <div class="empty-state" style="padding: 30px 10px;">
+            <div class="empty-icon-wrap" style="width: 48px; height: 48px;">
+              <i data-lucide="message-circle-off" class="empty-svg-icon" style="width: 24px; height: 24px;"></i>
+            </div>
+            <h4 class="display-serif">No Messages Yet</h4>
+            <p>This user hasn't chatted with AtharvaOS yet.</p>
+          </div>
+        `;
+        refreshIcons();
+        return;
+      }
+
+      convoMessagesList.innerHTML = data.messages
+        .map((msg) => {
+          const isUser = msg.role === "user";
+          const roleLabel = isUser ? "User" : "AtharvaOS";
+          const timeStr = new Date(msg.createdAt).toLocaleTimeString("en-US", {
+            hour: "2-digit",
+            minute: "2-digit",
+          });
+
+          return `
+            <div class="chat-bubble-wrap ${isUser ? "user-bubble-wrap" : "bot-bubble-wrap"}">
+              <div class="chat-bubble-header">
+                <span class="chat-sender-name">${roleLabel}</span>
+                <span class="chat-time">${timeStr}</span>
+              </div>
+              <div class="chat-bubble-body">${escapeHtml(msg.content)}</div>
+            </div>
+          `;
+        })
+        .join("");
+
+      // Scroll to bottom
+      convoMessagesList.scrollTop = convoMessagesList.scrollHeight;
+    } else {
+      convoMessagesList.innerHTML = `<p style="color:var(--badge-high); padding: 20px;">${data.error || "Failed to load conversation."}</p>`;
+    }
+  } catch (err) {
+    convoMessagesList.innerHTML = `<p style="color:var(--badge-high); padding: 20px;">Error loading conversation: ${err.message}</p>`;
+  }
+
+  refreshIcons();
+}
+
+// Refresh Conversation Button
+refreshConvoBtn.addEventListener("click", () => {
+  triggerHaptic("light");
+  if (currentOpenConvoChatId) {
+    loadConversationMessages(currentOpenConvoChatId);
+  }
+});
+
+// Close Conversation Modal
+closeConvoModalBtn.addEventListener("click", closeConvoModal);
+convoModal.addEventListener("click", (e) => {
+  if (e.target === convoModal) closeConvoModal();
+});
+
+function closeConvoModal() {
+  triggerHaptic("light");
+  convoModal.classList.remove("active");
+  convoModal.setAttribute("aria-hidden", "true");
+  currentOpenConvoChatId = null;
 }
 
 // Filter Tabs Handling

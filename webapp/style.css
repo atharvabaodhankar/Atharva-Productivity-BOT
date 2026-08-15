@@ -1,7 +1,7 @@
 /* ==========================================================================
    ATHARVAOS DUAL-COLOR LIGHT THEME (FLO 101 STYLE)
    Dual Colors: Crisp Dark Ink (#14110E) + Signature Flo Lavender (#BAABFF)
-   Professional Lucide Outline Icons with Clean Crisp Geometry.
+   Professional Lucide Outline Icons & Real-Time Conversation Viewer.
    ========================================================================== */
 
 :root {
@@ -410,7 +410,7 @@ svg.lucide {
   color: var(--ink-muted);
 }
 
-/* Checkbox (Lavender on Complete) */
+/* Checkbox */
 .custom-checkbox {
   width: 24px;
   height: 24px;
@@ -581,7 +581,7 @@ svg.lucide {
   100% { transform: translateX(100%); }
 }
 
-/* Floating Action Button (Signature Lavender Flo CTA) */
+/* Floating Action Button */
 .fab-btn {
   position: fixed;
   bottom: 24px;
@@ -619,7 +619,7 @@ svg.lucide {
   height: 18px;
 }
 
-/* Modal */
+/* Modals */
 .modal-backdrop {
   position: fixed;
   inset: 0;
@@ -800,7 +800,7 @@ svg.lucide {
   color: #FFFFFF;
 }
 
-/* Admin Panel */
+/* Admin Analytics Panel */
 .admin-panel {
   display: flex;
   flex-direction: column;
@@ -860,34 +860,211 @@ svg.lucide {
   align-items: center;
 }
 
-.user-row {
+.clickable-user-row {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 0;
+  padding: 12px 10px;
+  border-radius: var(--radius-control);
   border-bottom: 1px solid var(--line-hairline);
-  font-size: 0.85rem;
+  cursor: pointer;
+  transition: all var(--dur) var(--ease);
 }
 
-.user-row:last-child {
-  border-bottom: none;
+.clickable-user-row:hover {
+  background: var(--flo-lavender-light);
+  transform: translateX(3px);
 }
 
 .user-row-left {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 12px;
+  flex-grow: 1;
+  min-width: 0;
 }
 
 .mini-avatar {
-  width: 32px;
-  height: 32px;
+  width: 36px;
+  height: 36px;
   border-radius: var(--radius-full);
-  background: var(--flo-lavender-light);
-  color: var(--flo-lavender-dark);
+  background: var(--flo-lavender);
+  color: var(--ink-primary);
   font-weight: 700;
-  font-size: 0.85rem;
+  font-size: 0.95rem;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
+}
+
+.user-text-meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.user-name-line {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.msg-count-pill {
+  font-size: 0.68rem;
+  font-weight: 700;
+  background: rgba(186, 171, 255, 0.35);
+  color: var(--flo-lavender-dark);
+  padding: 2px 6px;
+  border-radius: var(--radius-full);
+}
+
+.user-last-msg {
+  font-size: 0.78rem;
+  color: var(--ink-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 240px;
+}
+
+.convo-open-btn {
+  background: none;
+  border: none;
+  color: var(--ink-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
+}
+
+.convo-open-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* ==========================================================================
+   CONVERSATION VIEWER MODAL
+   ========================================================================== */
+.convo-sheet {
+  max-height: 85vh;
+  height: 85vh;
+  display: flex;
+  flex-direction: column;
+  padding: 20px 18px 24px 18px;
+}
+
+.convo-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding-bottom: 14px;
+  border-bottom: 1px solid var(--line-hairline);
+  margin-bottom: 14px;
+}
+
+.convo-user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.convo-title {
+  font-size: 1.15rem;
+  line-height: 1.2;
+}
+
+.convo-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.convo-refresh-btn {
+  background: var(--panel-cream);
+  border: 1px solid var(--line-hairline);
+  color: var(--ink-primary);
+  width: 36px;
+  height: 36px;
+  border-radius: var(--radius-full);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all var(--dur) var(--ease);
+}
+
+.convo-refresh-btn:hover {
+  background: var(--flo-lavender);
+}
+
+.convo-refresh-btn svg {
+  width: 16px;
+  height: 16px;
+}
+
+.convo-chat-area {
+  flex-grow: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 6px 4px 14px 4px;
+  scrollbar-width: thin;
+}
+
+.chat-bubble-wrap {
+  display: flex;
+  flex-direction: column;
+  max-width: 82%;
+  gap: 3px;
+}
+
+.user-bubble-wrap {
+  align-self: flex-end;
+  align-items: flex-end;
+}
+
+.bot-bubble-wrap {
+  align-self: flex-start;
+  align-items: flex-start;
+}
+
+.chat-bubble-header {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  font-size: 0.7rem;
+  color: var(--ink-muted);
+  padding: 0 4px;
+}
+
+.chat-sender-name {
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.chat-bubble-body {
+  padding: 10px 14px;
+  border-radius: 18px;
+  font-size: 0.88rem;
+  line-height: 1.4;
+  word-break: break-word;
+}
+
+.user-bubble-wrap .chat-bubble-body {
+  background: var(--flo-lavender-light);
+  color: var(--ink-primary);
+  border: 1px solid var(--flo-lavender-border);
+  border-bottom-right-radius: 4px;
+}
+
+.bot-bubble-wrap .chat-bubble-body {
+  background: var(--card-white);
+  color: var(--ink-primary);
+  border: 1px solid var(--line-hairline);
+  box-shadow: 0 2px 10px rgba(20, 17, 14, 0.04);
+  border-bottom-left-radius: 4px;
 }

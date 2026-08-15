@@ -195,6 +195,33 @@
       </div>
     </div>
 
+    <!-- Conversation Viewer Modal (Owner Only) -->
+    <div class="modal-backdrop" id="convoModal" role="dialog" aria-modal="true" aria-hidden="true">
+      <div class="modal-sheet convo-sheet">
+        <div class="convo-modal-header">
+          <div class="convo-user-info">
+            <div class="mini-avatar" id="convoAvatar">A</div>
+            <div>
+              <h3 class="convo-title" id="convoUserName">Conversation History</h3>
+              <span class="eyebrow" id="convoUserMeta">ID: 123456789</span>
+            </div>
+          </div>
+          <div class="convo-header-actions">
+            <button class="convo-refresh-btn" id="refreshConvoBtn" title="Refresh Messages">
+              <i data-lucide="rotate-cw"></i>
+            </button>
+            <button class="close-btn" id="closeConvoModalBtn" aria-label="Close">
+              <i data-lucide="x"></i>
+            </button>
+          </div>
+        </div>
+
+        <div class="convo-chat-area" id="convoMessagesList">
+          <div class="skeleton-card" aria-busy="true"></div>
+        </div>
+      </div>
+    </div>
+
   </div>
 
   <script src="app.js"></script>

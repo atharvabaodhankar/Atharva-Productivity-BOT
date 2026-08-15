@@ -74,7 +74,7 @@ exports.handler = async (event, context) => {
             photoUrl = fileLink.href || String(fileLink);
           }
         } catch (e) {
-          // Fallback if private or not set
+          // Fallback
         }
 
         return {
@@ -184,11 +184,29 @@ exports.handler = async (event, context) => {
         }
 
         const totalUsers = await User.countDocuments();
-        const users = await User.find().sort({ createdAt: -1 }).limit(20);
+        const users = await User.find().sort({ createdAt: -1 }).limit(25);
         const totalTasks = await Memory.countDocuments();
         const pendingTasks = await Memory.countDocuments({ completed: false });
         const completedTasks = await Memory.countDocuments({ completed: true });
         const totalMessages = await History.countDocuments();
+
+        // Enrich users list with message counts & latest message
+        const enrichedUsers = await Promise.all(
+          users.map(async (u) => {
+            const msgCount = await History.countDocuments({ chatId: u.telegramId });
+            const lastMsg = await History.findOne({ chatId: u.telegramId }).sort({ createdAt: -1 });
+            return {
+              _id: u._id,
+              telegramId: u.telegramId,
+              firstName: u.firstName,
+              username: u.username,
+              createdAt: u.createdAt,
+              messageCount: msgCount,
+              lastMessageSnippet: lastMsg ? lastMsg.content.slice(0, 45) + (lastMsg.content.length > 45 ? "..." : "") : "No messages yet",
+              lastActive: lastMsg ? lastMsg.createdAt : u.createdAt,
+            };
+          })
+        );
 
         return {
           statusCode: 200,
@@ -199,7 +217,44 @@ exports.handler = async (event, context) => {
             pendingTasks,
             completedTasks,
             totalMessages,
-            users,
+            users: enrichedUsers,
+          }),
+        };
+      }
+
+      // GET /api/admin/conversations (Owner Only)
+      if (rawPath === "/api/admin/conversations" && httpMethod === "GET") {
+        const reqChatId = String(queryParams.chatId || "").trim();
+        const configuredAdminId = String(process.env.CHAT_ID || CHAT_ID || "5275149287").trim();
+
+        if (reqChatId !== "5275149287" && reqChatId !== configuredAdminId) {
+          return {
+            statusCode: 403,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ error: "Unauthorized" }),
+          };
+        }
+
+        const targetChatId = queryParams.targetChatId;
+        if (!targetChatId) {
+          return {
+            statusCode: 400,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ error: "targetChatId parameter is required" }),
+          };
+        }
+
+        const targetUser = await User.findOne({ telegramId: targetChatId });
+        const messages = await History.find({ chatId: targetChatId })
+          .sort({ createdAt: 1 })
+          .limit(100);
+
+        return {
+          statusCode: 200,
+          headers: CORS_HEADERS,
+          body: JSON.stringify({
+            targetUser: targetUser || { firstName: "Unknown User", telegramId: targetChatId },
+            messages,
           }),
         };
       }
