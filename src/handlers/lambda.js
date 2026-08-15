@@ -293,7 +293,7 @@ exports.handler = async (event, context) => {
 
         const targetUser = await User.findOne({ telegramId: targetChatId });
         const messages = await History.find({ chatId: targetChatId })
-          .sort({ createdAt: 1 })
+          .sort({ createdAt: 1, _id: 1 })
           .limit(200);
 
         const safeUser = targetUser

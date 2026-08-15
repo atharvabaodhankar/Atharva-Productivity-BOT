@@ -65,11 +65,9 @@ module.exports = (bot) => {
         senderName: ctx.from?.first_name || "Friend",
       });
 
-      // Save history asynchronously
-      await History.create([
-        { chatId, role: "user", content: userMessage },
-        { chatId, role: "assistant", content: reply },
-      ]);
+      // Save history sequentially so user message always has earlier timestamp and ID
+      await History.create({ chatId, role: "user", content: userMessage });
+      await History.create({ chatId, role: "assistant", content: reply });
 
       ctx.reply(reply, {
         reply_to_message_id: isGroup ? ctx.message.message_id : undefined,

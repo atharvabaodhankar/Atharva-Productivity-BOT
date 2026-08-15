@@ -218,7 +218,15 @@ async function loadConversationMessages(isInitialSelect = false) {
     const data = await res.json();
 
     if (data && data.messages) {
-      const incomingMessages = data.messages;
+      // Sort messages deterministically so user prompt ALWAYS precedes assistant reply
+      const incomingMessages = (data.messages || []).sort((a, b) => {
+        const timeA = new Date(a.createdAt).getTime();
+        const timeB = new Date(b.createdAt).getTime();
+        if (timeA !== timeB) return timeA - timeB;
+        if (a.role === "user" && b.role === "assistant") return -1;
+        if (a.role === "assistant" && b.role === "user") return 1;
+        return (a._id || "").localeCompare(b._id || "");
+      });
 
       // 1. Initial Load or Thread Switch
       if (isInitialSelect) {

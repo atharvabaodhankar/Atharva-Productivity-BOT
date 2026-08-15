@@ -701,7 +701,17 @@ async function loadConversationMessages(targetChatId) {
         return;
       }
 
-      convoMessagesList.innerHTML = data.messages
+      // Sort messages so user query always precedes assistant reply
+      const sortedMessages = data.messages.sort((a, b) => {
+        const timeA = new Date(a.createdAt).getTime();
+        const timeB = new Date(b.createdAt).getTime();
+        if (timeA !== timeB) return timeA - timeB;
+        if (a.role === "user" && b.role === "assistant") return -1;
+        if (a.role === "assistant" && b.role === "user") return 1;
+        return (a._id || "").localeCompare(b._id || "");
+      });
+
+      convoMessagesList.innerHTML = sortedMessages
         .map((msg) => {
           const isUser = msg.role === "user";
           const roleLabel = isUser ? "User" : "AtharvaOS";

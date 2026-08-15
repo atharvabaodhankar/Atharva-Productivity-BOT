@@ -70,10 +70,13 @@ module.exports = (bot) => {
         senderName: ctx.from?.first_name || "Friend",
       });
 
-      await History.create([
-        { chatId, role: "user", content: caption ? `[Photo] ${caption}` : "[Photo]" },
-        { chatId, role: "assistant", content: reply },
-      ]);
+      // Save history sequentially
+      await History.create({
+        chatId,
+        role: "user",
+        content: caption ? `[Photo] ${caption}` : "[Photo]",
+      });
+      await History.create({ chatId, role: "assistant", content: reply });
 
       ctx.reply(reply, {
         reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
