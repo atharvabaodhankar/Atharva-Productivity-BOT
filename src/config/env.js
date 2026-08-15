@@ -27,4 +27,5 @@ module.exports = {
   GROQ_API_KEYS: getGroqKeys(),
   MEME_API_URL: getEnv("MEME_API_URL"),
   MEME_API_KEY: getEnv("MEME_API_KEY"),
+  ADMIN_SECRET: getEnv("ADMIN_SECRET", "Atharva_SuperSecret_AdminKey_2026"),
 };

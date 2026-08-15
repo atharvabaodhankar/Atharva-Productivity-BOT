@@ -40,11 +40,28 @@ const server = http.createServer(async (req, res) => {
   // CORS Headers
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-admin-secret");
 
   if (req.method === "OPTIONS") {
     res.writeHead(200);
     return res.end();
+  }
+
+  // 0. AUTHENTICATION CLEARANCE GATE
+  const { ADMIN_SECRET } = require("./src/config/env");
+  const expectedSecret = process.env.ADMIN_SECRET || ADMIN_SECRET || "Atharva_SuperSecret_AdminKey_2026";
+  
+  let reqSecret = req.headers["x-admin-secret"];
+  try {
+    const parsedUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`);
+    if (!reqSecret) reqSecret = parsedUrl.searchParams.get("admin_secret");
+  } catch (e) {}
+
+  if (req.url.startsWith("/api/")) {
+    if (reqSecret !== expectedSecret) {
+      res.writeHead(401, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ error: "Unauthorized. Invalid or missing x-admin-secret header." }));
+    }
   }
 
   // 1. Direct Telegram Media Upload API

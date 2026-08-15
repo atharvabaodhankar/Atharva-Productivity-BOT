@@ -49,6 +49,21 @@ exports.handler = async (event, context) => {
     // 1. REST API ENDPOINTS FOR TELEGRAM MINI APP
     // -------------------------------------------------------------
     if (rawPath.startsWith("/api")) {
+      const headers = event.headers || {};
+      const reqSecret = headers["x-admin-secret"] || headers["X-Admin-Secret"] || queryParams.admin_secret || "";
+      const { ADMIN_SECRET } = require("../config/env");
+      const expectedSecret = process.env.ADMIN_SECRET || ADMIN_SECRET || "Atharva_SuperSecret_AdminKey_2026";
+
+      if (rawPath.includes("/admin") || rawPath === "/api/stats" || rawPath === "/api/conversations") {
+        if (reqSecret !== expectedSecret) {
+          return {
+            statusCode: 401,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ error: "Unauthorized. Invalid or missing x-admin-secret header." }),
+          };
+        }
+      }
+
       // GET /api/tasks?chatId=12345
       if (rawPath === "/api/tasks" && httpMethod === "GET") {
         const chatId = queryParams.chatId;

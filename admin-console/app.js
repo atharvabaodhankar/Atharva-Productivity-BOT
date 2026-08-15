@@ -20,6 +20,24 @@ function getApiUrl(path) {
   return `${REMOTE_API_BASE}${cleanPath.replace(/^\/api/, "")}`;
 }
 
+function getAdminSecret() {
+  let secret = sessionStorage.getItem("admin_secret");
+  if (!secret) {
+    secret = prompt("🔑 Enter AtharvaOS Mission Control Admin Key:") || "";
+    if (secret) sessionStorage.setItem("admin_secret", secret.trim());
+  }
+  return secret ? secret.trim() : "";
+}
+
+function authenticatedFetch(url, options = {}) {
+  const headers = options.headers || {};
+  const secret = getAdminSecret();
+  if (secret) {
+    headers["x-admin-secret"] = secret;
+  }
+  return fetch(url, { ...options, headers });
+}
+
 // Security Gate: Verify Owner Clearance
 function checkOwnerAccess() {
   if (IS_LOCAL_DEV) return true;
@@ -162,7 +180,7 @@ function formatRelativeTime(dateStr) {
 // 1. Fetch Users List (With Zero-Flicker Diff Check)
 async function fetchUsers() {
   try {
-    const res = await fetch(getApiUrl(`/stats?chatId=${OWNER_CHAT_ID}`));
+    const res = await authenticatedFetch(getApiUrl(`/stats?chatId=${OWNER_CHAT_ID}`));
     const data = await res.json();
 
     if (data && data.users) {
@@ -352,7 +370,7 @@ function openEditMessageModal(msg, rowEl) {
     saveBtn.textContent = "Saving...";
 
     try {
-      const res = await fetch(getApiUrl("/local-edit-message"), {
+      const res = await authenticatedFetch(getApiUrl("/local-edit-message"), {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -393,7 +411,7 @@ async function deleteAdminMessage(msg, rowEl) {
   rowEl.classList.add("deleting");
 
   try {
-    const res = await fetch(getApiUrl("/local-delete-message"), {
+    const res = await authenticatedFetch(getApiUrl("/local-delete-message"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
@@ -426,7 +444,7 @@ async function loadConversationMessages(isInitialSelect = false) {
   if (!activeTargetUser) return;
 
   try {
-    const res = await fetch(
+    const res = await authenticatedFetch(
       getApiUrl(`/admin/conversations?chatId=${OWNER_CHAT_ID}&targetChatId=${activeTargetUser.telegramId}`)
     );
     const data = await res.json();
@@ -589,7 +607,7 @@ async function sendMessage() {
   };
 
   try {
-    const res = await fetch(getApiUrl("/local-upload"), {
+    const res = await authenticatedFetch(getApiUrl("/local-upload"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(payload),
@@ -626,7 +644,7 @@ let cachedAlerts = [];
 
 async function fetchAlerts() {
   try {
-    const res = await fetch(getApiUrl("/admin/alerts"));
+    const res = await authenticatedFetch(getApiUrl("/admin/alerts"));
     const data = await res.json();
 
     if (data.ok || data.alerts) {
@@ -810,7 +828,7 @@ async function quickCastMeme(targetChatId) {
   try {
     showToast("🌶️ Fetching and transmitting random NSFW meme...", "success");
 
-    const res = await fetch(getApiUrl("/admin/send-random-meme"), {
+    const res = await authenticatedFetch(getApiUrl("/admin/send-random-meme"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ targetChatId }),
@@ -832,7 +850,7 @@ async function quickCastMeme(targetChatId) {
 
 async function executeMemeAction(requestId, action) {
   try {
-    const res = await fetch(getApiUrl("/admin/meme-action"), {
+    const res = await authenticatedFetch(getApiUrl("/admin/meme-action"), {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ requestId, action }),
@@ -865,7 +883,7 @@ function closeAlertsModal() {
 
 async function markAllAlertsAsRead() {
   try {
-    await fetch(getApiUrl("/admin/alerts/mark-read"), { method: "POST" });
+    await authenticatedFetch(getApiUrl("/admin/alerts/mark-read"), { method: "POST" });
     unreadAlertsCount = 0;
     lastAlertsCount = 0;
     cachedAlerts.forEach((a) => (a.isRead = true));
