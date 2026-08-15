@@ -63,14 +63,19 @@ async function sendTelegramMediaSafely(bot, targetChatId, mediaUrl, options = {}
     console.warn("sendTelegramMediaSafely media dispatch failed, falling back to message:", sendErr.message);
     const captionText = options.caption || "";
     const cleanUrl = mediaUrl;
-    return await bot.telegram.sendMessage(
-      targetChatId,
-      `${captionText}\n\n🖼️ <a href="${cleanUrl}">View Media</a>`,
-      {
-        parse_mode: "HTML",
-        reply_markup: tgOptions.reply_markup,
-      }
-    );
+    try {
+      return await bot.telegram.sendMessage(
+        targetChatId,
+        `${captionText}\n\n🖼️ <a href="${cleanUrl}">View Media Link</a>`,
+        {
+          parse_mode: "HTML",
+          reply_markup: tgOptions ? tgOptions.reply_markup : undefined,
+        }
+      );
+    } catch (fallbackErr) {
+      console.error("sendTelegramMediaSafely plain text fallback also failed:", fallbackErr.message);
+      return null;
+    }
   }
 }
 

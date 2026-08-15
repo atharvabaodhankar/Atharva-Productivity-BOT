@@ -78,11 +78,15 @@ module.exports = (bot) => {
           await History.create({ chatId, role: "assistant", content: waitMsg, telegramMessageId: sentMsg.message_id });
 
           // Send approval request to owner Telegram & Mission Control
-          await requestOwnerMemeApproval(bot, {
-            chatId,
-            userName: ctx.from?.first_name || "Friend",
-            username: ctx.from?.username || "",
-          });
+          try {
+            await requestOwnerMemeApproval(bot, {
+              chatId,
+              userName: ctx.from?.first_name || "Friend",
+              username: ctx.from?.username || "",
+            });
+          } catch (memeApprErr) {
+            console.error("Failed to request owner meme approval:", memeApprErr.message);
+          }
           return;
         } else if (isNo) {
           userDoc.awaitingMemeConfirmation = false;
