@@ -42,26 +42,32 @@ function authenticatedFetch(url, options = {}) {
 function checkOwnerAccess() {
   if (IS_LOCAL_DEV) return true;
 
+  // 1. If launched inside Telegram WebApp, check owner Telegram ID
   const telegramUserId = window.Telegram?.WebApp?.initDataUnsafe?.user?.id;
-  const isOwner = String(telegramUserId) === OWNER_CHAT_ID;
-
-  if (!isOwner) {
-    document.body.innerHTML = `
-      <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#0B0E14; color:#F8FAFC; font-family:monospace; text-align:center; padding:20px;">
-        <div style="font-size:3rem; margin-bottom:12px;">🛑</div>
-        <h1 style="font-size:1.4rem; color:#EF4444; margin-bottom:8px;">ACCESS DENIED</h1>
-        <p style="font-size:0.85rem; color:#94A3B8; max-width:420px; line-height:1.5;">
-          AtharvaOS Mission Control is exclusively restricted to the Creator (Atharva Baodhankar). Unauthorized access is blocked.
-        </p>
-      </div>
-    `;
-    return false;
+  if (telegramUserId && String(telegramUserId) === OWNER_CHAT_ID) {
+    return true;
   }
-  return true;
+
+  // 2. If opened in standard web browser (e.g. Vercel), require secret admin key
+  const secret = getAdminSecret();
+  if (secret) {
+    return true;
+  }
+
+  document.body.innerHTML = `
+    <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#0B0E14; color:#F8FAFC; font-family:monospace; text-align:center; padding:20px;">
+      <div style="font-size:3rem; margin-bottom:12px;">🛑</div>
+      <h1 style="font-size:1.4rem; color:#EF4444; margin-bottom:8px;">ACCESS DENIED</h1>
+      <p style="font-size:0.85rem; color:#94A3B8; max-width:420px; line-height:1.5;">
+        AtharvaOS Mission Control is exclusively restricted to the Creator (Atharva Baodhankar). Valid Admin Key required.
+      </p>
+    </div>
+  `;
+  return false;
 }
 
 if (!checkOwnerAccess()) {
-  throw new Error("Unauthorized WebApp Access Blocked.");
+  throw new Error("Unauthorized Access Blocked.");
 }
 
 // State
