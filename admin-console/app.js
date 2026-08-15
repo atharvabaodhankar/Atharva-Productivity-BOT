@@ -464,12 +464,27 @@ async function deleteAdminMessage(msg, rowEl) {
 // Load Conversation Messages
 async function loadConversationMessages(isInitialSelect = false) {
   if (!activeTargetUser) return;
+  const currentChatId = activeTargetUser.telegramId;
+
+  if (isInitialSelect) {
+    messagesStreamEl.innerHTML = `
+      <div class="empty-state-canvas" style="padding:40px 0;">
+        <span class="upload-spinner" style="width:24px; height:24px; margin-bottom:12px;"></span>
+        <h3 style="font-size:0.9rem; color:var(--text-secondary);">LOADING CONVERSATION...</h3>
+      </div>
+    `;
+  }
 
   try {
     const res = await authenticatedFetch(
-      getApiUrl(`/admin/conversations?chatId=${OWNER_CHAT_ID}&targetChatId=${activeTargetUser.telegramId}`)
+      getApiUrl(`/admin/conversations?chatId=${OWNER_CHAT_ID}&targetChatId=${currentChatId}`)
     );
     const data = await res.json();
+
+    // Guard: Ensure user hasn't switched threads while fetch was in-flight
+    if (!activeTargetUser || activeTargetUser.telegramId !== currentChatId) {
+      return;
+    }
 
     if (data && data.messages) {
       const incomingMessages = (data.messages || []).sort((a, b) => {
@@ -484,6 +499,19 @@ async function loadConversationMessages(isInitialSelect = false) {
       if (isInitialSelect) {
         messagesStreamEl.innerHTML = "";
         activeMessages = incomingMessages;
+
+        if (incomingMessages.length === 0) {
+          messagesStreamEl.innerHTML = `
+            <div class="empty-state-canvas">
+              <i data-lucide="message-square-dashed" class="empty-icon"></i>
+              <h3>NO MESSAGES YET</h3>
+              <p>Type a message below to start chatting with ${escapeHtml(activeTargetUser.firstName || "this user")} as AtharvaOS.</p>
+            </div>
+          `;
+          refreshIcons();
+          return;
+        }
+
         incomingMessages.forEach((msg) => {
           messagesStreamEl.appendChild(createMessageNode(msg));
         });
@@ -492,11 +520,15 @@ async function loadConversationMessages(isInitialSelect = false) {
         return;
       }
 
-      // Smart Diff Check
+      // Smart Diff Check for Auto-Polling updates
       const existingIds = new Set(activeMessages.map((m) => m._id));
       const newMsgs = incomingMessages.filter((m) => !existingIds.has(m._id));
 
       if (newMsgs.length > 0) {
+        // Clear empty state canvas if new messages arrived
+        const emptyCanvas = messagesStreamEl.querySelector(".empty-state-canvas");
+        if (emptyCanvas) emptyCanvas.remove();
+
         newMsgs.forEach((msg) => {
           activeMessages.push(msg);
           messagesStreamEl.appendChild(createMessageNode(msg));
@@ -507,6 +539,16 @@ async function loadConversationMessages(isInitialSelect = false) {
     }
   } catch (err) {
     console.error("Failed to load conversation messages:", err);
+    if (isInitialSelect && activeTargetUser && activeTargetUser.telegramId === currentChatId) {
+      messagesStreamEl.innerHTML = `
+        <div class="empty-state-canvas">
+          <i data-lucide="alert-circle" class="empty-icon" style="color:var(--accent-red);"></i>
+          <h3>FAILED TO LOAD CONVERSATION</h3>
+          <p>Click refresh above or pick another thread to retry.</p>
+        </div>
+      `;
+      refreshIcons();
+    }
   }
 }
 
