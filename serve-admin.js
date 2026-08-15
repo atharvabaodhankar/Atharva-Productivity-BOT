@@ -29,6 +29,7 @@ const historySchema = new mongoose.Schema(
   { timestamps: true }
 );
 const History = mongoose.models.History || mongoose.model("History", historySchema);
+const Alert = require("./src/models/Alert");
 
 const MIME_TYPES = {
   ".html": "text/html",
@@ -296,7 +297,34 @@ const server = http.createServer(async (req, res) => {
     return;
   }
 
-  // 4. Static File Server
+  // 4. Admin Security & Easter Egg Alerts API
+  if (req.url === "/api/admin/alerts" && req.method === "GET") {
+    try {
+      const alerts = await Alert.find().sort({ createdAt: -1 }).limit(30);
+      const unreadCount = await Alert.countDocuments({ isRead: false });
+
+      res.writeHead(200, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ ok: true, alerts, unreadCount }));
+    } catch (err) {
+      console.error("Alerts fetch error:", err);
+      res.writeHead(500, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ ok: false, error: err.message }));
+    }
+  }
+
+  if (req.url === "/api/admin/alerts/mark-read" && req.method === "POST") {
+    try {
+      await Alert.updateMany({ isRead: false }, { isRead: true });
+      res.writeHead(200, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ ok: true, message: "All alerts marked as read" }));
+    } catch (err) {
+      console.error("Alerts mark-read error:", err);
+      res.writeHead(500, { "Content-Type": "application/json" });
+      return res.end(JSON.stringify({ ok: false, error: err.message }));
+    }
+  }
+
+  // 5. Static File Server
   let filePath = path.join(ADMIN_DIR, req.url === "/" ? "index.html" : req.url.split("?")[0]);
   const ext = path.extname(filePath).toLowerCase();
   const contentType = MIME_TYPES[ext] || "application/octet-stream";

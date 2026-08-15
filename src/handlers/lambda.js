@@ -4,6 +4,7 @@ const { CHAT_ID } = require("../config/env");
 const User = require("../models/User");
 const Memory = require("../models/Memory");
 const History = require("../models/History");
+const Alert = require("../models/Alert");
 const {
   checkUpcomingReminders,
   sendDailySummary,
@@ -534,6 +535,45 @@ exports.handler = async (event, context) => {
             statusCode: 500,
             headers: CORS_HEADERS,
             body: JSON.stringify({ error: `Edit failed: ${editErr.message}` }),
+          };
+        }
+      }
+
+      // 1.5 ADMIN ALERTS / NOTIFICATIONS ENDPOINTS
+      if (rawPath.endsWith("/api/admin/alerts") && httpMethod === "GET") {
+        try {
+          const alerts = await Alert.find().sort({ createdAt: -1 }).limit(30);
+          const unreadCount = await Alert.countDocuments({ isRead: false });
+
+          return {
+            statusCode: 200,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ ok: true, alerts, unreadCount }),
+          };
+        } catch (alertErr) {
+          console.error("Failed to fetch alerts:", alertErr);
+          return {
+            statusCode: 500,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ error: `Alerts fetch failed: ${alertErr.message}` }),
+          };
+        }
+      }
+
+      if (rawPath.endsWith("/api/admin/alerts/mark-read") && httpMethod === "POST") {
+        try {
+          await Alert.updateMany({ isRead: false }, { isRead: true });
+          return {
+            statusCode: 200,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ ok: true, message: "Alerts marked as read" }),
+          };
+        } catch (markErr) {
+          console.error("Failed to mark alerts read:", markErr);
+          return {
+            statusCode: 500,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ error: `Mark read failed: ${markErr.message}` }),
           };
         }
       }

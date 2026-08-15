@@ -13,6 +13,8 @@ let stagedMediaFileName = "";
 let stagedMediaType = "";
 let isSpoilerActive = false;
 let isAutoPollActive = true;
+let unreadAlertsCount = 0;
+let lastAlertsCount = 0;
 
 // DOM Elements
 const usersListEl = document.getElementById("usersListEl");
@@ -26,6 +28,12 @@ const activeUserMeta = document.getElementById("activeUserMeta");
 const liveClock = document.getElementById("liveClock");
 const autoPollToggleBtn = document.getElementById("autoPollToggleBtn");
 const manualRefreshBtn = document.getElementById("manualRefreshBtn");
+const alertsToggleBtn = document.getElementById("alertsToggleBtn");
+const alertsBadgeCount = document.getElementById("alertsBadgeCount");
+const alertsModalOverlay = document.getElementById("alertsModalOverlay");
+const closeAlertsModalBtn = document.getElementById("closeAlertsModalBtn");
+const markAlertsReadBtn = document.getElementById("markAlertsReadBtn");
+const alertsListBody = document.getElementById("alertsListBody");
 
 const messagesStreamEl = document.getElementById("messagesStreamEl");
 const mediaStagingBar = document.getElementById("mediaStagingBar");
@@ -732,6 +740,151 @@ window.addEventListener("paste", (e) => {
   }
 });
 
+// 9. Easter Egg & Security Alerts System
+let cachedAlerts = [];
+
+async function fetchAlerts() {
+  try {
+    const alertsUrl = window.location.origin.includes("localhost")
+      ? "/api/admin/alerts"
+      : `${API_BASE_URL}/admin/alerts`;
+
+    const res = await fetch(alertsUrl);
+    const data = await res.json();
+
+    if (data.ok || data.alerts) {
+      cachedAlerts = data.alerts || [];
+      unreadAlertsCount = data.unreadCount || 0;
+
+      // Update Header Bell Badge
+      if (alertsBadgeCount) {
+        if (unreadAlertsCount > 0) {
+          alertsBadgeCount.textContent = `${unreadAlertsCount} NEW`;
+          alertsBadgeCount.style.display = "inline-block";
+          alertsToggleBtn.classList.add("has-alerts");
+        } else {
+          alertsBadgeCount.style.display = "none";
+          alertsToggleBtn.classList.remove("has-alerts");
+        }
+      }
+
+      // Check if new alert just triggered
+      if (unreadAlertsCount > lastAlertsCount && cachedAlerts.length > 0) {
+        const topAlert = cachedAlerts[0];
+        showToast(`🚨 Easter Egg Trigger: "${topAlert.trigger}" by ${topAlert.userName || "User"}!`, "error");
+      }
+      lastAlertsCount = unreadAlertsCount;
+    }
+  } catch (err) {
+    console.warn("Failed to fetch alerts:", err);
+  }
+}
+
+function renderAlertsModal() {
+  if (!alertsListBody) return;
+
+  if (cachedAlerts.length === 0) {
+    alertsListBody.innerHTML = `
+      <div class="empty-state-canvas" style="padding: 20px 0;">
+        <i data-lucide="shield-check" class="empty-icon"></i>
+        <h3>NO ALERTS</h3>
+        <p>No secret commands or easter egg triggers detected yet.</p>
+      </div>
+    `;
+    refreshIcons();
+    return;
+  }
+
+  alertsListBody.innerHTML = cachedAlerts
+    .map((alert) => {
+      const timeStr = alert.createdAt
+        ? new Date(alert.createdAt).toLocaleString("en-IN", {
+            hour: "2-digit",
+            minute: "2-digit",
+            day: "numeric",
+            month: "short",
+          })
+        : "";
+
+      const typeLabel = alert.type === "NSFW_TRIGGER" ? "NSFW / SPOILER" : alert.type || "EASTER_EGG";
+
+      return `
+        <div class="alert-item-card ${alert.isRead ? "" : "unread"}" data-chat-id="${alert.chatId}">
+          <div class="alert-item-header">
+            <span class="alert-type-tag">${escapeHtml(typeLabel)}</span>
+            <span class="alert-time">${escapeHtml(timeStr)}</span>
+          </div>
+          <div class="alert-user-row">
+            <span>${escapeHtml(alert.userName || "User")}</span>
+            <span class="alert-user-handle">${alert.username ? `@${escapeHtml(alert.username)}` : `ID: ${alert.chatId}`}</span>
+          </div>
+          <div class="alert-message-box">
+            🎯 <strong>${escapeHtml(alert.trigger)}</strong>: "${escapeHtml(alert.message)}"
+          </div>
+        </div>
+      `;
+    })
+    .join("");
+
+  // Attach click to jump into user thread
+  alertsListBody.querySelectorAll(".alert-item-card").forEach((card) => {
+    card.addEventListener("click", () => {
+      const targetChatId = Number(card.dataset.chatId);
+      const user = allUsers.find((u) => u.telegramId === targetChatId);
+      if (user) {
+        selectUserThread(user);
+        closeAlertsModal();
+      } else {
+        showToast("User conversation loaded in directory.", "success");
+      }
+    });
+  });
+
+  refreshIcons();
+}
+
+function openAlertsModal() {
+  renderAlertsModal();
+  alertsModalOverlay.style.display = "flex";
+}
+
+function closeAlertsModal() {
+  alertsModalOverlay.style.display = "none";
+}
+
+async function markAllAlertsAsRead() {
+  try {
+    const markUrl = window.location.origin.includes("localhost")
+      ? "/api/admin/alerts/mark-read"
+      : `${API_BASE_URL}/admin/alerts/mark-read`;
+
+    await fetch(markUrl, { method: "POST" });
+    unreadAlertsCount = 0;
+    lastAlertsCount = 0;
+    cachedAlerts.forEach((a) => (a.isRead = true));
+    if (alertsBadgeCount) alertsBadgeCount.style.display = "none";
+    renderAlertsModal();
+    showToast("✅ All alerts marked as read.", "success");
+  } catch (err) {
+    showToast("❌ Failed to mark alerts as read.", "error");
+  }
+}
+
+if (alertsToggleBtn) {
+  alertsToggleBtn.addEventListener("click", openAlertsModal);
+}
+if (closeAlertsModalBtn) {
+  closeAlertsModalBtn.addEventListener("click", closeAlertsModal);
+}
+if (markAlertsReadBtn) {
+  markAlertsReadBtn.addEventListener("click", markAllAlertsAsRead);
+}
+if (alertsModalOverlay) {
+  alertsModalOverlay.addEventListener("click", (e) => {
+    if (e.target === alertsModalOverlay) closeAlertsModal();
+  });
+}
+
 // 7. Event Listeners & Shortcuts
 sendBtn.addEventListener("click", sendMessage);
 
@@ -768,6 +921,7 @@ function startPolling() {
         await loadConversationMessages();
       }
       await fetchUsers();
+      await fetchAlerts();
     }
   }, 4000);
 
@@ -778,6 +932,7 @@ function startPolling() {
         await loadConversationMessages();
       }
       await fetchUsers();
+      await fetchAlerts();
     }
   });
 }
@@ -786,6 +941,7 @@ function startPolling() {
 document.addEventListener("DOMContentLoaded", () => {
   startLiveClock();
   fetchUsers();
+  fetchAlerts();
   startPolling();
   refreshIcons();
 });

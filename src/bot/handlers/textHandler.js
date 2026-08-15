@@ -1,6 +1,11 @@
 const { askAI } = require("../../ai/aiService");
 const History = require("../../models/History");
 const GroupConfig = require("../../models/GroupConfig");
+const {
+  checkEasterEggOrNsfw,
+  triggerAlertAndNotify,
+  getRandomResponse,
+} = require("../../utils/easterEggDetector");
 
 const MENTION_REGEX = /@Atharva_Produtivity_Bot|@Atharva_Productivity_Bot|@AtharvaOS/gi;
 
@@ -45,6 +50,39 @@ module.exports = (bot) => {
             reply_to_message_id: ctx.message.message_id,
           });
         }
+      }
+
+      // 2. Check for Easter Eggs or NSFW triggers
+      const detectedTrigger = checkEasterEggOrNsfw(userMessage);
+      if (detectedTrigger) {
+        const easterEggReply = getRandomResponse();
+
+        await triggerAlertAndNotify({
+          chatId,
+          userName: ctx.from?.first_name || "Friend",
+          username: ctx.from?.username || "",
+          type: detectedTrigger.type,
+          trigger: detectedTrigger.trigger,
+          text: userMessage,
+        });
+
+        const sentMsg = await ctx.reply(easterEggReply, {
+          reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
+        });
+
+        await History.create({
+          chatId,
+          role: "user",
+          content: userMessage,
+          telegramMessageId: ctx.message.message_id,
+        });
+        await History.create({
+          chatId,
+          role: "assistant",
+          content: easterEggReply,
+          telegramMessageId: sentMsg.message_id,
+        });
+        return;
       }
 
       // Fetch last 5 messages for conversation context
