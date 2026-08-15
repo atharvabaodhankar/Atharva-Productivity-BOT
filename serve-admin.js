@@ -65,7 +65,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // 1. Direct Telegram Media Upload API
-  if (req.url === "/api/local-upload" && req.method === "POST") {
+  if (req.url.startsWith("/api/local-upload") && req.method === "POST") {
     let body = "";
     req.on("data", (chunk) => {
       body += chunk;
@@ -130,12 +130,26 @@ const server = http.createServer(async (req, res) => {
         }
 
         // Transmit to Telegram API
-        const tgRes = await fetch(telegramApiUrl, {
+        let tgRes = await fetch(telegramApiUrl, {
           method: "POST",
           body: formData,
         });
 
-        const tgData = await tgRes.json();
+        let tgData = await tgRes.json();
+
+        // Automatic Fallback: If Telegram HTML entity parsing fails, retry delivering plain text
+        if (!tgData.ok && (tgData.description || "").toLowerCase().includes("parse")) {
+          console.warn("Telegram HTML parse_mode error, retrying delivery with plain text fallback...");
+          const plainFormData = new FormData();
+          plainFormData.append("chat_id", String(targetChatId));
+          plainFormData.append("text", text || caption || "Hello!");
+
+          tgRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+            method: "POST",
+            body: plainFormData,
+          });
+          tgData = await tgRes.json();
+        }
 
         if (!tgData.ok) {
           console.error("Telegram API Error:", tgData);
@@ -180,7 +194,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // 2. Direct Telegram Message Deletion API
-  if (req.url === "/api/local-delete-message" && req.method === "POST") {
+  if (req.url.startsWith("/api/local-delete-message") && req.method === "POST") {
     let body = "";
     req.on("data", (chunk) => {
       body += chunk;
@@ -231,7 +245,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // 3. Direct Telegram Message Edit API
-  if (req.url === "/api/local-edit-message" && req.method === "POST") {
+  if (req.url.startsWith("/api/local-edit-message") && req.method === "POST") {
     let body = "";
     req.on("data", (chunk) => {
       body += chunk;
@@ -310,7 +324,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // 4. Admin Security & Easter Egg Alerts API
-  if (req.url === "/api/admin/alerts" && req.method === "GET") {
+  if (req.url.startsWith("/api/admin/alerts") && !req.url.includes("mark-read") && req.method === "GET") {
     try {
       const alerts = await Alert.find().sort({ createdAt: -1 }).limit(30);
       const unreadCount = await Alert.countDocuments({ isRead: false });
@@ -324,7 +338,7 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  if (req.url === "/api/admin/alerts/mark-read" && req.method === "POST") {
+  if (req.url.startsWith("/api/admin/alerts/mark-read") && req.method === "POST") {
     try {
       await Alert.updateMany({ isRead: false }, { isRead: true });
       res.writeHead(200, { "Content-Type": "application/json" });
@@ -337,7 +351,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // 5. Admin Meme Approval / Rejection API
-  if (req.url === "/api/admin/meme-action" && req.method === "POST") {
+  if (req.url.startsWith("/api/admin/meme-action") && req.method === "POST") {
     let body = "";
     req.on("data", (chunk) => {
       body += chunk;
@@ -365,7 +379,7 @@ const server = http.createServer(async (req, res) => {
   }
 
   // 6. Direct Quick-Cast Random Meme API
-  if (req.url === "/api/admin/send-random-meme" && req.method === "POST") {
+  if (req.url.startsWith("/api/admin/send-random-meme") && req.method === "POST") {
     let body = "";
     req.on("data", (chunk) => {
       body += chunk;

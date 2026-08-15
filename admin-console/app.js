@@ -553,8 +553,8 @@ function clearStagedMedia() {
   stagedMediaBase64 = null;
   stagedMediaFileName = "";
   stagedMediaType = "";
-  mediaFileInput.value = "";
-  mediaPreviewBar.style.display = "none";
+  if (mediaFileInput) mediaFileInput.value = "";
+  if (mediaPreviewBar) mediaPreviewBar.style.display = "none";
 }
 
 if (attachMediaBtn && mediaFileInput) {
