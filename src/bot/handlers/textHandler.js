@@ -6,7 +6,7 @@ const {
   triggerAlertAndNotify,
   getRandomResponse,
 } = require("../../utils/easterEggDetector");
-const { sendTelegramFormatted } = require("../../utils/telegramFormatter");
+const { sendTelegramFormatted, sendTelegramHumanPaced } = require("../../utils/telegramFormatter");
 
 const MENTION_REGEX = /@Atharva_Produtivity_Bot|@Atharva_Productivity_Bot|@AtharvaOS/gi;
 
@@ -208,9 +208,11 @@ module.exports = (bot) => {
         }
       }
 
-      const sentMsg = await sendTelegramFormatted(ctx, reply, {
+      const sentMsgs = await sendTelegramHumanPaced(ctx, reply, {
         reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
       });
+
+      const firstSent = Array.isArray(sentMsgs) ? sentMsgs[0] : sentMsgs;
 
       // Save history with telegramMessageId for full deletion/edit support
       await History.create({
@@ -223,7 +225,7 @@ module.exports = (bot) => {
         chatId,
         role: "assistant",
         content: reply,
-        telegramMessageId: sentMsg.message_id,
+        telegramMessageId: firstSent?.message_id || null,
       });
     } catch (error) {
       console.error("Text handler error:", error);
