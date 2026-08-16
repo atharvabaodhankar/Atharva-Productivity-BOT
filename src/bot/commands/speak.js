@@ -1,4 +1,4 @@
-const { getAiResponse } = require("../../ai/aiService");
+const { askAI } = require("../../ai/aiService");
 const { checkVoiceQuota, sendAiVoiceReply, DAILY_VOICE_LIMIT } = require("../../services/voiceService");
 const User = require("../../models/User");
 const History = require("../../models/History");
@@ -38,8 +38,6 @@ module.exports = (bot) => {
       // 3. Inform user and show Telegram "Recording Voice" action
       await ctx.sendChatAction("record_voice");
 
-      const user = await User.findOne({ telegramId: chatId });
-
       // Save user prompt in history
       await History.create({
         chatId: Number(chatId),
@@ -48,15 +46,13 @@ module.exports = (bot) => {
         telegramMessageId: ctx.message.message_id,
       });
 
-      // 4. Generate AI response via Groq
-      const systemInstruction = "Speak directly to the user in a natural, conversational, and energetic tone suitable for spoken audio. Keep it under 80 words.";
-      const aiRes = await getAiResponse({
+      // 4. Generate AI response via Groq askAI
+      const replyText = await askAI({
+        message: `${prompt}\n\n[Note: Please reply concisely in a conversational spoken tone under 70 words, suitable for a voice note speech.]`,
         chatId,
-        userMessage: `${prompt}\n\n[Note: This response will be read aloud as a voice note. Keep it punchy, engaging, and spoken-friendly.]`,
-        user,
+        isGroup,
+        senderName: ctx.from?.first_name || "Friend",
       });
-
-      const replyText = aiRes?.text || "Hey! I am AtharvaOS, your productivity copilot. Let's make today count!";
 
       // 5. Synthesize speech and send native Telegram Voice Note
       try {

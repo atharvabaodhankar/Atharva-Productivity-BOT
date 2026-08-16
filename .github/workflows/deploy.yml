@@ -41,7 +41,16 @@ jobs:
           MEME_API_URL: ${{ secrets.MEME_API_URL }}
           MEME_API_KEY: ${{ secrets.MEME_API_KEY }}
           ADMIN_SECRET: ${{ secrets.ADMIN_SECRET }}
+          AWS_ACCESS_KEY_ID_SECRET: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY_SECRET: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         run: |
+          echo "Attaching Amazon Polly permissions to Lambda Execution Role..."
+          ROLE_NAME=$(aws lambda get-function --function-name AtharvaOS-Bot --query 'Configuration.Role' --output text | awk -F'/' '{print $NF}')
+          if [ -n "$ROLE_NAME" ]; then
+            echo "Attaching AmazonPollyReadOnlyAccess to role: $ROLE_NAME"
+            aws iam attach-role-policy --role-name "$ROLE_NAME" --policy-arn "arn:aws:iam::aws:policy/AmazonPollyReadOnlyAccess" || true
+          fi
+
           echo "Packaging application..."
           zip -rq function.zip . -x ".git/*" ".github/*" ".env*" "README.md" "*.log"
           
@@ -57,7 +66,7 @@ jobs:
           echo "Updating Lambda environment variables..."
           aws lambda update-function-configuration \
             --function-name AtharvaOS-Bot \
-            --environment "Variables={BOT_TOKEN=\"$BOT_TOKEN\",CHAT_ID=\"$CHAT_ID\",MONGO_URI=\"$MONGO_URI\",GROQ_API_KEY=\"$GROQ_API_KEY\",MEME_API_URL=\"$MEME_API_URL\",MEME_API_KEY=\"$MEME_API_KEY\",ADMIN_SECRET=\"$ADMIN_SECRET\"}"
+            --environment "Variables={BOT_TOKEN=\"$BOT_TOKEN\",CHAT_ID=\"$CHAT_ID\",MONGO_URI=\"$MONGO_URI\",GROQ_API_KEY=\"$GROQ_API_KEY\",MEME_API_URL=\"$MEME_API_URL\",MEME_API_KEY=\"$MEME_API_KEY\",ADMIN_SECRET=\"$ADMIN_SECRET\",AWS_REGION=\"ap-south-1\",AWS_ACCESS_KEY_ID=\"$AWS_ACCESS_KEY_ID_SECRET\",AWS_SECRET_ACCESS_KEY=\"$AWS_SECRET_ACCESS_KEY_SECRET\"}"
 
           echo "Waiting for configuration update to complete..."
           aws lambda wait function-updated \
