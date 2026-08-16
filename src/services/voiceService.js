@@ -78,7 +78,7 @@ async function checkVoiceQuota(chatId) {
 }
 
 // Synthesize audio using Amazon Polly Standard Matthew Voice (100% Free Tier)
-async function synthesizeSpeech(text, voiceId = "Matthew") {
+async function synthesizeSpeech(text, voiceId = "Matthew", format = "mp3") {
   const clean = cleanTextForSpeech(text);
   if (!clean) {
     throw new Error("No readable text found to synthesize.");
@@ -87,16 +87,32 @@ async function synthesizeSpeech(text, voiceId = "Matthew") {
   const command = new SynthesizeSpeechCommand({
     Engine: "standard",
     VoiceId: voiceId, // Standard Matthew Voice
-    OutputFormat: "ogg_vorbis",
+    OutputFormat: format, // "mp3" or "ogg_vorbis"
     Text: clean,
   });
 
   const response = await polly.send(command);
   const stream = response.AudioStream;
 
+  if (!stream) {
+    throw new Error("Polly did not return an audio stream.");
+  }
+
+  // Handle standard stream / buffer / Uint8Array across AWS SDK v3 versions
+  if (Buffer.isBuffer(stream)) {
+    return stream;
+  }
+  if (stream instanceof Uint8Array) {
+    return Buffer.from(stream);
+  }
+  if (typeof stream.transformToByteArray === "function") {
+    const bytes = await stream.transformToByteArray();
+    return Buffer.from(bytes);
+  }
+
   const chunks = [];
   for await (const chunk of stream) {
-    chunks.push(chunk);
+    chunks.push(typeof chunk === "string" ? Buffer.from(chunk) : chunk);
   }
   return Buffer.concat(chunks);
 }
@@ -104,11 +120,11 @@ async function synthesizeSpeech(text, voiceId = "Matthew") {
 // Send AI Voice Reply via Telegram bot
 async function sendAiVoiceReply(bot, chatId, text, options = {}) {
   const voiceId = options.voiceId || "Matthew";
-  const audioBuffer = await synthesizeSpeech(text, voiceId);
+  const audioBuffer = await synthesizeSpeech(text, voiceId, "mp3");
 
   const sentMsg = await bot.telegram.sendVoice(
     chatId,
-    { source: audioBuffer, filename: "voice_reply.ogg" },
+    { source: audioBuffer, filename: "voice_reply.mp3" },
     {
       caption: options.caption || "🎙️ <i>Spoken by AtharvaOS (Matthew AI Voice)</i>",
       parse_mode: "HTML",

@@ -62,9 +62,9 @@ module.exports = (bot) => {
           replyToMessageId: isGroup ? ctx.message.message_id : undefined,
         });
       } catch (voiceErr) {
-        console.error("Polly Voice Dispatch Error:", voiceErr.message);
+        console.error("Polly Voice Dispatch Error:", voiceErr);
         await ctx.reply(
-          `🎙️ <i>(Voice audio fallback)</i>\n\n${replyText}`,
+          `🎙️ <i>(Voice audio fallback — ${voiceErr.name || "Error"}: ${voiceErr.message || "Synthesis failed"})</i>\n\n${replyText}`,
           { parse_mode: "HTML", reply_to_message_id: isGroup ? ctx.message.message_id : undefined }
         );
       }
