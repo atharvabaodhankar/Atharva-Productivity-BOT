@@ -59,9 +59,7 @@ async function askAI({
     senderName,
   });
 
-  const model = base64ImageUrl
-    ? "qwen/qwen3.6-27b"
-    : "llama-3.3-70b-versatile";
+  const model = "qwen/qwen3.6-27b";
 
   const textPrompt =
     message || (base64ImageUrl ? "Analyze this image and extract any tasks or notes." : "");

@@ -174,7 +174,7 @@ CRITICAL INSTRUCTIONS FOR TOOLS:
 - If the user specifies a relative date/time (e.g. "tomorrow", "next Friday", "in 30 minutes"), parse it relative to the current local time: ${new Date().toString()}.
 `;
 
-  const model = base64ImageUrl ? "llama-3.2-11b-vision-preview" : "llama-3.3-70b-versatile";
+  const model = "qwen/qwen3.6-27b";
   const textPrompt = message || (base64ImageUrl ? "Analyze this image and perform necessary actions." : "");
 
   let userContent = textPrompt;
