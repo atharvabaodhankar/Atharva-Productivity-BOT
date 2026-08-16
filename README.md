@@ -1,369 +1,175 @@
-# AtharvaOS — Your Energetic Productivity Buddy! 🚀
+# AtharvaOS — AI Productivity Copilot & Mission Control 🚀
 
-AtharvaOS is an AI-powered personal productivity assistant built as a Telegram bot with PERSONALITY!
-It's like having that friend who roasts you lovingly but always has your back - keeping you motivated, cracking jokes, and making sure you crush your goals! 💪
+[![Telegram Bot](https://img.shields.io/badge/Telegram-Bot-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/Atharva_Produtivity_Bot)
+[![AWS Lambda](https://img.shields.io/badge/AWS-Lambda-FF9900?style=for-the-badge&logo=awslambda&logoColor=white)](https://aws.amazon.com/lambda/)
+[![Amazon Polly](https://img.shields.io/badge/Amazon-Polly_Voice-232F3E?style=for-the-badge&logo=amazonwebservices&logoColor=white)](https://aws.amazon.com/polly/)
+[![Groq AI](https://img.shields.io/badge/Groq-Llama_3.3_70B-F55036?style=for-the-badge)](https://groq.com/)
+[![MongoDB Atlas](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/atlas)
+[![Vercel](https://img.shields.io/badge/Vercel-Hosted-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/)
 
-This isn't just another boring productivity tool. AtharvaOS is your **hype man, accountability partner, and second brain** all rolled into one energetic package!
-
----
-
-## What Makes AtharvaOS Different? 🔥
-
-* **Fun & Energetic** - Uses Hinglish, cracks jokes, and keeps things entertaining
-* **Roasts You (Lovingly)** - Calls out procrastination with humor, never mean
-* **Celebrates Wins** - Goes CRAZY when you complete tasks! 🎉
-* **Smart Memory** - Remembers everything automatically
-* **Actually Helpful** - Real productivity advice, not generic BS
-
-Think of it as your future, more disciplined self... but way more fun! 😎
+**AtharvaOS** is a serverless AI personal productivity operating system and second brain designed as an energetic Telegram copilot, high-precision task planner, and monochrome mission control console.
 
 ---
 
-## Overview
+## 🌟 Superpowers & Core Features
 
-AtharvaOS is designed to:
+### 🎙️ 1. Amazon Polly AI Voice Notes (`/speak`)
+* **Spoken Audio Briefings:** Generate native Telegram voice notes using Amazon Polly's standard **Matthew** voice.
+* **Smart Speech Filter:** Automatically sanitizes markdown, URLs, code blocks, and formatting clutter into natural pronunciation.
+* **Slash Commands & Triggers:** Trigger via `/speak <prompt>`, `/voice <prompt>`, `/audio <prompt>`, or naturally saying *"speak to me"* or *"bol ke batao"*.
+* **Daily Quota Protection:** Unlimited for the Creator/Owner; 5 free voice notes per day for guest users.
 
-* Remember important information automatically
-* Track assignments, exams, projects, and goals
-* Provide context-aware AI responses
-* Suggest actionable next steps
-* Detect deadlines and send reminders
-* Encourage disciplined, consistent work habits
+### 📱 2. Telegram Mini App (Dual-Color Flo 101 Design)
+* **Safe Sandbox Experience:** Public mini app accessible via the Telegram menu button `[🔲 Open AtharvaOS]` with zero admin privilege leakage.
+* **Project-Task Hierarchy:** Seamlessly organize sub-tasks inside high-level project containers.
+* **Interactive SVG Progress Ring:** Real-time completion percentage, quick filters, and smooth micro-animations.
 
-Instead of using multiple productivity tools, AtharvaOS centralizes:
+### 🎛️ 3. Monochrome Mission Control (Admin POV Console)
+* **Live User Directory:** Monitor all active Telegram threads and conversation histories in real-time.
+* **Human Takeover & Media Dispatch:** Send live messages, photos, videos, and documents directly as the bot with instant Telegram delivery.
+* **Message Editing & Deletion:** Real-time bilateral deletion and text/caption editing synchronized with Telegram.
+* **Meme Approval & Quick-Cast:** Review user-requested memes with interactive confirmation modals or broadcast random memes instantly.
 
-* Notes
-* Tasks
-* Reminders
-* Ideas
-* Planning
+### 🎬 4. Reddit Video Streaming (`/video`)
+* **Binary Buffer Streaming:** Streams raw Reddit `.mp4` video buffers directly into Telegram with `{ supports_streaming: true }`, ensuring audio playback, scrubbing, and native media controls.
+* **Command:** `/video [subreddit]` (e.g. `/video dankvideos`, `/video wholesome`).
 
-inside a Telegram chat interface.
+### 🧠 5. Multi-Key AI Failover & Vision OCR
+* **Rotational Key Pool:** Automatic failover across multiple Groq API keys with exponential backoff.
+* **Vision Document Parser:** Snap a photo of a handwritten checklist or whiteboard notes, and AtharvaOS extracts and categorizes tasks automatically.
 
----
+### ⏰ 6. Serverless Cron Reminders (AWS EventBridge)
+* **Automated Cron Triggers:** 5-minute deadline monitors, 8:00 AM Morning Game Plans, and 10:00 PM Nightly Reflections powered by Amazon EventBridge.
 
-## Key Features
-
-## Personality Features 🎭
-
-### Energetic & Fun
-- Uses Hinglish (Hindi + English mix) - "bhai", "yaar", "chal", "arre"
-- Tons of emojis and energy! 🔥💪🚀
-- Gen-Z humor and meme references
-- Time-based greetings (morning/afternoon/evening)
-
-### Motivational Beast
-- Celebrates every win like it's the Super Bowl! 🎉
-- Provides instant motivation with `/motivate` command
-- Hypes you up when you're working hard
-- Reminds you of your "why" when you need it
-
-### Playful Roasting
-- Gently calls out procrastination with humor
-- `/roast` command for when you need tough love
-- Shows overdue tasks with funny warnings
-- Never mean, always supportive underneath
-
-### Smart & Helpful
-- Tracks pending task count for context
-- Shows days left on deadlines with urgency levels
-- Randomized responses keep it fresh
-- Actually useful productivity advice
+### 🛡️ 7. Enterprise Security Hardening
+* **Zero Hardcoded Secrets:** Strict environment variable governance for all API tokens and admin passkeys.
+* **ReDoS & RegExp Injection Protection:** User-supplied project and task queries are sanitized against regex injection.
+* **Path Traversal Guards:** File server enforces directory confinement against traversal exploits.
+* **DDoS & OOM Body Limits:** 35MB ceiling on all streaming payloads.
 
 ---
 
-## Key Features
+## 📋 Complete Command Reference
 
-### AI Productivity Assistant
-
-* Powered by Groq LLM
-* Acts as a focused, practical productivity coach
-* Provides step-by-step plans instead of generic advice
-* Uses stored memory to give personalized responses
-
----
-
-### Task Management Commands
-
-**NEW!** Complete task management system:
-
-* `/tasks` - View all pending tasks with IDs
-* `/reminders` - View active reminders
-* `/goals` - View your goals
-* `/today` - Get today's summary
-* `/done <id>` - Mark task as complete
-* `/delete <id>` - Delete a task/reminder
-* `/help` - View all available commands
+| Command | Description | Example |
+|---|---|---|
+| `/start` | Activate AtharvaOS and initialize user profile | `/start` |
+| `/tasks` | View all pending tasks categorized by deadline urgency | `/tasks` |
+| `/today` | Generate today's prioritized game plan | `/today` |
+| `/speak <prompt>` | Receive a spoken AI Voice Note (Matthew voice) | `/speak Summarize my focus for today!` |
+| `/video [sub]` | Stream a video buffer from any subreddit | `/video dankvideos` |
+| `/done <id>` | Mark a specific task as completed | `/done 6a813d35...` |
+| `/delete <id>` | Delete a task or reminder | `/delete 6a813d35...` |
+| `/reminders` | List active deadline reminders | `/reminders` |
+| `/goals` | View long-term objectives | `/goals` |
+| `/reflections` | View 7-day retrospective log | `/reflections` |
+| `/motivate` | Instant high-energy motivation boost | `/motivate` |
+| `/roast` | Playful, loving Hinglish roast | `/roast` |
+| `/help` | Comprehensive interactive command guide | `/help` |
 
 ---
 
-### Daily Summary (Auto-Scheduled)
+## 🏗️ System Architecture
 
-**NEW!** Every morning at 8 AM, receive:
+```mermaid
+flowchart TD
+    subgraph Telegram Client
+        TG["👤 User / Group Chat"]
+        MA["📱 Telegram Mini App (/webapp/)"]
+    end
 
-* Tasks due today
-* Upcoming deadlines
-* Motivational message to start your day
+    subgraph Mission Control
+        AC["🎛️ Admin Console (/admin-console/)"]
+    end
 
----
+    subgraph AWS Cloud
+        LAMBDA["⚡ AWS Lambda (atharvaos-bot)"]
+        EB["⏰ Amazon EventBridge (5m Cron)"]
+        POLLY["🎙️ Amazon Polly (Matthew Voice)"]
+    end
 
-### Automatic Memory System (Second Brain)
+    subgraph External Services
+        GROQ["🧠 Groq AI (Llama 3.3 70B & Vision)"]
+        MONGO["📦 MongoDB Atlas (Tasks, Transcripts, Alerts)"]
+        REDDIT["🎬 Reddit API (Videos & Memes)"]
+    end
 
-The bot automatically detects and stores important information such as:
+    TG <-->|"Webhook / Updates"| LAMBDA
+    MA <-->|"REST API"| LAMBDA
+    AC <-->|"x-admin-secret API"| LAMBDA
 
-* Tasks
-* Assignments
-* Exams
-* Projects
-* Goals
-* Ideas
-* Notes
-* Reminders
-
-No manual commands required.
-
----
-
-### Context-Aware Responses
-
-Before generating replies, AtharvaOS:
-
-* Fetches recent memories
-* Injects them into AI context
-* Produces personalized guidance
-
-Example:
-
-If a DBMS assignment is stored, the bot will prioritize it when planning your day.
-
----
-
-### Task Recall System
-
-Ask:
-
-```
-What are my tasks
-```
-
-The bot:
-
-* Fetches all stored tasks
-* Sorts by deadline
-* Displays a clean formatted list
-
----
-
-### Automatic Deadline Detection
-
-When the user mentions:
-
-* dates
-* tomorrow
-* Monday
-* specific deadlines
-
-The system:
-
-* Extracts date
-* Stores it in database
-* Tracks upcoming events
-
----
-
-### Reminder Engine
-
-Background scheduler:
-
-* Checks upcoming deadlines
-* Sends reminders automatically
-* Notifies before due time
-
----
-
-### Clean Telegram Formatting
-
-* Structured responses
-* Bullet lists
-* Headings
-* Actionable steps
-
----
-
-## Tech Stack
-
-**Backend**
-
-* Node.js
-* Telegraf (Telegram Bot Framework)
-
-**AI**
-
-* Groq API
-* LLaMA / OSS models
-
-**Database**
-
-* MongoDB Atlas
-
-**Automation**
-
-* node-cron (scheduler)
-
----
-
-## Architecture
-
-```
-User (Telegram)
-      ↓
-Telegram Bot (Telegraf)
-      ↓
-Message Processing Layer
-      ↓
-AI Classifier (Groq)
-      ↓
-Memory Storage (MongoDB)
-      ↓
-Context Injection
-      ↓
-AI Response Generator
-      ↓
-Reminder Scheduler
+    EB -->|"Scheduled Ping"| LAMBDA
+    LAMBDA -->|"Synthesize Voice"| POLLY
+    LAMBDA -->|"AI Reasoning"| GROQ
+    LAMBDA -->|"Data Persistence"| MONGO
+    LAMBDA -->|"Video Buffers"| REDDIT
 ```
 
 ---
 
-## How It Works
+## 🛠️ Local Development Setup
 
-1. User sends message to bot
-2. AI classifies if message is important
-3. Important information is stored in MongoDB with user's chat ID
-4. Recent memory is injected into AI context
-5. AI generates a structured productivity response
-6. Scheduler monitors deadlines and sends reminders
-7. Daily summary sent automatically at 8 AM
-8. Users can manage tasks with commands (/tasks, /done, /delete)
-
----
-
-## Available Commands
-
-* `/start` - Wake up your productivity buddy! 🚀
-* `/tasks` - See what's pending (with spicy deadline warnings 🔥)
-* `/reminders` - Check active reminders
-* `/goals` - View your goals
-* `/today` - Get today's game plan with time-based greetings
-* `/done <id>` - Mark task complete (GET HYPED! 🎉)
-* `/delete <id>` - Delete a task/reminder
-* `/motivate` - Need a boost? Get instant motivation! 💪
-* `/roast` - Get playfully roasted (builds character 😂)
-* `/help` - View all commands
-
-**Pro Tip:** Just chat naturally! The bot understands context and will store important stuff automatically while keeping the conversation fun! 😎
-
----
-
-## Installation
-
-### 1. Clone Repository
-
-```
-git clone <repo-url>
-cd atharvaos-bot
-```
-
----
-
-### 2. Install Dependencies
-
-```
+### 1. Clone & Install
+```bash
+git clone https://github.com/atharvabaodhankar/Atharva-Productivity-BOT.git
+cd Atharva-Productivity-BOT
 npm install
 ```
 
----
-
-### 3. Create `.env`
-
-```
-BOT_TOKEN=your_telegram_bot_token
-GROQ_API_KEY=your_groq_api_key
-MONGO_URI=your_mongodb_connection_string
-CHAT_ID=your_telegram_chat_id
-```
-
----
-
-### 4. Run the Bot
-
-```
-node index.js
+### 2. Configure Environment (`.env`)
+Create a `.env` file in the root directory:
+```ini
+BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
+GROQ_API_KEY=gsk_key1,gsk_key2,gsk_key3
+MONGO_URI=mongodb+srv://user:pass@cluster0.mongodb.net/atharvaos?retryWrites=true&w=majority
+CHAT_ID=5275149287
+ADMIN_SECRET=Your_Custom_Secret_Key
+MEME_API_URL=https://redditreels.onrender.com
+MEME_API_KEY=your_meme_api_key
 ```
 
----
+### 3. Run Locally
+```bash
+# Start Telegram Polling Bot
+npm start
 
-## Project Structure
-
-```
-atharvaos-bot
- ├── index.js
- ├── ai.js
- ├── memoryAI.js
- ├── memoryModel.js
- ├── taskService.js
- ├── reminderService.js
- ├── .env
- └── package.json
+# Start Local Admin Mission Control (Port 4000)
+npm run admin
 ```
 
 ---
 
-## Use Cases
+## 🚀 Cloud Deployment
 
-* Personal productivity management
-* Assignment tracking
-* Exam preparation
-* Project planning
-* Second brain knowledge storage
-* Daily planning assistant
+### 1. AWS Lambda Deployment (CI/CD)
+The repository includes automated GitHub Actions (`.github/workflows/deploy.yml`) that packages and deploys updates to AWS Lambda whenever changes are pushed to `main`.
 
----
+Required **GitHub Actions Secrets**:
+* `AWS_ACCESS_KEY_ID`
+* `AWS_SECRET_ACCESS_KEY`
+* `BOT_TOKEN`
+* `MONGO_URI`
+* `GROQ_API_KEY`
+* `CHAT_ID`
+* `ADMIN_SECRET`
+* `MEME_API_URL`
+* `MEME_API_KEY`
 
-## Future Improvements
-
-* ~~Priority detection engine~~ ✅ Task completion tracking added
-* ~~Daily schedule generator~~ ✅ Daily summary at 8 AM added
-* ~~Task management~~ ✅ Mark done, delete commands added
-* Recurring reminders (every Monday, daily, etc.)
-* Focus mode system with Pomodoro timer
-* Web dashboard with analytics
-* Multi-device sync
-* Voice note transcription
-* Habit tracking
-* Natural language date parsing improvements
-* Snooze reminders
-* Priority levels (high/medium/low)
+### 2. Vercel Frontend Deployment
+Deploy the repository directly to Vercel:
+* **Root Directory:** `./`
+* **Static Output:** Routes `/` to `admin-console/index.html` and `/webapp/` to `webapp/index.html`.
 
 ---
 
-## Project Vision
-
-AtharvaOS aims to become a **personal productivity operating system** that:
-
-* Understands user goals
-* Tracks work automatically
-* Encourages disciplined execution
-* Acts like a future, more focused version of the user
-
----
-
-## Author
+## 👤 Author
 
 **Atharva Baodhankar**
-Web Developer | Blockchain Enthusiast | AI Builder
+* 🌐 GitHub: [@atharvabaodhankar](https://github.com/atharvabaodhankar)
+* ✈️ Telegram: [@op_athu](https://t.me/op_athu)
+* 🤖 Bot: [@Atharva_Produtivity_Bot](https://t.me/Atharva_Produtivity_Bot)
 
 ---
 
-## License
-
-This project is intended for personal productivity and educational purposes.
+## 📄 License
+This project is open-source and available under the [ISC License](LICENSE).
