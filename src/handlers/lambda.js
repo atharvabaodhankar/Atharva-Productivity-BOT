@@ -52,10 +52,10 @@ exports.handler = async (event, context) => {
       const headers = event.headers || {};
       const reqSecret = headers["x-admin-secret"] || headers["X-Admin-Secret"] || queryParams.admin_secret || "";
       const { ADMIN_SECRET } = require("../config/env");
-      const expectedSecret = process.env.ADMIN_SECRET || ADMIN_SECRET || "Atharva_SuperSecret_AdminKey_2026";
+      const expectedSecret = process.env.ADMIN_SECRET || ADMIN_SECRET;
 
       if (rawPath.includes("/admin") || rawPath.includes("/local-") || rawPath === "/api/stats" || rawPath === "/api/conversations") {
-        if (reqSecret !== expectedSecret) {
+        if (!expectedSecret || reqSecret !== expectedSecret) {
           return {
             statusCode: 401,
             headers: CORS_HEADERS,
@@ -133,10 +133,11 @@ exports.handler = async (event, context) => {
 
         if (payload.projectName && payload.type !== "project" && !parentProjectId) {
           const trimmed = payload.projectName.trim();
+          const escaped = trimmed.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
           let p = await Memory.findOne({
             chatId: payload.chatId,
             type: "project",
-            content: new RegExp(`^${trimmed}$`, "i"),
+            content: new RegExp(`^${escaped}$`, "i"),
           });
           if (!p) {
             p = await Memory.create({

@@ -294,8 +294,13 @@ async function sendRandomMemeToChat(bot, chatId) {
 }
 
 async function fetchSubredditContent({ subreddit = "", category = "all", filterVideo = false } = {}) {
-  const apiUrl = MEME_API_URL || process.env.MEME_API_URL || "https://redditreels.onrender.com";
-  const apiKey = MEME_API_KEY || process.env.MEME_API_KEY || "rr_live_9f8d7a6b5c4e3d2a1f0e8d7c6b5a4f3e";
+  const apiUrl = MEME_API_URL || process.env.MEME_API_URL;
+  const apiKey = MEME_API_KEY || process.env.MEME_API_KEY;
+
+  if (!apiUrl || !apiKey) {
+    console.error("fetchSubredditContent: MEME_API_URL or MEME_API_KEY is not configured.");
+    return null;
+  }
 
   let endpoint = `${apiUrl}/api/memes/random?`;
   const params = [];

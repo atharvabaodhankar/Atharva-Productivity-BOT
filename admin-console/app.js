@@ -31,22 +31,15 @@ function getAdminSecret() {
 
 function authenticatedFetch(url, options = {}) {
   const secret = getAdminSecret();
-  let finalUrl = url;
-
-  if (secret) {
-    const separator = finalUrl.includes("?") ? "&" : "?";
-    finalUrl = `${finalUrl}${separator}admin_secret=${encodeURIComponent(secret)}`;
-  }
-
   const headers = options.headers || {};
   if (secret) {
     headers["x-admin-secret"] = secret;
   }
-  return fetch(finalUrl, { ...options, headers });
+  return fetch(url, { ...options, headers });
 }
 
-// Security Gate: Verify Owner Clearance
-function checkOwnerAccess() {
+// Security Gate: Verify Owner Clearance (with server-side key validation)
+async function checkOwnerAccess() {
   if (IS_LOCAL_DEV) return true;
 
   // 1. If launched inside Telegram WebApp, check owner Telegram ID
@@ -55,26 +48,57 @@ function checkOwnerAccess() {
     return true;
   }
 
-  // 2. If opened in standard web browser (e.g. Vercel), require secret admin key
+  // 2. If opened in standard web browser, require and validate secret admin key against server
   const secret = getAdminSecret();
-  if (secret) {
-    return true;
+  if (!secret) {
+    renderAccessDenied();
+    return false;
   }
 
+  try {
+    const res = await fetch(`${REMOTE_API_BASE}/stats?chatId=${OWNER_CHAT_ID}`, {
+      headers: { "x-admin-secret": secret },
+    });
+    if (res.status === 401 || res.status === 403) {
+      sessionStorage.removeItem("admin_secret");
+      renderAccessDenied("Invalid Admin Key. Access denied.");
+      return false;
+    }
+    return true;
+  } catch (err) {
+    // Network error — allow through (server-side will re-validate each request)
+    return true;
+  }
+}
+
+function renderAccessDenied(msg) {
   document.body.innerHTML = `
     <div style="display:flex; flex-direction:column; align-items:center; justify-content:center; height:100vh; background:#0B0E14; color:#F8FAFC; font-family:monospace; text-align:center; padding:20px;">
       <div style="font-size:3rem; margin-bottom:12px;">🛑</div>
       <h1 style="font-size:1.4rem; color:#EF4444; margin-bottom:8px;">ACCESS DENIED</h1>
       <p style="font-size:0.85rem; color:#94A3B8; max-width:420px; line-height:1.5;">
-        AtharvaOS Mission Control is exclusively restricted to the Creator (Atharva Baodhankar). Valid Admin Key required.
+        ${msg || "AtharvaOS Mission Control is exclusively restricted to the Creator (Atharva Baodhankar). Valid Admin Key required."}
       </p>
     </div>
   `;
-  return false;
 }
 
-if (!checkOwnerAccess()) {
-  throw new Error("Unauthorized Access Blocked.");
+// checkOwnerAccess is now async — wrap initialization
+(async () => {
+  if (!(await checkOwnerAccess())) {
+    throw new Error("Unauthorized Access Blocked.");
+  }
+  initApp();
+})();
+
+// initApp is called after async auth validation succeeds
+function initApp() {
+  // Auth passed — boot the app on DOMContentLoaded (or immediately if already loaded)
+  if (document.readyState === "loading") {
+    document.addEventListener("DOMContentLoaded", bootApp);
+  } else {
+    bootApp();
+  }
 }
 
 // State
@@ -1197,7 +1221,7 @@ setInterval(updateClock, 1000);
 updateClock();
 
 // Initial Boot
-document.addEventListener("DOMContentLoaded", async () => {
+async function bootApp() {
   refreshIcons();
   await fetchUsers();
   await fetchAlerts();
@@ -1207,4 +1231,4 @@ document.addEventListener("DOMContentLoaded", async () => {
   }
 
   startPolling();
-});
+}

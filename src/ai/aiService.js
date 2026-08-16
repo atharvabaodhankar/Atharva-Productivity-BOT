@@ -145,11 +145,12 @@ async function askAI({
 
           if (args.projectName && args.type !== "project") {
             const trimmedName = args.projectName.trim();
+            const escapedName = trimmedName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
             // Find existing project (case-insensitive)
             let existingProj = await Memory.findOne({
               chatId,
               type: "project",
-              content: new RegExp(`^${trimmedName}$`, "i"),
+              content: new RegExp(`^${escapedName}$`, "i"),
             });
 
             if (!existingProj) {
@@ -157,7 +158,7 @@ async function askAI({
               existingProj = await Memory.findOne({
                 chatId,
                 type: "project",
-                content: new RegExp(trimmedName, "i"),
+                content: new RegExp(escapedName, "i"),
               });
             }
 

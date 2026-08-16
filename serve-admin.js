@@ -36,11 +36,44 @@ const MIME_TYPES = {
   ".ico": "image/x-icon",
 };
 
+// Helper to safely parse JSON body with strict size limit (DoS prevention)
+function readJsonBody(req, res, maxBytes = 35 * 1024 * 1024) {
+  return new Promise((resolve, reject) => {
+    let body = "";
+    let receivedBytes = 0;
+
+    req.on("data", (chunk) => {
+      receivedBytes += chunk.length;
+      if (receivedBytes > maxBytes) {
+        req.destroy();
+        res.writeHead(413, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: "Payload Too Large (Exceeds limit)" }));
+        reject(new Error("Payload Too Large"));
+        return;
+      }
+      body += chunk;
+    });
+
+    req.on("end", () => {
+      try {
+        resolve(JSON.parse(body || "{}"));
+      } catch (err) {
+        res.writeHead(400, { "Content-Type": "application/json" });
+        res.end(JSON.stringify({ ok: false, error: "Invalid JSON format" }));
+        reject(err);
+      }
+    });
+
+    req.on("error", (err) => reject(err));
+  });
+}
+
 const server = http.createServer(async (req, res) => {
   // CORS Headers
-  res.setHeader("Access-Control-Allow-Origin", "*");
+  const origin = req.headers.origin || "*";
+  res.setHeader("Access-Control-Allow-Origin", origin);
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
-  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-admin-secret");
+  res.setHeader("Access-Control-Allow-Headers", "Content-Type, x-admin-secret, X-Admin-Secret");
 
   if (req.method === "OPTIONS") {
     res.writeHead(200);
@@ -49,31 +82,24 @@ const server = http.createServer(async (req, res) => {
 
   // 0. AUTHENTICATION CLEARANCE GATE
   const { ADMIN_SECRET } = require("./src/config/env");
-  const expectedSecret = process.env.ADMIN_SECRET || ADMIN_SECRET || "Atharva_SuperSecret_AdminKey_2026";
+  const expectedSecret = process.env.ADMIN_SECRET || ADMIN_SECRET;
   
-  let reqSecret = req.headers["x-admin-secret"];
+  let reqSecret = req.headers["x-admin-secret"] || req.headers["X-Admin-Secret"];
   try {
     const parsedUrl = new URL(req.url, `http://${req.headers.host || "localhost"}`);
     if (!reqSecret) reqSecret = parsedUrl.searchParams.get("admin_secret");
   } catch (e) {}
 
   if (req.url.startsWith("/api/")) {
-    if (reqSecret !== expectedSecret) {
+    if (!expectedSecret || reqSecret !== expectedSecret) {
       res.writeHead(401, { "Content-Type": "application/json" });
       return res.end(JSON.stringify({ error: "Unauthorized. Invalid or missing x-admin-secret header." }));
     }
-  }
 
-  // 1. Direct Telegram Media Upload API
-  if (req.url.startsWith("/api/local-upload") && req.method === "POST") {
-    let body = "";
-    req.on("data", (chunk) => {
-      body += chunk;
-    });
-
-    req.on("end", async () => {
+    // 1. Direct Telegram Media Upload API
+    if ((req.url.startsWith("/api/local-upload") || req.url.startsWith("/api/admin/send-message")) && req.method === "POST") {
       try {
-        const payload = JSON.parse(body || "{}");
+        const payload = await readJsonBody(req, res);
         const {
           targetChatId,
           text = "",
@@ -186,24 +212,17 @@ const server = http.createServer(async (req, res) => {
           })
         );
       } catch (err) {
+        if (res.writableEnded) return;
         console.error("Upload server error:", err);
         res.writeHead(500, { "Content-Type": "application/json" });
         return res.end(JSON.stringify({ ok: false, error: err.message }));
       }
-    });
-    return;
-  }
+    }
 
-  // 2. Direct Telegram Message Deletion API
-  if (req.url.startsWith("/api/local-delete-message") && req.method === "POST") {
-    let body = "";
-    req.on("data", (chunk) => {
-      body += chunk;
-    });
-
-    req.on("end", async () => {
+    // 2. Direct Telegram Message Deletion API
+    if ((req.url.startsWith("/api/local-delete-message") || req.url.startsWith("/api/admin/delete-message")) && req.method === "POST") {
       try {
-        const payload = JSON.parse(body || "{}");
+        const payload = await readJsonBody(req, res);
         const { messageId, chatId, telegramMessageId } = payload;
 
         if (messageId) {
@@ -237,24 +256,17 @@ const server = http.createServer(async (req, res) => {
           })
         );
       } catch (err) {
+        if (res.writableEnded) return;
         console.error("Delete server error:", err);
         res.writeHead(500, { "Content-Type": "application/json" });
         return res.end(JSON.stringify({ ok: false, error: err.message }));
       }
-    });
-    return;
-  }
+    }
 
-  // 3. Direct Telegram Message Edit API
-  if (req.url.startsWith("/api/local-edit-message") && req.method === "POST") {
-    let body = "";
-    req.on("data", (chunk) => {
-      body += chunk;
-    });
-
-    req.on("end", async () => {
+    // 3. Direct Telegram Message Edit API
+    if ((req.url.startsWith("/api/local-edit-message") || req.url.startsWith("/api/admin/edit-message")) && req.method === "POST") {
       try {
-        const payload = JSON.parse(body || "{}");
+        const payload = await readJsonBody(req, res);
         const { messageId, chatId, telegramMessageId, newText } = payload;
 
         if (!newText || !newText.trim()) {
@@ -316,51 +328,44 @@ const server = http.createServer(async (req, res) => {
           })
         );
       } catch (err) {
+        if (res.writableEnded) return;
         console.error("Edit server error:", err);
         res.writeHead(500, { "Content-Type": "application/json" });
         return res.end(JSON.stringify({ ok: false, error: err.message }));
       }
-    });
-    return;
-  }
-
-  // 4. Admin Security & Easter Egg Alerts API
-  if (req.url.startsWith("/api/admin/alerts") && !req.url.includes("mark-read") && req.method === "GET") {
-    try {
-      const alerts = await Alert.find().sort({ createdAt: -1 }).limit(30);
-      const unreadCount = await Alert.countDocuments({ isRead: false });
-
-      res.writeHead(200, { "Content-Type": "application/json" });
-      return res.end(JSON.stringify({ ok: true, alerts, unreadCount }));
-    } catch (err) {
-      console.error("Alerts fetch error:", err);
-      res.writeHead(500, { "Content-Type": "application/json" });
-      return res.end(JSON.stringify({ ok: false, error: err.message }));
     }
-  }
 
-  if (req.url.startsWith("/api/admin/alerts/mark-read") && req.method === "POST") {
-    try {
-      await Alert.updateMany({ isRead: false }, { isRead: true });
-      res.writeHead(200, { "Content-Type": "application/json" });
-      return res.end(JSON.stringify({ ok: true, message: "All alerts marked as read" }));
-    } catch (err) {
-      console.error("Alerts mark-read error:", err);
-      res.writeHead(500, { "Content-Type": "application/json" });
-      return res.end(JSON.stringify({ ok: false, error: err.message }));
-    }
-  }
-
-  // 5. Admin Meme Approval / Rejection API
-  if (req.url.startsWith("/api/admin/meme-action") && req.method === "POST") {
-    let body = "";
-    req.on("data", (chunk) => {
-      body += chunk;
-    });
-
-    req.on("end", async () => {
+    // 4. Admin Security & Easter Egg Alerts API
+    if (req.url.startsWith("/api/admin/alerts") && !req.url.includes("mark-read") && req.method === "GET") {
       try {
-        const payload = JSON.parse(body || "{}");
+        const alerts = await Alert.find().sort({ createdAt: -1 }).limit(30);
+        const unreadCount = await Alert.countDocuments({ isRead: false });
+
+        res.writeHead(200, { "Content-Type": "application/json" });
+        return res.end(JSON.stringify({ ok: true, alerts, unreadCount }));
+      } catch (err) {
+        console.error("Alerts fetch error:", err);
+        res.writeHead(500, { "Content-Type": "application/json" });
+        return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    }
+
+    if (req.url.startsWith("/api/admin/alerts/mark-read") && req.method === "POST") {
+      try {
+        await Alert.updateMany({ isRead: false }, { isRead: true });
+        res.writeHead(200, { "Content-Type": "application/json" });
+        return res.end(JSON.stringify({ ok: true, message: "All alerts marked as read" }));
+      } catch (err) {
+        console.error("Alerts mark-read error:", err);
+        res.writeHead(500, { "Content-Type": "application/json" });
+        return res.end(JSON.stringify({ ok: false, error: err.message }));
+      }
+    }
+
+    // 5. Admin Meme Approval / Rejection API
+    if (req.url.startsWith("/api/admin/meme-action") && req.method === "POST") {
+      try {
+        const payload = await readJsonBody(req, res);
         const { requestId, action } = payload;
         const isApproved = action === "approve";
 
@@ -371,24 +376,17 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(200, { "Content-Type": "application/json" });
         return res.end(JSON.stringify({ ok: true, result }));
       } catch (err) {
+        if (res.writableEnded) return;
         console.error("Meme action error:", err);
         res.writeHead(500, { "Content-Type": "application/json" });
         return res.end(JSON.stringify({ ok: false, error: err.message }));
       }
-    });
-    return;
-  }
+    }
 
-  // 6. Direct Quick-Cast Random Meme API
-  if (req.url.startsWith("/api/admin/send-random-meme") && req.method === "POST") {
-    let body = "";
-    req.on("data", (chunk) => {
-      body += chunk;
-    });
-
-    req.on("end", async () => {
+    // 6. Direct Quick-Cast Random Meme API
+    if (req.url.startsWith("/api/admin/send-random-meme") && req.method === "POST") {
       try {
-        const payload = JSON.parse(body || "{}");
+        const payload = await readJsonBody(req, res);
         const { targetChatId } = payload;
         if (!targetChatId) {
           res.writeHead(400, { "Content-Type": "application/json" });
@@ -402,12 +400,12 @@ const server = http.createServer(async (req, res) => {
         res.writeHead(200, { "Content-Type": "application/json" });
         return res.end(JSON.stringify({ ok: true, result }));
       } catch (err) {
+        if (res.writableEnded) return;
         console.error("send-random-meme error:", err);
         res.writeHead(500, { "Content-Type": "application/json" });
         return res.end(JSON.stringify({ ok: false, error: err.message }));
       }
-    });
-    return;
+    }
   }
 
   // 7. GET /api/stats (Local User Directory Fetch)
@@ -471,8 +469,18 @@ const server = http.createServer(async (req, res) => {
     }
   }
 
-  // 5. Static File Server
-  let filePath = path.join(ADMIN_DIR, req.url === "/" ? "index.html" : req.url.split("?")[0]);
+  // 5. Static File Server with Path Traversal Guard
+  const rawUrlPath = req.url.split("?")[0];
+  const normalizedPath = path.normalize(rawUrlPath).replace(/^(\.\.[\/\\])+/, "");
+  const relativeFile = normalizedPath === "/" || normalizedPath === "\\" ? "index.html" : normalizedPath;
+  const filePath = path.resolve(ADMIN_DIR, `.${path.sep}${relativeFile}`);
+
+  // Strict Path Traversal Guard: Resolved path must remain inside ADMIN_DIR
+  if (!filePath.startsWith(ADMIN_DIR)) {
+    res.writeHead(403, { "Content-Type": "text/plain" });
+    return res.end("403 Forbidden");
+  }
+
   const ext = path.extname(filePath).toLowerCase();
   const contentType = MIME_TYPES[ext] || "application/octet-stream";
 
