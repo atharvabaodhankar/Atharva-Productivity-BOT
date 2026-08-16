@@ -1,4 +1,4 @@
-# AtharvaOS — AI Productivity Copilot & Mission Control 🚀
+# AtharvaOS — AI Productivity Copilot 🚀
 
 [![Telegram Bot](https://img.shields.io/badge/Telegram-Bot-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/Atharva_Produtivity_Bot)
 [![AWS Lambda](https://img.shields.io/badge/AWS-Lambda-FF9900?style=for-the-badge&logo=awslambda&logoColor=white)](https://aws.amazon.com/lambda/)
@@ -7,7 +7,7 @@
 [![MongoDB Atlas](https://img.shields.io/badge/MongoDB-Atlas-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/atlas)
 [![Vercel](https://img.shields.io/badge/Vercel-Hosted-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/)
 
-**AtharvaOS** is a serverless AI personal productivity operating system and second brain designed as an energetic Telegram copilot, high-precision task planner, and monochrome mission control console.
+**AtharvaOS** is a serverless AI personal productivity operating system and second brain designed as an energetic Telegram copilot, high-precision task planner, and Telegram Mini App.
 
 ---
 
@@ -20,15 +20,13 @@
 * **Daily Quota Protection:** Unlimited for the Creator/Owner; 5 free voice notes per day for guest users.
 
 ### 📱 2. Telegram Mini App (Dual-Color Flo 101 Design)
-* **Safe Sandbox Experience:** Public mini app accessible via the Telegram menu button `[🔲 Open AtharvaOS]` with zero admin privilege leakage.
+* **Safe Sandbox Experience:** Public mini app accessible via the Telegram menu button `[🔲 Open AtharvaOS]` or chat menu.
 * **Project-Task Hierarchy:** Seamlessly organize sub-tasks inside high-level project containers.
 * **Interactive SVG Progress Ring:** Real-time completion percentage, quick filters, and smooth micro-animations.
 
-### 🎛️ 3. Monochrome Mission Control (Admin POV Console)
-* **Live User Directory:** Monitor all active Telegram threads and conversation histories in real-time.
-* **Human Takeover & Media Dispatch:** Send live messages, photos, videos, and documents directly as the bot with instant Telegram delivery.
-* **Message Editing & Deletion:** Real-time bilateral deletion and text/caption editing synchronized with Telegram.
-* **Meme Approval & Quick-Cast:** Review user-requested memes with interactive confirmation modals or broadcast random memes instantly.
+### 💬 3. Natural Human-Paced Multi-Bubble Messaging
+* **Conversational Pacing:** Automatically breaks multi-sentence or multi-paragraph responses into natural message bubbles.
+* **Micro-Typing Indicators:** Shows live `"typing"` status between bubbles for realistic conversational flow with zero extra server invocations.
 
 ### 🎬 4. Reddit Video Streaming (`/video`)
 * **Binary Buffer Streaming:** Streams raw Reddit `.mp4` video buffers directly into Telegram with `{ supports_streaming: true }`, ensuring audio playback, scrubbing, and native media controls.
@@ -42,9 +40,8 @@
 * **Automated Cron Triggers:** 5-minute deadline monitors, 8:00 AM Morning Game Plans, and 10:00 PM Nightly Reflections powered by Amazon EventBridge.
 
 ### 🛡️ 7. Enterprise Security Hardening
-* **Zero Hardcoded Secrets:** Strict environment variable governance for all API tokens and admin passkeys.
+* **Zero Hardcoded Secrets:** Strict environment variable governance for all API tokens and keys.
 * **ReDoS & RegExp Injection Protection:** User-supplied project and task queries are sanitized against regex injection.
-* **Path Traversal Guards:** File server enforces directory confinement against traversal exploits.
 * **DDoS & OOM Body Limits:** 35MB ceiling on all streaming payloads.
 
 ---
@@ -78,10 +75,6 @@ flowchart TD
         MA["📱 Telegram Mini App (/webapp/)"]
     end
 
-    subgraph Mission Control
-        AC["🎛️ Admin Console (/admin-console/)"]
-    end
-
     subgraph AWS Cloud
         LAMBDA["⚡ AWS Lambda (atharvaos-bot)"]
         EB["⏰ Amazon EventBridge (5m Cron)"]
@@ -89,14 +82,13 @@ flowchart TD
     end
 
     subgraph External Services
-        GROQ["🧠 Groq AI (Llama 3.3 70B & Vision)"]
+        GROQ["🧠 Groq AI (Qwen 3.6 27B & Vision)"]
         MONGO["📦 MongoDB Atlas (Tasks, Transcripts, Alerts)"]
         REDDIT["🎬 Reddit API (Videos & Memes)"]
     end
 
     TG <-->|"Webhook / Updates"| LAMBDA
     MA <-->|"REST API"| LAMBDA
-    AC <-->|"x-admin-secret API"| LAMBDA
 
     EB -->|"Scheduled Ping"| LAMBDA
     LAMBDA -->|"Synthesize Voice"| POLLY
@@ -123,7 +115,6 @@ BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
 GROQ_API_KEY=gsk_key1,gsk_key2,gsk_key3
 MONGO_URI=mongodb+srv://user:pass@cluster0.mongodb.net/atharvaos?retryWrites=true&w=majority
 CHAT_ID=5275149287
-ADMIN_SECRET=Your_Custom_Secret_Key
 MEME_API_URL=https://redditreels.onrender.com
 MEME_API_KEY=your_meme_api_key
 ```
@@ -132,9 +123,6 @@ MEME_API_KEY=your_meme_api_key
 ```bash
 # Start Telegram Polling Bot
 npm start
-
-# Start Local Admin Mission Control (Port 4000)
-npm run admin
 ```
 
 ---
@@ -151,14 +139,11 @@ Required **GitHub Actions Secrets**:
 * `MONGO_URI`
 * `GROQ_API_KEY`
 * `CHAT_ID`
-* `ADMIN_SECRET`
 * `MEME_API_URL`
 * `MEME_API_KEY`
 
 ### 2. Vercel Frontend Deployment
-Deploy the repository directly to Vercel:
-* **Root Directory:** `./`
-* **Static Output:** Routes `/` to `admin-console/index.html` and `/webapp/` to `webapp/index.html`.
+Deploy the repository directly to Vercel for hosting the Telegram Mini App (`/webapp/`).
 
 ---
 
