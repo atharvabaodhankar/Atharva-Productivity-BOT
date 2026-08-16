@@ -18,6 +18,8 @@ Hey ${name}! Here is what you can ask me:
 📋 Quick Slash Commands:
 /tasks — View your pending tasks with deadline urgency
 /today — Get your daily morning/evening action plan
+/speak <prompt> — Get a spoken AI Voice Note (Matthew voice) 🎙️
+/video [subreddit] — Stream random Reddit video (.mp4) 🎬
 /reminders — View active reminders
 /goals — View your long-term goals
 /reflections — View your 7-day growth log

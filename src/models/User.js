@@ -51,6 +51,16 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    voiceUsage: {
+      countToday: {
+        type: Number,
+        default: 0,
+      },
+      lastUsedDate: {
+        type: String,
+        default: "",
+      },
+    },
   },
   {
     timestamps: true,

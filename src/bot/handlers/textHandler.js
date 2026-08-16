@@ -177,6 +177,37 @@ module.exports = (bot) => {
         senderName: ctx.from?.first_name || "Friend",
       });
 
+      // Check if user explicitly asked for spoken audio / voice note
+      const isVoiceRequested = /\b(speak to me|say it out loud|send (a )?voice( note)?|bol ke batao|voice me batao|audio me batao|can you speak)\b/i.test(userMessage);
+
+      if (isVoiceRequested) {
+        const { checkVoiceQuota, sendAiVoiceReply, DAILY_VOICE_LIMIT } = require("../../services/voiceService");
+        const quota = await checkVoiceQuota(chatId);
+
+        if (quota.allowed) {
+          try {
+            await ctx.sendChatAction("record_voice");
+            const remainingTag = quota.isOwner ? "Creator Clearance" : `${quota.remaining} voice notes left today`;
+            const sentVoice = await sendAiVoiceReply(bot, chatId, reply, {
+              caption: `🎙️ <b>AtharvaOS Voice Note</b>\n\n<i>Voice: Matthew (AWS Polly) • ${remainingTag}</i>`,
+              replyToMessageId: isGroup ? ctx.message.message_id : undefined,
+            });
+
+            await History.create({
+              chatId,
+              role: "user",
+              content: userMessage,
+              telegramMessageId: ctx.message.message_id,
+            });
+            return;
+          } catch (voiceErr) {
+            console.warn("Natural trigger voice dispatch failed, falling back to text:", voiceErr.message);
+          }
+        } else {
+          await ctx.reply(`🎙️ <i>(Daily limit of ${DAILY_VOICE_LIMIT} AI voice notes reached. Replying in text)</i>`, { parse_mode: "HTML" });
+        }
+      }
+
       const sentMsg = await sendTelegramFormatted(ctx, reply, {
         reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
       });
