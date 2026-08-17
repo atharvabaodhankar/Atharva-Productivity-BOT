@@ -37,6 +37,11 @@ function buildSystemPrompt({ user, memories, pendingTasksCount, historyText, isG
         const isReminder = m.type === "reminder";
         const isNote = m.type === "note" || m.type === "reflection" || m.type === "idea";
 
+        // Ignore expired / completed one-time reminders in prompt context
+        if (isReminder && (m.completed || (m.date && new Date(m.date) < now))) {
+          return;
+        }
+
         const pId = m.projectId ? String(m.projectId) : null;
         let matchedProjectKey = null;
 

@@ -20,10 +20,13 @@ async function getPendingTasks(chatId) {
 }
 
 async function getReminders(chatId) {
+  const now = new Date();
   return await Memory.find({
     chatId,
     type: "reminder",
     completed: false,
+    reminderSent: { $ne: true },
+    date: { $gte: now },
   }).sort({ date: 1 });
 }
 
@@ -56,6 +59,7 @@ async function getTodaySummary(chatId) {
   const todayDue = await Memory.find({
     chatId,
     date: { $gte: startOfDay, $lt: endOfDay },
+    type: { $in: ["task", "assignment", "project", "exam"] },
     completed: false,
   });
 

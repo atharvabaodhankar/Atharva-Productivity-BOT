@@ -30,12 +30,30 @@ async function checkUpcomingReminders(bot) {
           const message = funReminders[Math.floor(Math.random() * funReminders.length)];
           await bot.telegram.sendMessage(item.chatId, message, { parse_mode: "Markdown" });
 
-          await Memory.findByIdAndUpdate(item._id, { reminderSent: true });
+          // Pure reminders are one-time alerts: auto-complete immediately upon delivery
+          if (item.type === "reminder") {
+            await Memory.findByIdAndUpdate(item._id, { reminderSent: true, completed: true });
+          } else {
+            await Memory.findByIdAndUpdate(item._id, { reminderSent: true });
+          }
         } catch (err) {
           console.error(`Failed sending reminder ${item._id}:`, err.message);
         }
       }
     }
+
+    // 1.1.1 Auto-complete past expired reminders so they never linger in pending lists
+    await Memory.updateMany(
+      {
+        type: "reminder",
+        completed: false,
+        $or: [
+          { reminderSent: true },
+          { date: { $lt: new Date(now.getTime() - 2 * 60 * 1000) } },
+        ],
+      },
+      { completed: true, reminderSent: true }
+    );
 
     // 1.2 Process Morning Daily Briefings & Nightly Accountability
     const allUsers = await User.find();
@@ -77,12 +95,13 @@ async function sendDailySummaryForUser(bot, user, dateKey) {
     const todayItems = await Memory.find({
       chatId,
       date: { $gte: today, $lt: tomorrow },
+      type: { $in: ["task", "assignment", "project", "exam"] },
       completed: false,
     });
 
     const allPending = await Memory.find({
       chatId,
-      type: { $in: ["task", "assignment", "project", "exam", "reminder"] },
+      type: { $in: ["task", "assignment", "project", "exam"] },
       completed: false,
     })
       .sort({ priority: 1, date: 1 })
@@ -145,6 +164,7 @@ async function sendNightlyReflectionForUser(bot, user, dateKey) {
 
     const pendingTasks = await Memory.find({
       chatId,
+      type: { $in: ["task", "assignment", "project", "exam"] },
       completed: false,
     });
 
