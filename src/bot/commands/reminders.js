@@ -8,18 +8,19 @@ module.exports = (bot) => {
     const reminders = await getReminders(chatId);
 
     if (reminders.length === 0) {
-      return ctx.reply("🔔 No active reminders! Tell me 'Remind me to...' anytime!");
+      return ctx.reply("🔔 No active reminders! Tell me 'Remind me daily at 8 PM to...' or 'Remind me in 30 mins' anytime!");
     }
 
-    let message = "🔔 Your Active Reminders:\n\n";
+    let message = "🔔 <b>Your Active Reminders:</b>\n\n";
     reminders.forEach((r, i) => {
-      message += `${i + 1}. ${r.content}\n`;
+      const recurTag = r.isRecurring ? ` <i>[🔁 ${r.recurrenceInterval || "Daily"}]</i>` : "";
+      message += `${i + 1}. <b>${r.content}</b>${recurTag}\n`;
       if (r.date) {
-        message += `   ⏰ ${new Date(r.date).toLocaleString("en-US", { timeZone: userTimezone })}\n`;
+        message += `   ⏰ Next: ${new Date(r.date).toLocaleString("en-US", { timeZone: userTimezone, month: "short", day: "numeric", hour: "2-digit", minute: "2-digit", hour12: true })}\n`;
       }
-      message += `   ID: ${r._id}\n\n`;
+      message += `   <code>/delete ${r._id}</code>\n\n`;
     });
 
-    ctx.reply(message);
+    ctx.reply(message, { parse_mode: "HTML" });
   }));
 };

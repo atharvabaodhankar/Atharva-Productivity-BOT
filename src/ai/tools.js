@@ -50,6 +50,19 @@ const tools = [
             type: "string",
             description: "The name of the parent project this task belongs to (e.g. 'Blockchain Land Registry' or 'Schedule'). If specified, the task will be nested inside this project.",
           },
+          isRecurring: {
+            type: "boolean",
+            description: "Set to true if this is a recurring/repeated reminder (e.g. daily, everyday, every morning, weekly).",
+          },
+          recurrenceInterval: {
+            type: "string",
+            enum: ["daily", "weekdays", "weekly", "monthly"],
+            description: "The frequency of recurrence: 'daily' for daily/everyday reminders, 'weekdays' for Mon-Fri, 'weekly' for once a week, 'monthly' for once a month.",
+          },
+          timeOfDay: {
+            type: "string",
+            description: "The time of day in 24-hour HH:MM format (e.g. '08:00', '20:00', '14:30') when this recurring reminder should trigger.",
+          },
         },
         required: ["type", "content"],
       },

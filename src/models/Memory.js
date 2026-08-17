@@ -70,6 +70,20 @@ const memorySchema = new mongoose.Schema(
         trim: true,
       },
     ],
+    isRecurring: {
+      type: Boolean,
+      default: false,
+      index: true,
+    },
+    recurrenceInterval: {
+      type: String,
+      enum: ["daily", "weekdays", "weekly", "monthly", ""],
+      default: "",
+    },
+    timeOfDay: {
+      type: String,
+      default: "",
+    },
   },
   {
     timestamps: true,

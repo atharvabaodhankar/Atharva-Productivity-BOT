@@ -21,19 +21,50 @@ async function checkUpcomingReminders(bot) {
           const user = await User.findOne({ telegramId: item.chatId });
           const name = user ? user.firstName : "Champ";
 
-          const funReminders = [
-            `⏰ *REMINDER ALERT, ${name.toUpperCase()}!*\n\n📌 *${item.content}*\n\nTime's up! Let's get this done! 💪`,
-            `🔔 *Ding Ding, ${name}!*\n\n🎯 *${item.content}*\n\nDue now! Time to conquer it! ✨`,
-            `⚡ *DEADLINE ALERT!*\n\n📋 *${item.content}*\n\nYou got this, ${name}! Stay focused! 🔥`,
-          ];
+          let message = "";
+          if (item.isRecurring) {
+            const recurLabel = item.recurrenceInterval === "weekly" ? "Weekly" : item.recurrenceInterval === "weekdays" ? "Weekday" : "Daily";
+            message = `🔁 *${recurLabel.toUpperCase()} REMINDER, ${name.toUpperCase()}!*\n\n📌 *${item.content}*\n\nTime to get this done! Stay consistent! 💪🔥`;
+          } else {
+            const funReminders = [
+              `⏰ *REMINDER ALERT, ${name.toUpperCase()}!*\n\n📌 *${item.content}*\n\nTime's up! Let's get this done! 💪`,
+              `🔔 *Ding Ding, ${name}!*\n\n🎯 *${item.content}*\n\nDue now! Time to conquer it! ✨`,
+              `⚡ *DEADLINE ALERT!*\n\n📋 *${item.content}*\n\nYou got this, ${name}! Stay focused! 🔥`,
+            ];
+            message = funReminders[Math.floor(Math.random() * funReminders.length)];
+          }
 
-          const message = funReminders[Math.floor(Math.random() * funReminders.length)];
           await bot.telegram.sendMessage(item.chatId, message, { parse_mode: "Markdown" });
 
-          // Pure reminders are one-time alerts: auto-complete immediately upon delivery
-          if (item.type === "reminder") {
+          // IF RECURRING REMINDER: Advance date to next occurrence (e.g. tomorrow) and reset reminderSent
+          if (item.isRecurring && item.type === "reminder") {
+            const nextDate = new Date(item.date || now);
+            if (item.recurrenceInterval === "weekly") {
+              nextDate.setDate(nextDate.getDate() + 7);
+            } else if (item.recurrenceInterval === "weekdays") {
+              const day = nextDate.getDay();
+              nextDate.setDate(nextDate.getDate() + (day === 5 ? 3 : day === 6 ? 2 : 1));
+            } else if (item.recurrenceInterval === "monthly") {
+              nextDate.setMonth(nextDate.getMonth() + 1);
+            } else {
+              // Daily
+              nextDate.setDate(nextDate.getDate() + 1);
+            }
+
+            while (nextDate <= now) {
+              nextDate.setDate(nextDate.getDate() + 1);
+            }
+
+            await Memory.findByIdAndUpdate(item._id, {
+              date: nextDate,
+              reminderSent: false,
+              completed: false,
+            });
+          } else if (item.type === "reminder") {
+            // Pure one-time reminders: auto-complete immediately upon delivery
             await Memory.findByIdAndUpdate(item._id, { reminderSent: true, completed: true });
           } else {
+            // Task/Deadline: mark reminderSent so it doesn't notify again
             await Memory.findByIdAndUpdate(item._id, { reminderSent: true });
           }
         } catch (err) {
@@ -42,11 +73,12 @@ async function checkUpcomingReminders(bot) {
       }
     }
 
-    // 1.1.1 Auto-complete past expired reminders so they never linger in pending lists
+    // 1.1.1 Auto-complete past expired ONE-TIME reminders so they never linger in pending lists
     await Memory.updateMany(
       {
         type: "reminder",
         completed: false,
+        isRecurring: { $ne: true },
         $or: [
           { reminderSent: true },
           { date: { $lt: new Date(now.getTime() - 2 * 60 * 1000) } },
@@ -54,6 +86,22 @@ async function checkUpcomingReminders(bot) {
       },
       { completed: true, reminderSent: true }
     );
+
+    // 1.1.2 If any recurring reminder fell behind in the past, advance its date to the future
+    const overdueRecurring = await Memory.find({
+      type: "reminder",
+      isRecurring: true,
+      completed: false,
+      date: { $lt: oneDayAgo },
+    });
+
+    for (const rec of overdueRecurring) {
+      const nextDate = new Date(rec.date || now);
+      while (nextDate <= now) {
+        nextDate.setDate(nextDate.getDate() + 1);
+      }
+      await Memory.findByIdAndUpdate(rec._id, { date: nextDate, reminderSent: false });
+    }
 
     // 1.2 Process Morning Daily Briefings & Nightly Accountability
     const allUsers = await User.find();

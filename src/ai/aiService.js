@@ -174,16 +174,33 @@ async function askAI({
             parentProjectName = existingProj.content;
           }
 
+          const isRecurring = Boolean(args.isRecurring || args.recurrenceInterval);
+          const recurrenceInterval = args.recurrenceInterval || (isRecurring ? "daily" : "");
+          const timeOfDay = args.timeOfDay || "";
+
+          let effectiveDate = parsedDate;
+          if (isRecurring && parsedDate && parsedDate <= new Date()) {
+            // If recurring reminder target is in the past today, advance by 1 day
+            const next = new Date(parsedDate);
+            while (next <= new Date()) {
+              next.setDate(next.getDate() + 1);
+            }
+            effectiveDate = next;
+          }
+
           const newMem = await Memory.create({
             chatId,
             type: args.type || "task",
             content: args.content,
             url: args.url || "",
-            date: parsedDate,
+            date: effectiveDate,
             priority: args.priority || "medium",
             tags: args.tags || [],
             projectId: parentProjectId,
             projectName: parentProjectName,
+            isRecurring,
+            recurrenceInterval,
+            timeOfDay,
           });
 
           const parentNote = parentProjectName ? ` (inside project "${parentProjectName}")` : "";

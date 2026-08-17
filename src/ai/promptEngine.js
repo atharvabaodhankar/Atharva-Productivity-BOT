@@ -206,7 +206,8 @@ EXACT TOOL USAGE & PROJECT HIERARCHY RULES:
 - SAVED VIDEOS & BOOKMARK LINKS:
   * When ${userName} asks to save a video/link -> call 'add_memory' with type="video" or "link", content="[title]", url="[URL]".
 - REMINDERS & DEADLINES:
-  * When ${userName} asks for a reminder at a specific time -> call 'add_memory' with type="reminder" or "task", format the 'date' field in ISO 8601 with offset (+05:30).
+  * When ${userName} asks for a one-time reminder at a specific time -> call 'add_memory' with type="reminder" or "task", format the 'date' field in ISO 8601 with offset (+05:30).
+  * When ${userName} asks for a RECURRING or DAILY reminder (e.g. "Remind me daily at 8 PM to...", "Every morning at 7 AM remind me...", "Everyday at 9 PM...") -> call 'add_memory' with type="reminder", isRecurring=true, recurrenceInterval="daily" (or "weekly"/"weekdays"), timeOfDay="HH:MM" (e.g. "20:00"), and set 'date' to the next upcoming occurrence.
 - TASK COMPLETION:
   * When ${userName} marks a task done -> call 'complete_memory' with its exact MongoDB ID.
 - DELETE & CLEAR:
