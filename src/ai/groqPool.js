@@ -4,13 +4,11 @@ const { GROQ_API_KEYS } = require("../config/env");
 let currentKeyIndex = 0;
 
 const FALLBACK_MODELS = [
-  "qwen/qwen3.6-27b",
-  "openai/gpt-oss-120b",
-  "gpt-oss-120b",
   "llama-3.3-70b-versatile",
   "llama-3.1-70b-versatile",
   "llama-3.1-8b-instant",
-  "deepseek-r1-distill-llama-70b",
+  "qwen/qwen3.6-27b",
+  "openai/gpt-oss-120b",
   "mixtral-8x7b-32768",
   "gemma2-9b-it",
 ];
@@ -26,7 +24,7 @@ function getNextClient() {
 }
 
 async function executeWithFailover(createParams) {
-  const primaryModel = createParams.model || "qwen/qwen3.6-27b";
+  const primaryModel = createParams.model || "llama-3.3-70b-versatile";
 
   // Build model fallback sequence
   const modelsToTry = [

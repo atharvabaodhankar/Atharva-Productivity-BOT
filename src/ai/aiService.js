@@ -5,12 +5,14 @@ const { parseUserDate } = require("../utils/dateHelper");
 const Memory = require("../models/Memory");
 const User = require("../models/User");
 
-// Clean any leaked XML, function syntax, or internal IDs from raw LLM output
+// Clean any leaked XML, function syntax, reasoning traces, or internal IDs from raw LLM output
 function sanitizeOutput(text) {
   if (!text) return "Chal bhai, sorted! Anything else?";
 
-  return text
+  let cleaned = String(text)
     .replace(/<think>[\s\S]*?<\/think>/gi, "") // strip reasoning traces
+    .replace(/<thinking>[\s\S]*?<\/thinking>/gi, "")
+    .replace(/<thought>[\s\S]*?<\/thought>/gi, "")
     .replace(/<function=[\s\S]*?<\/function>/gi, "")
     .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, "")
     .replace(/<[\s\S]*?>/g, "") // remove any stray HTML/XML tags
@@ -19,6 +21,20 @@ function sanitizeOutput(text) {
     .replace(/#/g, "")
     .replace(/\*\*/g, "*")
     .trim();
+
+  // If reasoning leaked as plaintext without tags (e.g. "The user wants a recurring reminder..."):
+  if (/^(The user wants|I need to call|Let's double check|Tool call:)/i.test(cleaned)) {
+    // Extract the final conversational message if present
+    const lines = cleaned.split("\n").map(l => l.trim()).filter(Boolean);
+    const nonReasoningLines = lines.filter(l => !/^(The user |I need to |Let's |Tool call:|Current time:|Parameters:|- type:|- content:|- isRecurring:|- recurrenceInterval:|- timeOfDay:|- date:)/i.test(l));
+    if (nonReasoningLines.length > 0) {
+      cleaned = nonReasoningLines.join("\n\n");
+    } else {
+      cleaned = "Done bhai! Maine reminder schedule kar diya hai! 🔥";
+    }
+  }
+
+  return cleaned || "Sorted bhai! Anything else?";
 }
 
 const CASUAL_GREETINGS = new Set([
@@ -59,7 +75,7 @@ async function askAI({
     senderName,
   });
 
-  const model = "qwen/qwen3.6-27b";
+  const model = "llama-3.3-70b-versatile";
 
   const textPrompt =
     message || (base64ImageUrl ? "Analyze this image and extract any tasks or notes." : "");
