@@ -22,15 +22,22 @@ function sanitizeOutput(text) {
     .replace(/\*\*/g, "*")
     .trim();
 
-  // If reasoning leaked as plaintext without tags (e.g. "The user wants a recurring reminder..."):
-  if (/^(The user wants|I need to call|Let's double check|Tool call:)/i.test(cleaned)) {
-    // Extract the final conversational message if present
-    const lines = cleaned.split("\n").map(l => l.trim()).filter(Boolean);
-    const nonReasoningLines = lines.filter(l => !/^(The user |I need to |Let's |Tool call:|Current time:|Parameters:|- type:|- content:|- isRecurring:|- recurrenceInterval:|- timeOfDay:|- date:)/i.test(l));
-    if (nonReasoningLines.length > 0) {
-      cleaned = nonReasoningLines.join("\n\n");
+  // If the model leaked reasoning with "Assistant response:", "Draft:", or quotes, extract the actual spoken response:
+  const assistantMatch = cleaned.match(/(?:Assistant response|Draft|Final Polish):\s*["']?([\s\S]+?)["']?$/i);
+  if (assistantMatch && assistantMatch[1]) {
+    cleaned = assistantMatch[1].trim();
+  }
+
+  // Detect and purge any unformatted raw thought lines
+  const reasoningStarters = /^(Looking at the workspace|The user |I need to |Let's |Tool call:|Current time:|Parameters:|- type:|- content:|- isRecurring:|- recurrenceInterval:|- timeOfDay:|- date:|Since there are duplicates|I should probably|The first one|Wait,|Actually,|I will mark|I will call|It matches|I will proceed|I'll complete|Plan:|Draft:|Interpretation|Final Polish:)/i;
+
+  if (reasoningStarters.test(cleaned)) {
+    const lines = cleaned.split("\n").map((l) => l.trim()).filter(Boolean);
+    const validLines = lines.filter((l) => !reasoningStarters.test(l) && !/^[0-9]+\.\s*[0-9a-fA-F]{10,}/.test(l));
+    if (validLines.length > 0) {
+      cleaned = validLines.join("\n\n");
     } else {
-      cleaned = "Done bhai! Maine reminder schedule kar diya hai! 🔥";
+      cleaned = "Done bhai! Maine tasks update kar diye hain! 🔥";
     }
   }
 
