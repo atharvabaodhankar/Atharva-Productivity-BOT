@@ -5,43 +5,66 @@ const { parseUserDate } = require("../utils/dateHelper");
 const Memory = require("../models/Memory");
 const User = require("../models/User");
 
-// Clean any leaked XML, function syntax, reasoning traces, or internal IDs from raw LLM output
-function sanitizeOutput(text) {
-  if (!text) return "Chal bhai, sorted! Anything else?";
+// Comprehensive sanitizer to strip any leaked reasoning, XML tags, internal IDs, or bot POV scratchpads
+function sanitizeOutput(text, userName = "bhai") {
+  if (!text) return `Done ${userName}! Maine sab update kar diya hai! ✨`;
 
-  let cleaned = String(text)
-    .replace(/<think>[\s\S]*?<\/think>/gi, "") // strip reasoning traces
-    .replace(/<thinking>[\s\S]*?<\/thinking>/gi, "")
-    .replace(/<thought>[\s\S]*?<\/thought>/gi, "")
-    .replace(/<function=[\s\S]*?<\/function>/gi, "")
-    .replace(/<tool_call>[\s\S]*?<\/tool_call>/gi, "")
-    .replace(/<[\s\S]*?>/g, "") // remove any stray HTML/XML tags
-    .replace(/\[ID:\s*[0-9a-fA-F]+\]/g, "")
-    .replace(/Pending Tasks Count:\s*\d+/gi, "")
-    .replace(/#/g, "")
-    .replace(/\*\*/g, "*")
-    .trim();
+  let raw = String(text);
 
-  // If the model leaked reasoning with "Assistant response:", "Draft:", or quotes, extract the actual spoken response:
-  const assistantMatch = cleaned.match(/(?:Assistant response|Draft|Final Polish):\s*["']?([\s\S]+?)["']?$/i);
-  if (assistantMatch && assistantMatch[1]) {
-    cleaned = assistantMatch[1].trim();
+  // 1. Strip all XML/HTML reasoning & tool call tags (including unclosed tags if output was truncated)
+  raw = raw
+    .replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, "")
+    .replace(/<thinking>[\s\S]*?(?:<\/thinking>|$)/gi, "")
+    .replace(/<thought>[\s\S]*?(?:<\/thought>|$)/gi, "")
+    .replace(/<reasoning>[\s\S]*?(?:<\/reasoning>|$)/gi, "")
+    .replace(/<thought_process>[\s\S]*?(?:<\/thought_process>|$)/gi, "")
+    .replace(/<function=[\s\S]*?(?:<\/function>|$)/gi, "")
+    .replace(/<tool_call>[\s\S]*?(?:<\/tool_call>|$)/gi, "")
+    .replace(/<[\s\S]*?>/g, "");
+
+  // 2. If the model output a structured thought block with a labeled final spoken response:
+  const labeledMatch = raw.match(
+    /(?:Final\s*(?:Response|Answer|Output|Polish|Reply)|Spoken\s*(?:Response|Text)|Assistant\s*(?:Response|Reply)|Response|Reply):\s*["']?([\s\S]+?)["']?$/i
+  );
+  if (labeledMatch && labeledMatch[1] && labeledMatch[1].trim().length > 3) {
+    raw = labeledMatch[1].trim();
   }
 
-  // Detect and purge any unformatted raw thought lines
-  const reasoningStarters = /^(Looking at the workspace|The user |I need to |Let's |Tool call:|Current time:|Parameters:|- type:|- content:|- isRecurring:|- recurrenceInterval:|- timeOfDay:|- date:|Since there are duplicates|I should probably|The first one|Wait,|Actually,|I will mark|I will call|It matches|I will proceed|I'll complete|Plan:|Draft:|Interpretation|Final Polish:)/i;
+  // 3. If raw text contains internal reasoning, scratchpads, or bot POV:
+  const isReasoning =
+    /Looking at (?:the |active |conversation |workspace |user |context)|AtharvaOS\s*\(Bot POV\)|\(Bot POV\)|Bot POV|IDs(?:\s+to\s+delete)?:?|Last (?:user|assistant) message|Current time:|Contextually,|Given the |However,\s*(?:the |previous )|Since (?:there are|the user)|I should (?:probably|delete|clear)|I will (?:delete|clear|mark|confirm)/i.test(
+      raw
+    );
 
-  if (reasoningStarters.test(cleaned)) {
-    const lines = cleaned.split("\n").map((l) => l.trim()).filter(Boolean);
-    const validLines = lines.filter((l) => !reasoningStarters.test(l) && !/^[0-9]+\.\s*[0-9a-fA-F]{10,}/.test(l));
-    if (validLines.length > 0) {
-      cleaned = validLines.join("\n\n");
-    } else {
-      cleaned = "Done bhai! Maine tasks update kar diye hain! 🔥";
+  if (isReasoning) {
+    // Look for standalone quoted conversational response on its own line:
+    // e.g. "Done Shraddha! Saare reminders clear kar diye. Ab koi notification nahi aayega. 😌✨"
+    const standaloneQuotes = Array.from(raw.matchAll(/(?:^|\n)\s*["“]([^"”\n\r]{15,})["”]\s*(?:\n|$)/gu));
+    if (standaloneQuotes.length > 0) {
+      for (let i = standaloneQuotes.length - 1; i >= 0; i--) {
+        const candidate = standaloneQuotes[i][1].trim();
+        if (
+          !/^(?:Looking at|Last user|Last assistant|Current time|Contextually|IDs|Two|One|Subah|Raat)/i.test(
+            candidate
+          )
+        ) {
+          return candidate.replace(/#/g, "").replace(/\*\*/g, "*").trim();
+        }
+      }
     }
+
+    // Otherwise, return a clean, friendly persona confirmation fallback
+    return `Done ${userName}! Maine aapke tasks aur reminders update kar diye hain! 😌✨`;
   }
 
-  return cleaned || "Sorted bhai! Anything else?";
+  // 4. Telegram Markdown Cleanup
+  let cleaned = raw.replace(/^["']|["']$/g, "").replace(/#/g, "").replace(/\*\*/g, "*").trim();
+
+  if (!cleaned || cleaned.length < 3) {
+    return `Done ${userName}! Maine sab update kar diya hai! ✨`;
+  }
+
+  return cleaned;
 }
 
 const CASUAL_GREETINGS = new Set([
@@ -108,6 +131,8 @@ async function askAI({
 
   let responseMessage;
 
+  const displayName = user?.firstName || senderName || "bhai";
+
   // In groups or casual greetings, execute direct chat without tools to prevent workspace leaks/hallucinations
   if (isCasualChat) {
     const directResponse = await executeWithFailover({
@@ -116,9 +141,8 @@ async function askAI({
       temperature: 0.7,
       max_completion_tokens: 350,
     });
-    const rawContent =
-      directResponse.choices[0].message.content || directResponse.choices[0].message.reasoning || "";
-    return sanitizeOutput(rawContent);
+    const rawContent = directResponse.choices[0]?.message?.content || "";
+    return sanitizeOutput(rawContent, displayName);
   }
 
   // Otherwise, use tool calling in private DMs
@@ -271,8 +295,8 @@ async function askAI({
     }
   }
 
-  const finalRawText = responseMessage.content || responseMessage.reasoning || "";
-  return sanitizeOutput(finalRawText);
+  const finalRawText = responseMessage?.content || "";
+  return sanitizeOutput(finalRawText, displayName);
 }
 
 module.exports = { askAI };

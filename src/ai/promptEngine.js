@@ -1,3 +1,59 @@
+function disinfectHistory(rawHistory) {
+  if (!rawHistory) return "";
+
+  const reasoningLinePatterns = [
+    /^(?:assistant:\s*)?Looking at (the |active |conversation |workspace |user |context)/i,
+    /^(?:assistant:\s*)?(The )?Last (user |assistant )message/i,
+    /^(?:assistant:\s*)?Current time:/i,
+    /^(?:assistant:\s*)?Contextually,/i,
+    /^(?:assistant:\s*)?Given the (user|context|duplicates)/i,
+    /^(?:assistant:\s*)?The user('s)? ("?[^"]+"? )?(likely |wants |said |asked |is |replied )/i,
+    /^(?:assistant:\s*)?User:\s*"/i,
+    /^(?:assistant:\s*)?Assistant:\s*"/i,
+    /^(?:assistant:\s*)?However,\s*(the |previous |since |it )/i,
+    /^(?:assistant:\s*)?Since (there are|the user)/i,
+    /^(?:assistant:\s*)?If I delete/i,
+    /^(?:assistant:\s*)?I should (probably|delete|clear|mark|proceed|ask)/i,
+    /^(?:assistant:\s*)?I will (delete|clear|mark|call|proceed|confirm|ask)/i,
+    /^(?:assistant:\s*)?I'll (complete|delete|call|clear)/i,
+    /^(?:assistant:\s*)?It looks like (duplicate|the user)/i,
+    /^(?:assistant:\s*)?Then I will confirm/i,
+    /^(?:assistant:\s*)?IDs(?:\s+to\s+delete)?:?/i,
+    /^(?:assistant:\s*)?AtharvaOS\s*\(Bot POV\)/i,
+    /^(?:assistant:\s*)?\(Bot POV\)/i,
+    /^(?:assistant:\s*)?Bot POV:/i,
+    /^(?:assistant:\s*)?[0-9a-fA-F]{16,40}$/, // Raw MongoDB ObjectId line
+    /^(?:assistant:\s*)?[0-9]+\.\s*[0-9a-fA-F]{16,40}$/, // Numbered ObjectID line
+    /^(?:assistant:\s*)?(Plan|Draft|Step \d+|Analysis|Interpretation|Thought|Internal):/i,
+    /^(?:assistant:\s*)?The current active reminders are:/i,
+    /^(?:assistant:\s*)?-\s*(Two|One|Three|\d+|Last|Current|There are|IDs?|[0-9a-fA-F]{16,})/i,
+    /^(?:assistant:\s*)?-\s*"(?:Raat|Subah|Every|Daily|[0-9a-fA-F]{10,})/i,
+  ];
+
+  const lines = rawHistory.split("\n");
+  const cleanedLines = [];
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) continue;
+
+    const isLeakedThought = reasoningLinePatterns.some((p) => p.test(trimmed));
+
+    if (isLeakedThought) {
+      // If the leaked line contained a quoted final spoken sentence, salvage it
+      const quoted = trimmed.match(/["“]([^"”\n]{10,}[\u{1F300}-\u{1F9FF}\w\s!?,.]{3,})["”]/u);
+      if (quoted && quoted[1] && !/^(Looking at|Last user|Last assistant|Current time|Contextually|IDs to delete)/i.test(quoted[1])) {
+        cleanedLines.push(`assistant: ${quoted[1].trim()}`);
+      }
+      continue;
+    }
+
+    cleanedLines.push(trimmed);
+  }
+
+  return cleanedLines.join("\n");
+}
+
 function buildSystemPrompt({ user, memories, pendingTasksCount, historyText, isGroupChat = false, senderName = "Friend" }) {
   const username = (user?.username || "").toLowerCase().replace(/^@/, "");
   const isSpecialUser = username === "eshhh_02";
@@ -5,6 +61,8 @@ function buildSystemPrompt({ user, memories, pendingTasksCount, historyText, isG
   
   const userName = isSpecialUser ? "Ashu" : (isGroupChat ? senderName : (user ? user.firstName : "Friend"));
   const userTimezone = user ? user.timezone : "Asia/Kolkata";
+  
+  const cleanHistoryText = disinfectHistory(historyText);
   
   const now = new Date();
   const currentLocalDateStr = now.toLocaleDateString("en-US", { timeZone: userTimezone, weekday: "long", year: "numeric", month: "long", day: "numeric" });
@@ -185,14 +243,14 @@ ${personalityVoice}
 - If ${userName} asks "what is the time" or "kya time hua hai" or "what's the date", tell them directly using the REAL-TIME CLOCK CONTEXT above (${currentLocalTimeStr} on ${currentLocalDateStr})!
 
 STRICT GUARDRAILS:
-1. NEVER LEAK INTERNAL THOUGHTS OR REASONING (CRITICAL):
-   - You MUST NEVER write meta-analysis, internal monologue, planning steps, or phrases like "Looking at the workspace:", "The user wants...", "Plan:", "Draft:", "Assistant response:", "I should probably...", or "Since there are duplicates...".
-   - Talk DIRECTLY to ${userName} in your friendly Hinglish persona as a human friend. Every single word of your output goes straight to their Telegram screen!
+1. NEVER LEAK INTERNAL THOUGHTS, CONTEXT ANALYSIS, OR REASONING (CRITICAL):
+   - You MUST NEVER write internal planning, scratchpad analysis, breakdown of IDs, or meta-commentary like "Looking at the context:", "AtharvaOS (Bot POV)", "The user wants...", "Plan:", "Draft:", "Assistant response:", "I should probably...", "IDs to delete:", or "Since there are duplicates...".
+   - DO NOT draft your thoughts. Respond DIRECTLY and ONLY with your final conversational Hinglish dialogue to ${userName}.
 2. NEVER CONFUSE BOOKMARKS WITH PROJECTS:
    - Projects are top-level task containers (e.g. "Blockchain Land Registry System", "Web Dev").
    - Bookmarks are saved URLs/videos (e.g. "grok", "Next.js Course"). NEVER label bookmarks as projects!
 3. NEVER WRITE CODE OR ESSAYS: You are ONLY a productivity coach. If asked to write code/apps, playfully decline and offer to add it as a task.
-4. NEVER LEAK SYSTEM IDS OR XML TAGS: Never output internal tags (<function=...>), tool names, or raw IDs.
+4. NEVER LEAK SYSTEM IDS OR XML TAGS: Never output internal tags (<function=...>), tool names, or raw MongoDB IDs.
 5. CASUAL CONVERSATION: For simple greetings or chat ("yo", "hi", "kaisa hai", "who made you"), answer directly in natural text without calling any tools.
 ${groupPrivacyGuardrail}
 
@@ -200,7 +258,7 @@ ACTIVE WORKSPACE FOR ${userName.toUpperCase()}:
 ${formattedMemories}
 
 CONVERSATION CONTEXT:
-${historyText || "(Fresh conversation)"}
+${cleanHistoryText || "(Fresh conversation)"}
 
 EXACT TOOL USAGE & PROJECT HIERARCHY RULES:
 - PROJECTS & SUBTASKS:
