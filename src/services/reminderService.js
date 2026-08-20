@@ -1,6 +1,23 @@
 const Memory = require("../models/Memory");
 const User = require("../models/User");
 
+// Helper to check if an error is permanent (user blocked, chat not found, bot kicked)
+function isTelegramPermanentError(err) {
+  const msg = (err?.message || "").toLowerCase();
+  const code = err?.response?.error_code || err?.code;
+  return (
+    code === 403 ||
+    code === 400 ||
+    msg.includes("403") ||
+    msg.includes("400") ||
+    msg.includes("blocked") ||
+    msg.includes("chat not found") ||
+    msg.includes("can't initiate") ||
+    msg.includes("deactivated") ||
+    msg.includes("user is deactivated")
+  );
+}
+
 // 1. Process 5-minute upcoming deadlines & scheduled routines
 async function checkUpcomingReminders(bot) {
   try {
@@ -68,7 +85,14 @@ async function checkUpcomingReminders(bot) {
             await Memory.findByIdAndUpdate(item._id, { reminderSent: true });
           }
         } catch (err) {
-          console.error(`Failed sending reminder ${item._id}:`, err.message);
+          console.warn(`Failed sending reminder ${item._id}: ${err.message}`);
+          // If Telegram rejected permanently (blocked, deleted chat), mark sent/completed so it doesn't loop
+          if (isTelegramPermanentError(err)) {
+            await Memory.findByIdAndUpdate(item._id, {
+              reminderSent: true,
+              completed: item.type === "reminder",
+            });
+          }
         }
       }
     }
@@ -103,9 +127,9 @@ async function checkUpcomingReminders(bot) {
       await Memory.findByIdAndUpdate(rec._id, { date: nextDate, reminderSent: false });
     }
 
-    // 1.2 Process Morning Daily Briefings & Nightly Accountability
+    // 1.2 Process Morning Daily Briefings & Nightly Accountability in parallel batches
     const allUsers = await User.find();
-    for (const user of allUsers) {
+    const userPromises = allUsers.map(async (user) => {
       const tz = user.timezone || "Asia/Kolkata";
       const userLocalDateStr = now.toLocaleDateString("en-CA", { timeZone: tz }); // YYYY-MM-DD
       const userHour = parseInt(
@@ -122,7 +146,10 @@ async function checkUpcomingReminders(bot) {
       if (userHour >= 22 && userHour < 23 && user.preferences?.lastNightlyReflectionDate !== userLocalDateStr) {
         await sendNightlyReflectionForUser(bot, user, userLocalDateStr);
       }
-    }
+    });
+
+    // Execute in parallel with safety
+    await Promise.allSettled(userPromises);
   } catch (error) {
     console.error("Error in checkUpcomingReminders:", error.message);
   }
@@ -198,7 +225,13 @@ async function sendDailySummaryForUser(bot, user, dateKey) {
       "preferences.lastDailySummaryDate": dateKey,
     });
   } catch (err) {
-    console.error(`Error sending daily summary to ${user.telegramId}:`, err);
+    console.warn(`Error sending daily summary to ${user.telegramId}: ${err.message}`);
+    // Always mark dateKey so we do not retry failed/blocked users every 5 minutes
+    try {
+      await User.findByIdAndUpdate(user._id, {
+        "preferences.lastDailySummaryDate": dateKey,
+      });
+    } catch (dbErr) {}
   }
 }
 
@@ -254,7 +287,13 @@ async function sendNightlyReflectionForUser(bot, user, dateKey) {
       "preferences.lastNightlyReflectionDate": dateKey,
     });
   } catch (err) {
-    console.error(`Error sending nightly reflection to ${user.telegramId}:`, err);
+    console.warn(`Error sending nightly reflection to ${user.telegramId}: ${err.message}`);
+    // Always mark dateKey so we do not retry failed/blocked users every 5 minutes
+    try {
+      await User.findByIdAndUpdate(user._id, {
+        "preferences.lastNightlyReflectionDate": dateKey,
+      });
+    } catch (dbErr) {}
   }
 }
 
@@ -262,17 +301,13 @@ async function sendNightlyReflectionForUser(bot, user, dateKey) {
 async function sendDailySummary(bot) {
   const users = await User.find();
   const dateKey = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-  for (const user of users) {
-    await sendDailySummaryForUser(bot, user, dateKey);
-  }
+  await Promise.allSettled(users.map((user) => sendDailySummaryForUser(bot, user, dateKey)));
 }
 
 async function sendNightlyReflection(bot) {
   const users = await User.find();
   const dateKey = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
-  for (const user of users) {
-    await sendNightlyReflectionForUser(bot, user, dateKey);
-  }
+  await Promise.allSettled(users.map((user) => sendNightlyReflectionForUser(bot, user, dateKey)));
 }
 
 module.exports = {

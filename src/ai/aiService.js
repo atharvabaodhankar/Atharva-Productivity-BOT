@@ -105,7 +105,9 @@ async function askAI({
     senderName,
   });
 
-  const model = "llama-3.3-70b-versatile";
+  const model = base64ImageUrl
+    ? "llama-3.2-11b-vision-preview"
+    : "qwen/qwen3.6-27b";
 
   const textPrompt =
     message || (base64ImageUrl ? "Analyze this image and extract any tasks or notes." : "");
@@ -127,19 +129,19 @@ async function askAI({
   ];
 
   const cleanInput = (message || "").trim().toLowerCase();
-  const isCasualChat = (CASUAL_GREETINGS.has(cleanInput) || isGroup) && !base64ImageUrl;
+  const isDirectChat = CASUAL_GREETINGS.has(cleanInput) || isGroup || !!base64ImageUrl;
 
   let responseMessage;
 
   const displayName = user?.firstName || senderName || "bhai";
 
-  // In groups or casual greetings, execute direct chat without tools to prevent workspace leaks/hallucinations
-  if (isCasualChat) {
+  // In groups, casual greetings, or vision requests: execute direct chat without tools
+  if (isDirectChat) {
     const directResponse = await executeWithFailover({
       messages,
       model,
       temperature: 0.7,
-      max_completion_tokens: 350,
+      max_completion_tokens: base64ImageUrl ? 600 : 350,
     });
     const rawContent = directResponse.choices[0]?.message?.content || "";
     return sanitizeOutput(rawContent, displayName);
