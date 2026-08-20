@@ -5,7 +5,7 @@ const { parseUserDate } = require("../utils/dateHelper");
 const Memory = require("../models/Memory");
 const User = require("../models/User");
 
-// Comprehensive sanitizer to strip any leaked reasoning, XML tags, internal IDs, or bot POV scratchpads
+// Comprehensive sanitizer to strip any leaked reasoning, XML tags, or bot POV scratchpads
 function sanitizeOutput(text, userName = "bhai") {
   if (!text) return `Done ${userName}! Maine sab update kar diya hai! ✨`;
 
@@ -30,37 +30,19 @@ function sanitizeOutput(text, userName = "bhai") {
     raw = labeledMatch[1].trim();
   }
 
-  // 3. If raw text contains internal reasoning, scratchpads, or bot POV:
-  const isReasoning =
-    /Looking at (?:the |active |conversation |workspace |user |context)|AtharvaOS\s*\(Bot POV\)|\(Bot POV\)|Bot POV|IDs(?:\s+to\s+delete)?:?|Last (?:user|assistant) message|Current time:|Contextually,|Given the |However,\s*(?:the |previous )|Since (?:there are|the user)|I should (?:probably|delete|clear)|I will (?:delete|clear|mark|confirm)/i.test(
-      raw
-    );
+  // 3. Strip explicit bot POV scratchpad headers if present at the beginning
+  raw = raw
+    .replace(/^(?:AtharvaOS\s*\(Bot POV\)|\[Bot POV\]|Bot POV:?)\s*/i, "")
+    .trim();
 
-  if (isReasoning) {
-    // Look for standalone quoted conversational response on its own line:
-    // e.g. "Done Shraddha! Saare reminders clear kar diye. Ab koi notification nahi aayega. 😌✨"
-    const standaloneQuotes = Array.from(raw.matchAll(/(?:^|\n)\s*["“]([^"”\n\r]{15,})["”]\s*(?:\n|$)/gu));
-    if (standaloneQuotes.length > 0) {
-      for (let i = standaloneQuotes.length - 1; i >= 0; i--) {
-        const candidate = standaloneQuotes[i][1].trim();
-        if (
-          !/^(?:Looking at|Last user|Last assistant|Current time|Contextually|IDs|Two|One|Subah|Raat)/i.test(
-            candidate
-          )
-        ) {
-          return candidate.replace(/#/g, "").replace(/\*\*/g, "*").trim();
-        }
-      }
-    }
+  // 4. Telegram Markdown Cleanup (convert **bold** to *bold*, remove headers #)
+  let cleaned = raw
+    .replace(/^["']|["']$/g, "")
+    .replace(/^[ \t]*#+[ \t]*/gm, "")
+    .replace(/\*\*/g, "*")
+    .trim();
 
-    // Otherwise, return a clean, friendly persona confirmation fallback
-    return `Done ${userName}! Maine aapke tasks aur reminders update kar diye hain! 😌✨`;
-  }
-
-  // 4. Telegram Markdown Cleanup
-  let cleaned = raw.replace(/^["']|["']$/g, "").replace(/#/g, "").replace(/\*\*/g, "*").trim();
-
-  if (!cleaned || cleaned.length < 3) {
+  if (!cleaned || cleaned.length < 2) {
     return `Done ${userName}! Maine sab update kar diya hai! ✨`;
   }
 
@@ -141,7 +123,7 @@ async function askAI({
       messages,
       model,
       temperature: 0.7,
-      max_completion_tokens: base64ImageUrl ? 600 : 350,
+      max_completion_tokens: 1500,
     });
     const rawContent = directResponse.choices[0]?.message?.content || "";
     return sanitizeOutput(rawContent, displayName);
@@ -153,7 +135,7 @@ async function askAI({
       messages,
       model,
       temperature: 0.65,
-      max_completion_tokens: 600,
+      max_completion_tokens: 1500,
       tools,
       tool_choice: "auto",
     });
@@ -164,7 +146,7 @@ async function askAI({
       messages,
       model,
       temperature: 0.65,
-      max_completion_tokens: 500,
+      max_completion_tokens: 1500,
     });
     responseMessage = fallbackResponse.choices[0].message;
   }
@@ -290,6 +272,7 @@ async function askAI({
         messages,
         model,
         temperature: 0.65,
+        max_completion_tokens: 1500,
       });
       responseMessage = followUp.choices[0].message;
     } catch (err) {

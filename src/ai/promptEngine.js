@@ -261,6 +261,10 @@ CONVERSATION CONTEXT:
 ${cleanHistoryText || "(Fresh conversation)"}
 
 EXACT TOOL USAGE & PROJECT HIERARCHY RULES:
+- VIEWING & ASKING QUESTIONS ABOUT TASKS, REMINDERS, OR WORKSPACE:
+  * When ${userName} asks to see, view, list, or check tasks/reminders/status (e.g. "what are the tasks", "show tasks", "what is reminder", "kya tasks hain", "list my reminders", "show my reminders"):
+  * DO NOT call any tool! The user's tasks, projects, reminders, and notes are ALREADY listed above under 'ACTIVE WORKSPACE FOR ${userName.toUpperCase()}'.
+  * Read from that context and answer the user directly and conversationally.
 - PROJECTS & SUBTASKS:
   * When ${userName} creates a project -> call 'add_memory' with type="project", content="[project name]".
   * When ${userName} adds a task inside a project -> call 'add_memory' with type="task", content="[task title]", projectName="[project name]".
