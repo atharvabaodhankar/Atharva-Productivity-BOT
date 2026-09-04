@@ -4,6 +4,8 @@ const { buildSystemPrompt } = require("./promptEngine");
 const { parseUserDate } = require("../utils/dateHelper");
 const Memory = require("../models/Memory");
 const User = require("../models/User");
+const mongoose = require("mongoose");
+const { getReminders } = require("../services/memoryService");
 
 // Comprehensive sanitizer to strip any leaked reasoning, XML tags, or bot POV scratchpads
 function sanitizeOutput(text, userName = "bhai") {
@@ -64,11 +66,25 @@ async function askAI({
   senderName = "Friend",
 }) {
   const user = await User.findOne({ telegramId: chatId });
-  const memories = isGroup
-    ? []
-    : await Memory.find({ chatId })
-        .sort({ completed: 1, createdAt: -1 })
-        .limit(20);
+  let memories = [];
+  if (!isGroup) {
+    const activeReminders = await Memory.find({
+      chatId,
+      type: "reminder",
+      completed: false,
+    });
+    const otherMemories = await Memory.find({
+      chatId,
+      $or: [
+        { type: { $ne: "reminder" } },
+        { completed: true },
+      ],
+    })
+      .sort({ completed: 1, createdAt: -1 })
+      .limit(30);
+
+    memories = [...activeReminders, ...otherMemories];
+  }
 
   const pendingTasksCount = isGroup
     ? 0
@@ -245,10 +261,55 @@ async function askAI({
           resultContent = updated
             ? `Marked "${updated.content}" as COMPLETED.`
             : `Item not found.`;
+        } else if (functionName === "delete_reminder") {
+          const { id, query, deleteAll } = args;
+          if (deleteAll) {
+            const res = await Memory.deleteMany({ chatId, type: "reminder" });
+            resultContent = `Successfully deleted all ${res.deletedCount} reminders for you.`;
+          } else if (id && mongoose.Types.ObjectId.isValid(id)) {
+            const deleted = await Memory.findOneAndDelete({ _id: id, chatId, type: "reminder" });
+            resultContent = deleted
+              ? `Deleted reminder: "${deleted.content}".`
+              : `Reminder with ID ${id} not found.`;
+          } else if (query || (id && !mongoose.Types.ObjectId.isValid(id))) {
+            const searchStr = (query || id).trim();
+            const escaped = searchStr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+            const deleted = await Memory.findOneAndDelete({
+              chatId,
+              type: "reminder",
+              content: new RegExp(escaped, "i"),
+            });
+            resultContent = deleted
+              ? `Deleted reminder: "${deleted.content}".`
+              : `No reminder found matching "${searchStr}".`;
+          } else {
+            const active = await getReminders(chatId);
+            if (active.length === 0) {
+              resultContent = "No active reminders found to delete.";
+            } else if (active.length === 1) {
+              await Memory.findByIdAndDelete(active[0]._id);
+              resultContent = `Deleted your reminder: "${active[0].content}".`;
+            } else {
+              resultContent = `Found multiple active reminders: ${active.map((r) => `"${r.content}" (ID: ${r._id})`).join(", ")}. Please specify which one to delete or say 'delete all reminders'.`;
+            }
+          }
         } else if (functionName === "delete_memory") {
-          const deleted = await Memory.findOneAndDelete({ _id: args.id, chatId });
+          let deleted = null;
+          if (args.id && mongoose.Types.ObjectId.isValid(args.id)) {
+            deleted = await Memory.findOneAndDelete({ _id: args.id, chatId });
+          }
+          if (!deleted && (args.query || args.id)) {
+            const searchStr = (args.query || args.id || "").trim();
+            if (searchStr) {
+              const escaped = searchStr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+              deleted = await Memory.findOneAndDelete({
+                chatId,
+                content: new RegExp(escaped, "i"),
+              });
+            }
+          }
           resultContent = deleted
-            ? `Deleted item "${deleted.content}".`
+            ? `Deleted ${deleted.type || "item"} "${deleted.content}".`
             : `Item not found.`;
         } else if (functionName === "clear_all_memories") {
           const res = await Memory.deleteMany({ chatId });

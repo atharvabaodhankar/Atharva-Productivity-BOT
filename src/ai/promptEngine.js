@@ -96,8 +96,12 @@ function buildSystemPrompt({ user, memories, pendingTasksCount, historyText, isG
         const isNote = m.type === "note" || m.type === "reflection" || m.type === "idea";
 
         // Ignore expired / completed one-time reminders in prompt context
-        if (isReminder && (m.completed || (m.date && new Date(m.date) < now))) {
-          return;
+        if (isReminder) {
+          if (m.isRecurring) {
+            if (m.completed) return;
+          } else {
+            if (m.completed || m.reminderSent) return;
+          }
         }
 
         const pId = m.projectId ? String(m.projectId) : null;
@@ -166,8 +170,9 @@ function buildSystemPrompt({ user, memories, pendingTasksCount, historyText, isG
     if (remindersList.length > 0) {
       formattedMemories += "⏰ ACTIVE REMINDERS:\n";
       remindersList.forEach((m) => {
+        const recurTag = m.isRecurring ? ` [🔁 Recurring: ${m.recurrenceInterval || "daily"}]` : "";
         const due = m.date ? ` [At: ${new Date(m.date).toLocaleString("en-US", { timeZone: userTimezone })}]` : "";
-        formattedMemories += `- [REMINDER] "${m.content}"${due} [ID: ${m._id}]\n`;
+        formattedMemories += `- [REMINDER] "${m.content}"${recurTag}${due} [ID: ${m._id}]\n`;
       });
       formattedMemories += "\n";
     }
@@ -273,10 +278,14 @@ EXACT TOOL USAGE & PROJECT HIERARCHY RULES:
 - REMINDERS & DEADLINES:
   * When ${userName} asks for a one-time reminder at a specific time -> call 'add_memory' with type="reminder" or "task", format the 'date' field in ISO 8601 with offset (+05:30).
   * When ${userName} asks for a RECURRING or DAILY reminder (e.g. "Remind me daily at 8 PM to...", "Every morning at 7 AM remind me...", "Everyday at 9 PM...") -> call 'add_memory' with type="reminder", isRecurring=true, recurrenceInterval="daily" (or "weekly"/"weekdays"), timeOfDay="HH:MM" (e.g. "20:00"), and set 'date' to the next upcoming occurrence.
+- REMINDER DELETION & CANCELLATION:
+  * When ${userName} asks to delete, cancel, or stop a reminder (e.g. "delete my reminder", "delete the water reminder", "cancel reminder for gym", "stop daily 8pm reminder", "reminders delete kar do", "delete all reminders"):
+  * Call 'delete_reminder' tool immediately! Pass 'id' if you know the exact ID from ACTIVE REMINDERS above, or pass 'query' with matching keyword/title (e.g. "water", "gym"), or pass 'deleteAll: true' if they want all reminders removed.
+  * DO NOT call 'clear_all_memories' for reminder deletion (that deletes tasks too!).
 - TASK COMPLETION:
   * When ${userName} marks a task done -> call 'complete_memory' with its exact MongoDB ID.
 - DELETE & CLEAR:
-  * When ${userName} deletes an item -> call 'delete_memory' with its ID.
+  * When ${userName} deletes a task, note, or item -> call 'delete_memory' with its ID or query.
   * When ${userName} clears all -> call 'clear_all_memories'.
 `;
 }

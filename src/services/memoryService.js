@@ -19,15 +19,18 @@ async function getPendingTasks(chatId) {
   }).sort({ date: 1, createdAt: -1 });
 }
 
+const mongoose = require("mongoose");
+
 async function getReminders(chatId) {
-  const now = new Date();
   return await Memory.find({
     chatId,
     type: "reminder",
     completed: false,
-    reminderSent: { $ne: true },
-    date: { $gte: now },
-  }).sort({ date: 1 });
+    $or: [
+      { isRecurring: true },
+      { reminderSent: { $ne: true } },
+    ],
+  }).sort({ date: 1, createdAt: -1 });
 }
 
 async function getGoals(chatId) {
@@ -85,8 +88,45 @@ async function completeMemory(chatId, id) {
   );
 }
 
-async function deleteMemory(chatId, id) {
-  return await Memory.findOneAndDelete({ _id: id, chatId });
+async function deleteMemory(chatId, idOrQuery) {
+  if (!idOrQuery) return null;
+  const str = String(idOrQuery).trim();
+  if (mongoose.Types.ObjectId.isValid(str)) {
+    const byId = await Memory.findOneAndDelete({ _id: str, chatId });
+    if (byId) return byId;
+  }
+  const escaped = str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return await Memory.findOneAndDelete({
+    chatId,
+    content: new RegExp(escaped, "i"),
+  });
+}
+
+async function deleteReminders(chatId, { id, query, all = false } = {}) {
+  if (all) {
+    const res = await Memory.deleteMany({ chatId, type: "reminder" });
+    return { count: res.deletedCount, all: true };
+  }
+  if (id && mongoose.Types.ObjectId.isValid(id)) {
+    const deleted = await Memory.findOneAndDelete({ _id: id, chatId, type: "reminder" });
+    return { deleted, count: deleted ? 1 : 0 };
+  }
+  const searchStr = (query || id || "").trim();
+  if (searchStr) {
+    const escaped = searchStr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const deleted = await Memory.findOneAndDelete({
+      chatId,
+      type: "reminder",
+      content: new RegExp(escaped, "i"),
+    });
+    return { deleted, count: deleted ? 1 : 0 };
+  }
+  const active = await getReminders(chatId);
+  if (active.length === 1) {
+    const deleted = await Memory.findByIdAndDelete(active[0]._id);
+    return { deleted, count: 1 };
+  }
+  return { activeReminders: active, count: 0 };
 }
 
 async function clearAllMemories(chatId) {
@@ -102,5 +142,6 @@ module.exports = {
   getTodaySummary,
   completeMemory,
   deleteMemory,
+  deleteReminders,
   clearAllMemories,
 };

@@ -88,17 +88,44 @@ const tools = [
   {
     type: "function",
     function: {
-      name: "delete_memory",
-      description: "Permanently delete/remove a specific task, reminder, or note by its ID.",
+      name: "delete_reminder",
+      description: "Delete or cancel one, specific, or all reminders for the user. Use this whenever the user asks to delete, cancel, stop, or clear reminders (e.g. 'delete my reminder', 'cancel gym reminder', 'delete all reminders').",
       parameters: {
         type: "object",
         properties: {
           id: {
             type: "string",
-            description: "The MongoDB document ID of the memory to delete.",
+            description: "Optional MongoDB document ID of the specific reminder to delete.",
+          },
+          query: {
+            type: "string",
+            description: "Optional title, keyword, or text to match reminder content (e.g. 'water', 'gym', 'meeting').",
+          },
+          deleteAll: {
+            type: "boolean",
+            description: "Set to true if user wants to delete, cancel, or clear ALL reminders.",
           },
         },
-        required: ["id"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "delete_memory",
+      description: "Permanently delete/remove a specific task, reminder, or note by its ID or title keyword.",
+      parameters: {
+        type: "object",
+        properties: {
+          id: {
+            type: "string",
+            description: "Optional MongoDB document ID of the item to delete.",
+          },
+          query: {
+            type: "string",
+            description: "Optional content, title, or keyword to match if ID is not known.",
+          },
+        },
       },
     },
   },
