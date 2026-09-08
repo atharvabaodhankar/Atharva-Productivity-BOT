@@ -114,6 +114,9 @@ async function sendAiVoiceReply(bot, chatId, text, options = {}) {
   const voiceId = options.voiceId || "Matthew";
   const audioBuffer = await synthesizeSpeech(text, voiceId, "mp3");
 
+  const { recordVoiceGeneration } = require("./statsService");
+  recordVoiceGeneration().catch(() => {});
+
   const sentMsg = await bot.telegram.sendVoice(
     chatId,
     { source: audioBuffer, filename: "voice_reply.mp3" },

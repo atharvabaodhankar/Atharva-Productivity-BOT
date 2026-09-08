@@ -74,6 +74,9 @@ async function executeBedrockConverse({
   const responseMessage = response.output.message;
   bedrockMessages.push(responseMessage);
 
+  const usage1 = response.usage || {};
+  let usage2 = {};
+
   // Check for tool use
   const toolUseBlocks = (responseMessage.content || []).filter((c) => c.toolUse);
 
@@ -118,12 +121,34 @@ async function executeBedrockConverse({
     });
 
     const followUpRes = await client.send(followUpCmd);
+    usage2 = followUpRes.usage || {};
+
+    // Record total tokens consumed across both tool steps
+    const { recordTokenUsage } = require("../services/statsService");
+    const totalIn = (usage1.inputTokens || 0) + (usage2.inputTokens || 0);
+    const totalOut = (usage1.outputTokens || 0) + (usage2.outputTokens || 0);
+    recordTokenUsage({
+      model: modelId,
+      inputTokens: totalIn,
+      outputTokens: totalOut,
+      totalTokens: totalIn + totalOut,
+    }).catch(() => {});
+
     const finalContent = (followUpRes.output.message.content || [])
       .map((c) => c.text || "")
       .join("\n")
       .trim();
     return finalContent;
   }
+
+  // Record tokens for single-turn text response
+  const { recordTokenUsage } = require("../services/statsService");
+  recordTokenUsage({
+    model: modelId,
+    inputTokens: usage1.inputTokens || 0,
+    outputTokens: usage1.outputTokens || 0,
+    totalTokens: (usage1.inputTokens || 0) + (usage1.outputTokens || 0),
+  }).catch(() => {});
 
   // If no tools called, return text response
   const textOutput = (responseMessage.content || [])
