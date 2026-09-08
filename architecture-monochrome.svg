@@ -1,0 +1,196 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 675" width="1200" height="675" style="background:#fcfcfc; font-family:-apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;">
+  <defs>
+    <!-- Shadow filter for clean subtle elevation -->
+    <filter id="subtle-shadow" x="-5%" y="-5%" width="110%" height="110%">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000000" flood-opacity="0.04" />
+      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#000000" flood-opacity="0.04" />
+    </filter>
+    <!-- Arrow Marker -->
+    <marker id="arrow" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#1e293b" />
+    </marker>
+    <!-- Dashed Arrow Marker -->
+    <marker id="arrow-dashed" viewBox="0 0 10 10" refX="6" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+      <path d="M 0 1.5 L 8 5 L 0 8.5 z" fill="#64748b" />
+    </marker>
+  </defs>
+
+  <!-- Canvas Border -->
+  <rect x="15" y="15" width="1170" height="645" rx="16" fill="#ffffff" stroke="#e2e8f0" stroke-width="1.5" />
+
+  <!-- Header Section -->
+  <g transform="translate(60, 48)">
+    <rect x="0" y="0" width="84" height="24" rx="12" fill="#0f172a" />
+    <text x="42" y="16" fill="#ffffff" font-size="11" font-weight="700" letter-spacing="1" text-anchor="middle">SYSTEM ARCHITECTURE</text>
+    <text x="96" y="18" fill="#0f172a" font-size="20" font-weight="800" letter-spacing="-0.5">AtharvaOS — Serverless AI Productivity Engine</text>
+    <text x="0" y="44" fill="#64748b" font-size="13" font-weight="500">Cross-Account Amazon Bedrock Foundation Models • Event-Driven Serverless Lambda • Polly Voice</text>
+  </g>
+
+  <!-- 1. USER TOUCHPOINTS (Left Column) -->
+  <g transform="translate(60, 120)">
+    <rect width="260" height="360" rx="12" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
+    <rect x="16" y="16" width="150" height="20" rx="6" fill="#e2e8f0" />
+    <text x="24" y="30" fill="#334155" font-size="11" font-weight="700" letter-spacing="0.5">USER INTERFACE LAYER</text>
+
+    <!-- Telegram Card -->
+    <g transform="translate(16, 52)">
+      <rect width="228" height="82" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1" filter="url(#subtle-shadow)" />
+      <circle cx="32" cy="30" r="14" fill="#0f172a" />
+      <text x="32" y="35" fill="#ffffff" font-size="14" font-weight="700" text-anchor="middle">TG</text>
+      <text x="56" y="28" fill="#0f172a" font-size="14" font-weight="700">Telegram Bot Client</text>
+      <text x="56" y="46" fill="#64748b" font-size="11">Human-paced multi-bubble</text>
+      <text x="56" y="60" fill="#64748b" font-size="11">Interactive action buttons</text>
+    </g>
+
+    <!-- Voice Notes Card -->
+    <g transform="translate(16, 150)">
+      <rect width="228" height="82" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1" filter="url(#subtle-shadow)" />
+      <circle cx="32" cy="30" r="14" fill="#334155" />
+      <text x="32" y="34" fill="#ffffff" font-size="13" font-weight="700" text-anchor="middle">🎙️</text>
+      <text x="56" y="28" fill="#0f172a" font-size="14" font-weight="700">Voice Briefings (/speak)</text>
+      <text x="56" y="46" fill="#64748b" font-size="11">Native audio notes streaming</text>
+      <text x="56" y="60" fill="#64748b" font-size="11">Automated text sanitation</text>
+    </g>
+
+    <!-- OCR & Document Card -->
+    <g transform="translate(16, 248)">
+      <rect width="228" height="92" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1" filter="url(#subtle-shadow)" />
+      <circle cx="32" cy="30" r="14" fill="#334155" />
+      <text x="32" y="34" fill="#ffffff" font-size="13" font-weight="700" text-anchor="middle">📷</text>
+      <text x="56" y="28" fill="#0f172a" font-size="14" font-weight="700">Multimodal Vision</text>
+      <text x="56" y="46" fill="#64748b" font-size="11">Whiteboard & checklist photos</text>
+      <text x="56" y="60" fill="#64748b" font-size="11">Instant task item extraction</text>
+    </g>
+  </g>
+
+  <!-- 2. SERVERLESS HOST (AWS ACCOUNT A - Middle Column) -->
+  <g transform="translate(360, 120)">
+    <rect width="420" height="360" rx="12" fill="#f8fafc" stroke="#0f172a" stroke-width="1.5" />
+    <rect x="16" y="16" width="180" height="20" rx="6" fill="#0f172a" />
+    <text x="24" y="30" fill="#ffffff" font-size="11" font-weight="700" letter-spacing="0.5">AWS ACCOUNT A • HOSTING</text>
+
+    <!-- AWS Lambda Central Engine -->
+    <g transform="translate(16, 52)">
+      <rect width="388" height="180" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1" filter="url(#subtle-shadow)" />
+      <rect x="16" y="14" width="28" height="28" rx="6" fill="#0f172a" />
+      <text x="30" y="33" fill="#ffffff" font-size="14" font-weight="800" text-anchor="middle">λ</text>
+      <text x="54" y="26" fill="#0f172a" font-size="15" font-weight="800">AWS Lambda (AtharvaOS-Bot)</text>
+      <text x="54" y="42" fill="#64748b" font-size="11">Node.js 22 Serverless Function URL Runtime</text>
+
+      <line x1="16" y1="56" x2="372" y2="56" stroke="#f1f5f9" stroke-width="1" />
+
+      <!-- Submodules inside Lambda -->
+      <g transform="translate(16, 70)">
+        <rect width="170" height="42" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
+        <text x="12" y="18" fill="#0f172a" font-size="11" font-weight="700">Autonomous Tool Engine</text>
+        <text x="12" y="32" fill="#64748b" font-size="10">add_memory • delete_reminder</text>
+      </g>
+      <g transform="translate(196, 70)">
+        <rect width="176" height="42" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
+        <text x="12" y="18" fill="#0f172a" font-size="11" font-weight="700">Conversational Context</text>
+        <text x="12" y="32" fill="#64748b" font-size="10">User persona • Dynamic prompt</text>
+      </g>
+      <g transform="translate(16, 122)">
+        <rect width="356" height="42" rx="6" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
+        <text x="12" y="18" fill="#0f172a" font-size="11" font-weight="700">Cross-Account Credential Vault</text>
+        <text x="12" y="32" fill="#64748b" font-size="10">Isolated BEDROCK_AWS_* access keys (Zero reserved-name collision)</text>
+      </g>
+    </g>
+
+    <!-- EventBridge Scheduler -->
+    <g transform="translate(16, 248)">
+      <rect width="186" height="92" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1" filter="url(#subtle-shadow)" />
+      <text x="16" y="26" fill="#0f172a" font-size="13" font-weight="700">Amazon EventBridge</text>
+      <text x="16" y="44" fill="#64748b" font-size="11">• 5-Min Deadline Cron</text>
+      <text x="16" y="60" fill="#64748b" font-size="11">• 8:00 AM Morning Game Plan</text>
+      <text x="16" y="76" fill="#64748b" font-size="11">• 10:00 PM Nightly Reflection</text>
+    </g>
+
+    <!-- Amazon Polly Voice -->
+    <g transform="translate(218, 248)">
+      <rect width="186" height="92" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1" filter="url(#subtle-shadow)" />
+      <text x="16" y="26" fill="#0f172a" font-size="13" font-weight="700">Amazon Polly Voice</text>
+      <text x="16" y="44" fill="#64748b" font-size="11">• Matthew Neural Voice</text>
+      <text x="16" y="60" fill="#64748b" font-size="11">• Synthesizes OGG buffers</text>
+      <text x="16" y="76" fill="#64748b" font-size="11">• Rate limit: 5 / guest user</text>
+    </g>
+  </g>
+
+  <!-- 3. MULTI-ACCOUNT AI FOUNDATION (AWS ACCOUNT B - Right Column) -->
+  <g transform="translate(820, 120)">
+    <rect width="320" height="360" rx="12" fill="#f8fafc" stroke="#0f172a" stroke-width="1.5" />
+    <rect x="16" y="16" width="190" height="20" rx="6" fill="#0f172a" />
+    <text x="24" y="30" fill="#ffffff" font-size="11" font-weight="700" letter-spacing="0.5">AWS ACCOUNT B • BEDROCK</text>
+
+    <!-- Bedrock Nova Micro -->
+    <g transform="translate(16, 52)">
+      <rect width="288" height="74" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1" filter="url(#subtle-shadow)" />
+      <text x="16" y="24" fill="#0f172a" font-size="13" font-weight="700">Amazon Nova Micro</text>
+      <text x="16" y="40" fill="#475569" font-size="10" font-family="monospace">apac.amazon.nova-micro-v1:0</text>
+      <text x="16" y="58" fill="#64748b" font-size="11">Sub-second reasoning, chat &amp; tool calling</text>
+    </g>
+
+    <!-- Bedrock Nova Lite (Vision) -->
+    <g transform="translate(16, 134)">
+      <rect width="288" height="74" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1" filter="url(#subtle-shadow)" />
+      <text x="16" y="24" fill="#0f172a" font-size="13" font-weight="700">Amazon Nova Lite (Vision)</text>
+      <text x="16" y="40" fill="#475569" font-size="10" font-family="monospace">apac.amazon.nova-lite-v1:0</text>
+      <text x="16" y="58" fill="#64748b" font-size="11">Multimodal visual OCR &amp; diagram ingestion</text>
+    </g>
+
+    <!-- Titan Embeddings -->
+    <g transform="translate(16, 216)">
+      <rect width="288" height="60" rx="10" fill="#ffffff" stroke="#cbd5e1" stroke-width="1" filter="url(#subtle-shadow)" />
+      <text x="16" y="24" fill="#0f172a" font-size="13" font-weight="700">Amazon Titan Embeddings v2</text>
+      <text x="16" y="44" fill="#64748b" font-size="11">Semantic long-term memory retrieval</text>
+    </g>
+
+    <!-- Fallback Groq Pool -->
+    <g transform="translate(16, 284)">
+      <rect width="288" height="56" rx="10" fill="#ffffff" stroke="#e2e8f0" stroke-width="1" stroke-dasharray="4,3" />
+      <text x="16" y="22" fill="#64748b" font-size="12" font-weight="700">Resilient Fallback: Groq Pool</text>
+      <text x="16" y="40" fill="#94a3b8" font-size="10">Rotational multi-key failover if Bedrock busy</text>
+    </g>
+  </g>
+
+  <!-- 4. DATA PERSISTENCE TIER (Bottom Banner) -->
+  <g transform="translate(60, 500)">
+    <rect width="1080" height="130" rx="12" fill="#f8fafc" stroke="#e2e8f0" stroke-width="1" />
+    <rect x="16" y="16" width="140" height="20" rx="6" fill="#e2e8f0" />
+    <text x="24" y="30" fill="#334155" font-size="11" font-weight="700" letter-spacing="0.5">DATA &amp; MEDIA TIER</text>
+
+    <!-- MongoDB Atlas -->
+    <g transform="translate(16, 46)">
+      <rect width="680" height="66" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1" filter="url(#subtle-shadow)" />
+      <text x="20" y="26" fill="#0f172a" font-size="14" font-weight="700">MongoDB Atlas Production Cluster</text>
+      <text x="20" y="46" fill="#64748b" font-size="11">Collections: memories (tasks, projects, reminders) • chat_histories (context window) • user_profiles</text>
+    </g>
+
+    <!-- Reddit Stream Engine -->
+    <g transform="translate(714, 46)">
+      <rect width="350" height="66" rx="8" fill="#ffffff" stroke="#cbd5e1" stroke-width="1" filter="url(#subtle-shadow)" />
+      <text x="20" y="26" fill="#0f172a" font-size="14" font-weight="700">Reddit Buffer Stream (/video)</text>
+      <text x="20" y="46" fill="#64748b" font-size="11">Direct binary chunk pipeline into Telegram</text>
+    </g>
+  </g>
+
+  <!-- CONNECTING ARROWS & LABELS -->
+  <!-- User to Lambda -->
+  <path d="M 320 230 L 360 230" fill="none" stroke="#1e293b" stroke-width="2" marker-end="url(#arrow)" />
+  <path d="M 360 245 L 320 245" fill="none" stroke="#1e293b" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- Lambda to Bedrock -->
+  <path d="M 780 230 L 820 230" fill="none" stroke="#1e293b" stroke-width="2" marker-end="url(#arrow)" />
+  <path d="M 820 245 L 780 245" fill="none" stroke="#1e293b" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- Lambda to Database -->
+  <path d="M 570 480 L 570 546" fill="none" stroke="#1e293b" stroke-width="2" marker-end="url(#arrow)" />
+  <path d="M 585 546 L 585 480" fill="none" stroke="#1e293b" stroke-width="2" marker-end="url(#arrow)" />
+
+  <!-- EventBridge to Lambda Internal -->
+  <path d="M 469 368 L 469 320" fill="none" stroke="#1e293b" stroke-width="1.5" marker-end="url(#arrow)" />
+
+  <!-- Lambda Internal to Polly -->
+  <path d="M 671 320 L 671 368" fill="none" stroke="#1e293b" stroke-width="1.5" marker-end="url(#arrow)" />
+
+</svg>
