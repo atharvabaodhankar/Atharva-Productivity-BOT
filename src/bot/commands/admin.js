@@ -37,7 +37,7 @@ module.exports = (bot) => {
     try {
       const report = await getSystemMetrics();
       await ctx.reply(report, {
-        parse_mode: "Markdown",
+        parse_mode: "HTML",
         reply_markup: getCreatorKeyboard().reply_markup,
       });
     } catch (err) {
@@ -54,7 +54,7 @@ module.exports = (bot) => {
       const report = await getSystemMetrics();
       try {
         await ctx.editMessageText(report, {
-          parse_mode: "Markdown",
+          parse_mode: "HTML",
           reply_markup: getCreatorKeyboard().reply_markup,
         });
       } catch (e) {
