@@ -14,8 +14,8 @@ const TEXT_MODELS = [
 ];
 
 const VISION_MODELS = [
-  "llama-3.2-11b-vision-preview",
-  "llama-3.2-90b-vision-preview",
+  "qwen/qwen3.6-27b",
+  "qwen/qwen3.8-27b",
 ];
 
 function getNextClient() {
@@ -39,7 +39,7 @@ async function executeWithFailover(createParams) {
   const fallbackList = hasImage ? VISION_MODELS : TEXT_MODELS;
   const primaryModel =
     createParams.model ||
-    (hasImage ? "llama-3.2-11b-vision-preview" : "qwen/qwen3.6-27b");
+    (hasImage ? "qwen/qwen3.6-27b" : "qwen/qwen3.6-27b");
 
   // Build model fallback sequence
   const modelsToTry = [

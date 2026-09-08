@@ -48,7 +48,8 @@ module.exports = (bot) => {
       });
 
       const fileLink = await ctx.telegram.getFileLink(fileId);
-      const response = await fetch(fileLink.href);
+      const fileUrl = fileLink.href || String(fileLink);
+      const response = await fetch(fileUrl);
       const arrayBuffer = await response.arrayBuffer();
       const base64 = Buffer.from(arrayBuffer).toString("base64");
       const base64ImageUrl = `data:image/jpeg;base64,${base64}`;

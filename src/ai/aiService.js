@@ -1,4 +1,5 @@
 const { executeWithFailover } = require("./groqPool");
+const { executeBedrockConverse, isBedrockConfigured } = require("./bedrockService");
 const { tools } = require("./tools");
 const { buildSystemPrompt } = require("./promptEngine");
 const { parseUserDate } = require("../utils/dateHelper");
@@ -57,6 +58,138 @@ const CASUAL_GREETINGS = new Set([
   "kesa he bro", "kaisa hai bro", "kaisa he", "who made you"
 ]);
 
+async function executeToolHandler(functionName, args, chatId, user) {
+  if (functionName === "add_memory") {
+    const parsedDate = parseUserDate(args.date, user ? user.timezone : "Asia/Kolkata");
+    let parentProjectId = null;
+    let parentProjectName = "";
+
+    if (args.projectName && args.type !== "project") {
+      const trimmedName = args.projectName.trim();
+      const escapedName = trimmedName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      let existingProj = await Memory.findOne({
+        chatId,
+        type: "project",
+        content: new RegExp(`^${escapedName}$`, "i"),
+      });
+
+      if (!existingProj) {
+        existingProj = await Memory.findOne({
+          chatId,
+          type: "project",
+          content: new RegExp(escapedName, "i"),
+        });
+      }
+
+      if (!existingProj) {
+        existingProj = await Memory.create({
+          chatId,
+          type: "project",
+          content: trimmedName,
+          priority: "medium",
+        });
+      }
+
+      parentProjectId = existingProj._id;
+      parentProjectName = existingProj.content;
+    }
+
+    const isRecurring = Boolean(args.isRecurring || args.recurrenceInterval);
+    const recurrenceInterval = args.recurrenceInterval || (isRecurring ? "daily" : "");
+    const timeOfDay = args.timeOfDay || "";
+
+    let effectiveDate = parsedDate;
+    if (isRecurring && parsedDate && parsedDate <= new Date()) {
+      const next = new Date(parsedDate);
+      while (next <= new Date()) {
+        next.setDate(next.getDate() + 1);
+      }
+      effectiveDate = next;
+    }
+
+    const newMem = await Memory.create({
+      chatId,
+      type: args.type || "task",
+      content: args.content,
+      url: args.url || "",
+      date: effectiveDate,
+      priority: args.priority || "medium",
+      tags: args.tags || [],
+      projectId: parentProjectId,
+      projectName: parentProjectName,
+      isRecurring,
+      recurrenceInterval,
+      timeOfDay,
+    });
+
+    const parentNote = parentProjectName ? ` (inside project "${parentProjectName}")` : "";
+    return `Successfully created ${newMem.type}: "${newMem.content}"${parentNote} (ID: ${newMem._id})`;
+  } else if (functionName === "complete_memory") {
+    const updated = await Memory.findOneAndUpdate(
+      { _id: args.id, chatId },
+      { completed: true },
+      { new: true }
+    );
+    return updated
+      ? `Marked "${updated.content}" as COMPLETED.`
+      : `Item not found.`;
+  } else if (functionName === "delete_reminder") {
+    const { id, query, deleteAll } = args;
+    if (deleteAll) {
+      const res = await Memory.deleteMany({ chatId, type: "reminder" });
+      return `Successfully deleted all ${res.deletedCount} reminders for you.`;
+    } else if (id && mongoose.Types.ObjectId.isValid(id)) {
+      const deleted = await Memory.findOneAndDelete({ _id: id, chatId, type: "reminder" });
+      return deleted
+        ? `Deleted reminder: "${deleted.content}".`
+        : `Reminder with ID ${id} not found.`;
+    } else if (query || (id && !mongoose.Types.ObjectId.isValid(id))) {
+      const searchStr = (query || id).trim();
+      const escaped = searchStr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+      const deleted = await Memory.findOneAndDelete({
+        chatId,
+        type: "reminder",
+        content: new RegExp(escaped, "i"),
+      });
+      return deleted
+        ? `Deleted reminder: "${deleted.content}".`
+        : `No reminder found matching "${searchStr}".`;
+    } else {
+      const active = await getReminders(chatId);
+      if (active.length === 0) {
+        return "No active reminders found to delete.";
+      } else if (active.length === 1) {
+        await Memory.findByIdAndDelete(active[0]._id);
+        return `Deleted your reminder: "${active[0].content}".`;
+      } else {
+        return `Found multiple active reminders: ${active.map((r) => `"${r.content}" (ID: ${r._id})`).join(", ")}. Please specify which one to delete or say 'delete all reminders'.`;
+      }
+    }
+  } else if (functionName === "delete_memory") {
+    let deleted = null;
+    if (args.id && mongoose.Types.ObjectId.isValid(args.id)) {
+      deleted = await Memory.findOneAndDelete({ _id: args.id, chatId });
+    }
+    if (!deleted && (args.query || args.id)) {
+      const searchStr = (args.query || args.id || "").trim();
+      if (searchStr) {
+        const escaped = searchStr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        deleted = await Memory.findOneAndDelete({
+          chatId,
+          content: new RegExp(escaped, "i"),
+        });
+      }
+    }
+    return deleted
+      ? `Deleted ${deleted.type || "item"} "${deleted.content}".`
+      : `Item not found.`;
+  } else if (functionName === "clear_all_memories") {
+    const res = await Memory.deleteMany({ chatId });
+    return `Cleared all ${res.deletedCount} items.`;
+  }
+  return "Unknown tool";
+}
+
 async function askAI({
   message,
   chatId,
@@ -103,9 +236,7 @@ async function askAI({
     senderName,
   });
 
-  const model = base64ImageUrl
-    ? "llama-3.2-11b-vision-preview"
-    : "qwen/qwen3.6-27b";
+  const model = "qwen/qwen3.6-27b";
 
   const textPrompt =
     message || (base64ImageUrl ? "Analyze this image and extract any tasks or notes." : "");
@@ -133,13 +264,38 @@ async function askAI({
 
   const displayName = user?.firstName || senderName || "bhai";
 
+  // 1. Primary: If Amazon Bedrock is configured, invoke Bedrock first!
+  if (isBedrockConfigured()) {
+    try {
+      const bedrockOutput = await executeBedrockConverse({
+        messages,
+        systemPrompt,
+        tools: isDirectChat ? undefined : tools,
+        base64ImageUrl,
+        executeToolHandler: (fnName, toolArgs) =>
+          executeToolHandler(fnName, toolArgs, chatId, user),
+        chatId,
+      });
+
+      if (bedrockOutput && bedrockOutput.trim().length > 0) {
+        return sanitizeOutput(bedrockOutput, displayName);
+      }
+    } catch (bedrockErr) {
+      console.warn(
+        "Amazon Bedrock execution error, falling back to Groq:",
+        bedrockErr.message
+      );
+    }
+  }
+
+  // 2. Fallback / Alternative: Groq AI engine
   // In groups, casual greetings, or vision requests: execute direct chat without tools
   if (isDirectChat) {
     const directResponse = await executeWithFailover({
       messages,
       model,
       temperature: 0.7,
-      max_completion_tokens: 1500,
+      max_completion_tokens: base64ImageUrl ? 800 : 1000,
     });
     const rawContent = directResponse.choices[0]?.message?.content || "";
     return sanitizeOutput(rawContent, displayName);
@@ -181,140 +337,8 @@ async function askAI({
       }
 
       let resultContent = "";
-
       try {
-        if (functionName === "add_memory") {
-          const parsedDate = parseUserDate(args.date, user ? user.timezone : "Asia/Kolkata");
-          let parentProjectId = null;
-          let parentProjectName = "";
-
-          if (args.projectName && args.type !== "project") {
-            const trimmedName = args.projectName.trim();
-            const escapedName = trimmedName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-            // Find existing project (case-insensitive)
-            let existingProj = await Memory.findOne({
-              chatId,
-              type: "project",
-              content: new RegExp(`^${escapedName}$`, "i"),
-            });
-
-            if (!existingProj) {
-              // Partial search match
-              existingProj = await Memory.findOne({
-                chatId,
-                type: "project",
-                content: new RegExp(escapedName, "i"),
-              });
-            }
-
-            if (!existingProj) {
-              // Automatically create the project container
-              existingProj = await Memory.create({
-                chatId,
-                type: "project",
-                content: trimmedName,
-                priority: "medium",
-              });
-            }
-
-            parentProjectId = existingProj._id;
-            parentProjectName = existingProj.content;
-          }
-
-          const isRecurring = Boolean(args.isRecurring || args.recurrenceInterval);
-          const recurrenceInterval = args.recurrenceInterval || (isRecurring ? "daily" : "");
-          const timeOfDay = args.timeOfDay || "";
-
-          let effectiveDate = parsedDate;
-          if (isRecurring && parsedDate && parsedDate <= new Date()) {
-            // If recurring reminder target is in the past today, advance by 1 day
-            const next = new Date(parsedDate);
-            while (next <= new Date()) {
-              next.setDate(next.getDate() + 1);
-            }
-            effectiveDate = next;
-          }
-
-          const newMem = await Memory.create({
-            chatId,
-            type: args.type || "task",
-            content: args.content,
-            url: args.url || "",
-            date: effectiveDate,
-            priority: args.priority || "medium",
-            tags: args.tags || [],
-            projectId: parentProjectId,
-            projectName: parentProjectName,
-            isRecurring,
-            recurrenceInterval,
-            timeOfDay,
-          });
-
-          const parentNote = parentProjectName ? ` (inside project "${parentProjectName}")` : "";
-          resultContent = `Successfully created ${newMem.type}: "${newMem.content}"${parentNote} (ID: ${newMem._id})`;
-        } else if (functionName === "complete_memory") {
-          const updated = await Memory.findOneAndUpdate(
-            { _id: args.id, chatId },
-            { completed: true },
-            { new: true }
-          );
-          resultContent = updated
-            ? `Marked "${updated.content}" as COMPLETED.`
-            : `Item not found.`;
-        } else if (functionName === "delete_reminder") {
-          const { id, query, deleteAll } = args;
-          if (deleteAll) {
-            const res = await Memory.deleteMany({ chatId, type: "reminder" });
-            resultContent = `Successfully deleted all ${res.deletedCount} reminders for you.`;
-          } else if (id && mongoose.Types.ObjectId.isValid(id)) {
-            const deleted = await Memory.findOneAndDelete({ _id: id, chatId, type: "reminder" });
-            resultContent = deleted
-              ? `Deleted reminder: "${deleted.content}".`
-              : `Reminder with ID ${id} not found.`;
-          } else if (query || (id && !mongoose.Types.ObjectId.isValid(id))) {
-            const searchStr = (query || id).trim();
-            const escaped = searchStr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-            const deleted = await Memory.findOneAndDelete({
-              chatId,
-              type: "reminder",
-              content: new RegExp(escaped, "i"),
-            });
-            resultContent = deleted
-              ? `Deleted reminder: "${deleted.content}".`
-              : `No reminder found matching "${searchStr}".`;
-          } else {
-            const active = await getReminders(chatId);
-            if (active.length === 0) {
-              resultContent = "No active reminders found to delete.";
-            } else if (active.length === 1) {
-              await Memory.findByIdAndDelete(active[0]._id);
-              resultContent = `Deleted your reminder: "${active[0].content}".`;
-            } else {
-              resultContent = `Found multiple active reminders: ${active.map((r) => `"${r.content}" (ID: ${r._id})`).join(", ")}. Please specify which one to delete or say 'delete all reminders'.`;
-            }
-          }
-        } else if (functionName === "delete_memory") {
-          let deleted = null;
-          if (args.id && mongoose.Types.ObjectId.isValid(args.id)) {
-            deleted = await Memory.findOneAndDelete({ _id: args.id, chatId });
-          }
-          if (!deleted && (args.query || args.id)) {
-            const searchStr = (args.query || args.id || "").trim();
-            if (searchStr) {
-              const escaped = searchStr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-              deleted = await Memory.findOneAndDelete({
-                chatId,
-                content: new RegExp(escaped, "i"),
-              });
-            }
-          }
-          resultContent = deleted
-            ? `Deleted ${deleted.type || "item"} "${deleted.content}".`
-            : `Item not found.`;
-        } else if (functionName === "clear_all_memories") {
-          const res = await Memory.deleteMany({ chatId });
-          resultContent = `Cleared all ${res.deletedCount} items.`;
-        }
+        resultContent = await executeToolHandler(functionName, args, chatId, user);
       } catch (err) {
         console.error(`Tool execution error [${functionName}]:`, err);
         resultContent = `Error: ${err.message}`;

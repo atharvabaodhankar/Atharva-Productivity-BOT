@@ -41,6 +41,11 @@ jobs:
           MEME_API_URL: ${{ secrets.MEME_API_URL }}
           MEME_API_KEY: ${{ secrets.MEME_API_KEY }}
           ADMIN_SECRET: ${{ secrets.ADMIN_SECRET }}
+          BEDROCK_AWS_ACCESS_KEY_ID: ${{ secrets.BEDROCK_AWS_ACCESS_KEY_ID }}
+          BEDROCK_AWS_SECRET_ACCESS_KEY: ${{ secrets.BEDROCK_AWS_SECRET_ACCESS_KEY }}
+          BEDROCK_AWS_REGION: ${{ secrets.BEDROCK_AWS_REGION || 'ap-south-1' }}
+          BEDROCK_LLM_MODEL_ID: ${{ secrets.BEDROCK_LLM_MODEL_ID || 'apac.amazon.nova-micro-v1:0' }}
+          BEDROCK_EMBEDDING_MODEL_ID: ${{ secrets.BEDROCK_EMBEDDING_MODEL_ID || 'amazon.titan-embed-text-v2:0' }}
         run: |
           echo "Attaching Amazon Polly permissions to Lambda Execution Role..."
           ROLE_NAME=$(aws lambda get-function --function-name AtharvaOS-Bot --query 'Configuration.Role' --output text | awk -F'/' '{print $NF}')
@@ -64,7 +69,7 @@ jobs:
           echo "Updating Lambda environment variables..."
           aws lambda update-function-configuration \
             --function-name AtharvaOS-Bot \
-            --environment "Variables={BOT_TOKEN=\"$BOT_TOKEN\",CHAT_ID=\"$CHAT_ID\",MONGO_URI=\"$MONGO_URI\",GROQ_API_KEY=\"$GROQ_API_KEY\",MEME_API_URL=\"$MEME_API_URL\",MEME_API_KEY=\"$MEME_API_KEY\",ADMIN_SECRET=\"$ADMIN_SECRET\"}"
+            --environment "Variables={BOT_TOKEN=\"$BOT_TOKEN\",CHAT_ID=\"$CHAT_ID\",MONGO_URI=\"$MONGO_URI\",GROQ_API_KEY=\"$GROQ_API_KEY\",MEME_API_URL=\"$MEME_API_URL\",MEME_API_KEY=\"$MEME_API_KEY\",ADMIN_SECRET=\"$ADMIN_SECRET\",BEDROCK_AWS_ACCESS_KEY_ID=\"$BEDROCK_AWS_ACCESS_KEY_ID\",BEDROCK_AWS_SECRET_ACCESS_KEY=\"$BEDROCK_AWS_SECRET_ACCESS_KEY\",BEDROCK_AWS_REGION=\"$BEDROCK_AWS_REGION\",BEDROCK_LLM_MODEL_ID=\"$BEDROCK_LLM_MODEL_ID\",BEDROCK_EMBEDDING_MODEL_ID=\"$BEDROCK_EMBEDDING_MODEL_ID\"}"
 
           echo "Waiting for configuration update to complete..."
           aws lambda wait function-updated \
