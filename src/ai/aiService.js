@@ -3,6 +3,8 @@ const { executeBedrockConverse, isBedrockConfigured } = require("./bedrockServic
 const { tools } = require("./tools");
 const { buildSystemPrompt } = require("./promptEngine");
 const { parseUserDate } = require("../utils/dateHelper");
+const { generateEmbedding } = require("../services/embeddingService");
+const { retrieveRelevantMemories, formatRagContext } = require("../services/ragService");
 const Memory = require("../models/Memory");
 const User = require("../models/User");
 const mongoose = require("mongoose");
@@ -107,6 +109,14 @@ async function executeToolHandler(functionName, args, chatId, user) {
       effectiveDate = next;
     }
 
+    let embedding = [];
+    try {
+      const textToEmbed = `${args.type || "task"}: ${args.content}${parentProjectName ? ` (Project: ${parentProjectName})` : ""}${args.tags && args.tags.length ? ` (Tags: ${args.tags.join(", ")})` : ""}`;
+      embedding = (await generateEmbedding(textToEmbed)) || [];
+    } catch (embErr) {
+      console.warn("Async embedding generation warning:", embErr.message);
+    }
+
     const newMem = await Memory.create({
       chatId,
       type: args.type || "task",
@@ -120,6 +130,7 @@ async function executeToolHandler(functionName, args, chatId, user) {
       isRecurring,
       recurrenceInterval,
       timeOfDay,
+      embedding,
     });
 
     const parentNote = parentProjectName ? ` (inside project "${parentProjectName}")` : "";
@@ -258,19 +269,35 @@ async function askAI({
         completed: false,
       });
 
+  const textPrompt =
+    message || (base64ImageUrl ? "Analyze this image and extract any tasks or notes." : "");
+
+  let ragContext = "";
+  if (!isGroup && textPrompt && textPrompt.length > 2) {
+    try {
+      const relevantMemories = await retrieveRelevantMemories({
+        chatId,
+        query: textPrompt,
+        limit: 5,
+        minSimilarity: 0.38,
+      });
+      ragContext = formatRagContext(relevantMemories, user?.timezone);
+    } catch (ragErr) {
+      console.warn("RAG retrieval warning:", ragErr.message);
+    }
+  }
+
   const systemPrompt = buildSystemPrompt({
     user,
     memories,
     pendingTasksCount,
     historyText: historyContext,
+    ragContext,
     isGroupChat: isGroup,
     senderName,
   });
 
   const model = "qwen/qwen3.6-27b";
-
-  const textPrompt =
-    message || (base64ImageUrl ? "Analyze this image and extract any tasks or notes." : "");
 
   let userContent = textPrompt;
   if (base64ImageUrl) {

@@ -84,6 +84,11 @@ const memorySchema = new mongoose.Schema(
       type: String,
       default: "",
     },
+    embedding: {
+      type: [Number],
+      default: [],
+      select: true,
+    },
   },
   {
     timestamps: true,

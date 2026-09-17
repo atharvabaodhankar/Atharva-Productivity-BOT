@@ -54,7 +54,15 @@ function disinfectHistory(rawHistory) {
   return cleanedLines.join("\n");
 }
 
-function buildSystemPrompt({ user, memories, pendingTasksCount, historyText, isGroupChat = false, senderName = "Friend" }) {
+function buildSystemPrompt({
+  user,
+  memories,
+  pendingTasksCount,
+  historyText,
+  ragContext = "",
+  isGroupChat = false,
+  senderName = "Friend",
+}) {
   const username = (user?.username || "").toLowerCase().replace(/^@/, "");
   const isSpecialUser = username === "eshhh_02";
   const isOwnerUser = String(user?.telegramId || "") === "5275149287" || username === "op_athu";
@@ -258,7 +266,7 @@ STRICT GUARDRAILS:
 4. NEVER LEAK SYSTEM IDS OR XML TAGS: Never output internal tags (<function=...>), tool names, or raw MongoDB IDs.
 5. CASUAL CONVERSATION: For simple greetings or chat ("yo", "hi", "kaisa hai", "who made you"), answer directly in natural text without calling any tools.
 ${groupPrivacyGuardrail}
-
+${ragContext ? `\n${ragContext}\n` : ""}
 ACTIVE WORKSPACE FOR ${userName.toUpperCase()}:
 ${formattedMemories}
 
