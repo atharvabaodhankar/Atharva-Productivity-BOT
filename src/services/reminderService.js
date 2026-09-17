@@ -1,3 +1,4 @@
+const cron = require("node-cron");
 const Memory = require("../models/Memory");
 const User = require("../models/User");
 
@@ -34,8 +35,31 @@ async function checkUpcomingReminders(bot) {
 
     for (const item of upcoming) {
       if (item.chatId) {
+        // STRICT PRIVACY & GROUP CHECK: Never send automated personal reminders/deadlines to group chats!
+        // Telegram group chat IDs are strictly negative (< 0)
+        if (Number(item.chatId) < 0) {
+          await Memory.findByIdAndUpdate(item._id, {
+            reminderSent: true,
+            completed: item.type === "reminder",
+          });
+          continue;
+        }
+
         try {
           const user = await User.findOne({ telegramId: item.chatId });
+
+          // Check if user disabled daily reminders / notifications
+          if (user && user.preferences?.dailyRemindersEnabled === false) {
+            if (item.isRecurring && item.type === "reminder") {
+              const nextDate = new Date(item.date || now);
+              nextDate.setDate(nextDate.getDate() + 1);
+              await Memory.findByIdAndUpdate(item._id, { date: nextDate, reminderSent: false });
+            } else {
+              await Memory.findByIdAndUpdate(item._id, { reminderSent: true, completed: item.type === "reminder" });
+            }
+            continue;
+          }
+
           const name = user ? user.firstName : "Champ";
 
           let message = "";
@@ -128,8 +152,13 @@ async function checkUpcomingReminders(bot) {
     }
 
     // 1.2 Process Morning Daily Briefings & Nightly Accountability in parallel batches
-    const allUsers = await User.find();
+    const allUsers = await User.find({ telegramId: { $gt: 0 } });
     const userPromises = allUsers.map(async (user) => {
+      // Skip if user completely disabled daily reminders
+      if (user.preferences?.dailyRemindersEnabled === false) {
+        return;
+      }
+
       const tz = user.timezone || "Asia/Kolkata";
       const userLocalDateStr = now.toLocaleDateString("en-CA", { timeZone: tz }); // YYYY-MM-DD
       const userHour = parseInt(
@@ -137,13 +166,23 @@ async function checkUpcomingReminders(bot) {
         10
       );
 
-      // Morning Briefing: Trigger between 8 AM and 9 AM once per day
-      if (userHour >= 8 && userHour < 9 && user.preferences?.lastDailySummaryDate !== userLocalDateStr) {
+      // Morning Briefing: Trigger between 8 AM and 9 AM once per day (if enabled)
+      if (
+        userHour >= 8 &&
+        userHour < 9 &&
+        user.preferences?.morningSummaryEnabled !== false &&
+        user.preferences?.lastDailySummaryDate !== userLocalDateStr
+      ) {
         await sendDailySummaryForUser(bot, user, userLocalDateStr);
       }
 
-      // Nightly Accountability: Trigger between 10 PM (22) and 11 PM (23) once per day
-      if (userHour >= 22 && userHour < 23 && user.preferences?.lastNightlyReflectionDate !== userLocalDateStr) {
+      // Nightly Accountability: Trigger between 10 PM (22) and 11 PM (23) once per day (if enabled)
+      if (
+        userHour >= 22 &&
+        userHour < 23 &&
+        user.preferences?.nightlyReflectionEnabled !== false &&
+        user.preferences?.lastNightlyReflectionDate !== userLocalDateStr
+      ) {
         await sendNightlyReflectionForUser(bot, user, userLocalDateStr);
       }
     });
@@ -159,7 +198,19 @@ async function checkUpcomingReminders(bot) {
 async function sendDailySummaryForUser(bot, user, dateKey) {
   try {
     const chatId = user.telegramId;
-    if (!chatId) return;
+    // STRICT GROUP CHECK: Never send daily briefings to group chats or invalid IDs
+    if (!chatId || Number(chatId) < 0) return;
+
+    // Check if user turned off morning summaries or all daily reminders
+    if (
+      user.preferences?.morningSummaryEnabled === false ||
+      user.preferences?.dailyRemindersEnabled === false
+    ) {
+      await User.findByIdAndUpdate(user._id, {
+        "preferences.lastDailySummaryDate": dateKey,
+      });
+      return;
+    }
 
     const tz = user.timezone || "Asia/Kolkata";
     const today = new Date();
@@ -216,7 +267,8 @@ async function sendDailySummaryForUser(bot, user, dateKey) {
     }
 
     message += "\n━━━━━━━━━━━━━━━━━━━━━\n";
-    message += "💪 _Let's make today count! Ready to crush it?_";
+    message += "💪 _Let's make today count! Ready to crush it?_\n\n";
+    message += "⚙️ _To turn off morning briefings anytime, send /reminders or ask me 'stop morning messages'_";
 
     await bot.telegram.sendMessage(chatId, message, { parse_mode: "Markdown" });
 
@@ -239,7 +291,19 @@ async function sendDailySummaryForUser(bot, user, dateKey) {
 async function sendNightlyReflectionForUser(bot, user, dateKey) {
   try {
     const chatId = user.telegramId;
-    if (!chatId) return;
+    // STRICT GROUP CHECK: Never send nightly reflections to group chats or invalid IDs
+    if (!chatId || Number(chatId) < 0) return;
+
+    // Check if user turned off nightly reflections or all daily reminders
+    if (
+      user.preferences?.nightlyReflectionEnabled === false ||
+      user.preferences?.dailyRemindersEnabled === false
+    ) {
+      await User.findByIdAndUpdate(user._id, {
+        "preferences.lastNightlyReflectionDate": dateKey,
+      });
+      return;
+    }
 
     const name = user.firstName || "Champ";
 
@@ -277,7 +341,8 @@ async function sendNightlyReflectionForUser(bot, user, dateKey) {
 
       message += `\n━━━━━━━━━━━━━━━━━━━━━\n`;
       message += `✍️ *Kya hua bhai? Did you finish any of these, ya kal par taal diya?*\n`;
-      message += `_Reply with "done with [task name]" to mark it done, or tell me how today went!_ 💪`;
+      message += `_Reply with "done with [task name]" to mark it done, or tell me how today went!_ 💪\n\n`;
+      message += `⚙️ _To turn off nightly check-ins anytime, send /reminders or ask me 'stop night messages'_`;
     }
 
     await bot.telegram.sendMessage(chatId, message, { parse_mode: "Markdown" });
@@ -299,15 +364,29 @@ async function sendNightlyReflectionForUser(bot, user, dateKey) {
 
 // 4. Batch Helpers (backward compatible)
 async function sendDailySummary(bot) {
-  const users = await User.find();
+  const users = await User.find({ telegramId: { $gt: 0 } });
   const dateKey = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
   await Promise.allSettled(users.map((user) => sendDailySummaryForUser(bot, user, dateKey)));
 }
 
 async function sendNightlyReflection(bot) {
-  const users = await User.find();
+  const users = await User.find({ telegramId: { $gt: 0 } });
   const dateKey = new Date().toLocaleDateString("en-CA", { timeZone: "Asia/Kolkata" });
   await Promise.allSettled(users.map((user) => sendNightlyReflectionForUser(bot, user, dateKey)));
+}
+
+// 5. Local In-Memory Cron Scheduler (for node index.js local polling)
+function startReminderCron(bot) {
+  // Check every 5 minutes for upcoming deadlines & daily routines
+  cron.schedule("*/5 * * * *", async () => {
+    try {
+      await checkUpcomingReminders(bot);
+    } catch (err) {
+      console.error("Cron error in checkUpcomingReminders:", err.message);
+    }
+  });
+
+  console.log("⏰ Automated 5-Minute Reminder & Daily Briefing Cron Scheduled (node-cron)");
 }
 
 module.exports = {
@@ -316,4 +395,6 @@ module.exports = {
   sendNightlyReflection,
   sendDailySummaryForUser,
   sendNightlyReflectionForUser,
+  startReminderCron,
 };
+

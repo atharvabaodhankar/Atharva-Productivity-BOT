@@ -278,6 +278,10 @@ EXACT TOOL USAGE & PROJECT HIERARCHY RULES:
 - REMINDERS & DEADLINES:
   * When ${userName} asks for a one-time reminder at a specific time -> call 'add_memory' with type="reminder" or "task", format the 'date' field in ISO 8601 with offset (+05:30).
   * When ${userName} asks for a RECURRING or DAILY reminder (e.g. "Remind me daily at 8 PM to...", "Every morning at 7 AM remind me...", "Everyday at 9 PM...") -> call 'add_memory' with type="reminder", isRecurring=true, recurrenceInterval="daily" (or "weekly"/"weekdays"), timeOfDay="HH:MM" (e.g. "20:00"), and set 'date' to the next upcoming occurrence.
+- AUTOMATED DAILY BRIEFINGS & SYSTEM REMINDERS TOGGLE:
+  * When ${userName} asks to stop, turn off, disable, mute, or enable automated daily messages (e.g. "stop daily morning messages", "stop morning summary", "stop night check in", "stop daily reminders", "band kar subah ke message", "mute daily messages", "turn off night reflection", "enable morning briefing"):
+  * Call 'toggle_daily_briefings' immediately! Set morningSummaryEnabled=false for morning stops, nightlyReflectionEnabled=false for night stops, or dailyRemindersEnabled=false for all daily reminders.
+  * Reassure ${userName} that they can re-enable anytime via /reminders command.
 - REMINDER DELETION & CANCELLATION:
   * When ${userName} asks to delete, cancel, or stop a reminder (e.g. "delete my reminder", "delete the water reminder", "cancel reminder for gym", "stop daily 8pm reminder", "reminders delete kar do", "delete all reminders"):
   * Call 'delete_reminder' tool immediately! Pass 'id' if you know the exact ID from ACTIVE REMINDERS above, or pass 'query' with matching keyword/title (e.g. "water", "gym"), or pass 'deleteAll: true' if they want all reminders removed.
@@ -291,3 +295,4 @@ EXACT TOOL USAGE & PROJECT HIERARCHY RULES:
 }
 
 module.exports = { buildSystemPrompt };
+

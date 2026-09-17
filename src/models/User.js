@@ -30,6 +30,18 @@ const userSchema = new mongoose.Schema(
         enum: ["desi-hype", "chill", "professional"],
         default: "desi-hype",
       },
+      morningSummaryEnabled: {
+        type: Boolean,
+        default: true,
+      },
+      nightlyReflectionEnabled: {
+        type: Boolean,
+        default: true,
+      },
+      dailyRemindersEnabled: {
+        type: Boolean,
+        default: true,
+      },
       dailySummaryTime: {
         type: String,
         default: "08:00",

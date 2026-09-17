@@ -213,6 +213,65 @@ exports.handler = async (event, context) => {
         };
       }
 
+      // GET /api/preferences?chatId=12345
+      if (rawPath === "/api/preferences" && httpMethod === "GET") {
+        const chatId = queryParams.chatId;
+        if (!chatId) {
+          return {
+            statusCode: 400,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ error: "chatId query parameter is required" }),
+          };
+        }
+        const user = await User.findOne({ telegramId: chatId });
+        return {
+          statusCode: 200,
+          headers: CORS_HEADERS,
+          body: JSON.stringify({
+            preferences: user?.preferences || {
+              morningSummaryEnabled: true,
+              nightlyReflectionEnabled: true,
+              dailyRemindersEnabled: true,
+            },
+          }),
+        };
+      }
+
+      // PATCH /api/preferences
+      if (rawPath === "/api/preferences" && httpMethod === "PATCH") {
+        const payload =
+          typeof event.body === "string" ? JSON.parse(event.body || "{}") : event.body || {};
+        const { chatId, morningSummaryEnabled, nightlyReflectionEnabled, dailyRemindersEnabled } = payload;
+        if (!chatId) {
+          return {
+            statusCode: 400,
+            headers: CORS_HEADERS,
+            body: JSON.stringify({ error: "chatId is required" }),
+          };
+        }
+
+        const updateFields = {};
+        if (morningSummaryEnabled !== undefined) updateFields["preferences.morningSummaryEnabled"] = morningSummaryEnabled;
+        if (nightlyReflectionEnabled !== undefined) updateFields["preferences.nightlyReflectionEnabled"] = nightlyReflectionEnabled;
+        if (dailyRemindersEnabled !== undefined) updateFields["preferences.dailyRemindersEnabled"] = dailyRemindersEnabled;
+
+        const updatedUser = await User.findOneAndUpdate(
+          { telegramId: chatId },
+          { $set: updateFields },
+          { new: true, upsert: true }
+        );
+
+        return {
+          statusCode: 200,
+          headers: CORS_HEADERS,
+          body: JSON.stringify({
+            message: "Preferences updated successfully",
+            preferences: updatedUser.preferences,
+          }),
+        };
+      }
+
+
       // GET /api/stats (Admin only)
       if (rawPath === "/api/stats" && httpMethod === "GET") {
         const reqChatId = String(queryParams.chatId || "").trim();

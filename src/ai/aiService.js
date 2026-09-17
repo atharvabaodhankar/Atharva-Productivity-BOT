@@ -186,9 +186,40 @@ async function executeToolHandler(functionName, args, chatId, user) {
   } else if (functionName === "clear_all_memories") {
     const res = await Memory.deleteMany({ chatId });
     return `Cleared all ${res.deletedCount} items.`;
+  } else if (functionName === "toggle_daily_briefings") {
+    const user = await User.findOne({ telegramId: chatId });
+    if (!user) return "User profile not found.";
+
+    if (!user.preferences) user.preferences = {};
+
+    let updates = [];
+    if (args.morningSummaryEnabled !== undefined) {
+      user.preferences.morningSummaryEnabled = args.morningSummaryEnabled;
+      updates.push(`Morning 8 AM Briefings: ${args.morningSummaryEnabled ? "ENABLED" : "DISABLED"}`);
+      if (args.morningSummaryEnabled && user.preferences.dailyRemindersEnabled === false) {
+        user.preferences.dailyRemindersEnabled = true;
+      }
+    }
+
+    if (args.nightlyReflectionEnabled !== undefined) {
+      user.preferences.nightlyReflectionEnabled = args.nightlyReflectionEnabled;
+      updates.push(`Nightly 10 PM Reflection: ${args.nightlyReflectionEnabled ? "ENABLED" : "DISABLED"}`);
+      if (args.nightlyReflectionEnabled && user.preferences.dailyRemindersEnabled === false) {
+        user.preferences.dailyRemindersEnabled = true;
+      }
+    }
+
+    if (args.dailyRemindersEnabled !== undefined) {
+      user.preferences.dailyRemindersEnabled = args.dailyRemindersEnabled;
+      updates.push(`All Daily Reminders: ${args.dailyRemindersEnabled ? "ENABLED" : "DISABLED / MUTED"}`);
+    }
+
+    await user.save();
+    return `Successfully updated reminder preferences: ${updates.join(", ")}.`;
   }
   return "Unknown tool";
 }
+
 
 async function askAI({
   message,

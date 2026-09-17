@@ -9,7 +9,7 @@ Hey ${name}! Here is what you can ask me:
 💬 Natural AI Conversation (Powered by Vision & Groq):
 • Read Photos: Send an image of notes, a whiteboard, or a handwritten checklist with "Add these tasks".
 • Add Tasks & Deadlines: "DSA exam next Monday at 2 PM", "Add project task #work"
-• Reminders & Alarms: "Remind me daily at 8 PM to read", "Remind me in 30 mins"
+• Reminders & Alarms: "Remind me daily at 8 PM to read", "Stop morning messages", "Mute daily reminders"
 • Goals & Habits: "Set a goal to run 5km every morning"
 • Mark Done: "Mark my DSA task as complete"
 • Delete / Clear: "Delete my reminder", "Cancel gym reminder", "Delete all reminders", or /delete
@@ -20,7 +20,7 @@ Hey ${name}! Here is what you can ask me:
 /today — Get your daily morning/evening action plan
 /speak <prompt> — Get a spoken AI Voice Note (Matthew voice) 🎙️
 /video [subreddit] — Stream random Reddit video (.mp4) 🎬
-/reminders — View & manage reminders (with 1-tap delete buttons)
+/reminders — View active reminders & toggle 8 AM morning / 10 PM night briefings
 /goals — View your long-term goals
 /reflections — View your 7-day growth log
 /done <id> — Mark task completed

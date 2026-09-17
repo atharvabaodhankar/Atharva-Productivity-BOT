@@ -140,6 +140,31 @@ const tools = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "toggle_daily_briefings",
+      description: "Enable or disable automated daily messages such as 8:00 AM Morning Game Plan / Briefing, 10:00 PM Nightly Reflection / Check-in, or all automated daily reminders. Use this whenever the user asks to stop, turn off, disable, mute, start, or enable morning messages, nightly check-ins, or daily routine reminders.",
+      parameters: {
+        type: "object",
+        properties: {
+          morningSummaryEnabled: {
+            type: "boolean",
+            description: "Set to false to stop/disable 8 AM morning summary, true to enable.",
+          },
+          nightlyReflectionEnabled: {
+            type: "boolean",
+            description: "Set to false to stop/disable 10 PM night reflection, true to enable.",
+          },
+          dailyRemindersEnabled: {
+            type: "boolean",
+            description: "Set to false to mute/disable all automated daily messages, true to enable.",
+          },
+        },
+      },
+    },
+  },
 ];
 
 module.exports = { tools };
+
