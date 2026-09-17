@@ -2,13 +2,13 @@
 
 [![Telegram Bot](https://img.shields.io/badge/Telegram-Bot-2CA5E0?style=for-the-badge&logo=telegram&logoColor=white)](https://t.me/Atharva_Produtivity_Bot)
 [![AWS Lambda](https://img.shields.io/badge/AWS-Lambda-FF9900?style=for-the-badge&logo=awslambda&logoColor=white)](https://aws.amazon.com/lambda/)
+[![Amazon Bedrock Nova](https://img.shields.io/badge/Amazon_Bedrock-Nova_Micro_%26_Lite-0052CC?style=for-the-badge&logo=amazonwebservices&logoColor=white)](https://aws.amazon.com/bedrock/)
 [![Amazon Bedrock Titan](https://img.shields.io/badge/Amazon_Bedrock-Titan_Embeddings_v2-0052CC?style=for-the-badge&logo=amazonwebservices&logoColor=white)](https://aws.amazon.com/bedrock/)
 [![Amazon Polly](https://img.shields.io/badge/Amazon-Polly_Voice-232F3E?style=for-the-badge&logo=amazonwebservices&logoColor=white)](https://aws.amazon.com/polly/)
-[![Groq AI](https://img.shields.io/badge/Groq-Qwen_3.6_27B_%7C_Vision-F55036?style=for-the-badge)](https://groq.com/)
 [![MongoDB Atlas Vector](https://img.shields.io/badge/MongoDB-Atlas_Vector_Search-47A248?style=for-the-badge&logo=mongodb&logoColor=white)](https://www.mongodb.com/atlas)
 [![Vercel](https://img.shields.io/badge/Vercel-Hosted-000000?style=for-the-badge&logo=vercel&logoColor=white)](https://vercel.com/)
 
-**AtharvaOS** is an enterprise-grade serverless AI personal productivity operating system and **RAG-powered second brain** built on Node.js, AWS Lambda, Amazon Bedrock, and MongoDB Atlas. It functions as an energetic Telegram copilot, high-precision task planner, spoken audio briefer, and Telegram Mini App.
+**AtharvaOS** is an enterprise-grade serverless AI personal productivity operating system and **RAG-powered second brain** built entirely on **Amazon Bedrock (Nova Micro, Nova Lite & Titan Embeddings v2)**, **AWS Lambda**, **Amazon Polly**, and **MongoDB Atlas**. It functions as an energetic Telegram copilot, high-precision task planner, spoken audio briefer, and Telegram Mini App.
 
 ---
 
@@ -25,16 +25,19 @@ flowchart TD
     end
 
     subgraph AWSCloud["⚡ AWS Serverless Cloud (ap-south-1)"]
-        LAMBDA["⚡ AWS Lambda (AtharvaOS-Bot Core)"]
-        EB["⏰ Amazon EventBridge (5m Cron Trigger)"]
-        POLLY["🎙️ Amazon Polly (Matthew Voice Synthesis)"]
-        TITAN["🧠 Amazon Bedrock (Titan Text Embeddings v2)"]
+        LAMBDA["⚡ AWS Lambda (AtharvaOS Core Engine)"]
+        EB["⏰ Amazon EventBridge (5m Scheduled Trigger)"]
     end
 
-    subgraph DataAndAI["🧠 AI & Data Persistence Layer"]
-        GROQ["⚡ Groq AI Pool (Qwen 3.6 27B & Llama 3.2 Vision)"]
-        MONGO[("📦 MongoDB Atlas (Vector Search & Knowledge Base)")]
-        REDDIT["🎬 Reddit Streaming API"]
+    subgraph BedrockSuite["🧠 Amazon Bedrock AI & Voice Suite"]
+        NOVA_MICRO["🧠 Amazon Nova Micro (Reasoning & Tools)"]
+        NOVA_LITE["👁️ Amazon Nova Lite (Multimodal Vision OCR)"]
+        TITAN_EMBED["⚡ Amazon Titan Text Embeddings v2 (RAG)"]
+        POLLY["🎙️ Amazon Polly (Spoken Audio Synthesis)"]
+    end
+
+    subgraph DataLayer["📦 Data Layer"]
+        MONGO[("📦 MongoDB Atlas (Vector Search & Knowledge Store)")]
     end
 
     TG <-->|"Webhooks / Updates"| LAMBDA
@@ -42,50 +45,52 @@ flowchart TD
     ADMIN <-->|"REST API"| LAMBDA
 
     EB -->|"Scheduled 5m Ping"| LAMBDA
-    LAMBDA -->|"Synthesize Spoken Briefing"| POLLY
-    LAMBDA -->|"Generate 512d Embeddings"| TITAN
-    LAMBDA -->|"Semantic Vector Search & Storage"| MONGO
-    LAMBDA -->|"Contextual LLM Reasoning"| GROQ
-    LAMBDA -->|"Stream Video Buffers"| REDDIT
+    LAMBDA -->|"Reasoning & Tool Execution"| NOVA_MICRO
+    LAMBDA -->|"Multimodal Image OCR"| NOVA_LITE
+    LAMBDA -->|"512d Vector Embeddings"| TITAN_EMBED
+    LAMBDA -->|"Spoken Voice Notes"| POLLY
+    LAMBDA -->|"Vector Search & Data Persistence"| MONGO
 ```
 
 ---
 
 ## 🌟 Superpowers & Core Features
 
-### 🧠 1. RAG Knowledge Engine (Amazon Titan Text Embeddings v2)
+### 🧠 1. Amazon Bedrock Foundation Models & Multimodal Vision
+* **Amazon Nova Micro (`apac.amazon.nova-micro-v1:0`):** Ultra-low latency reasoning, conversational planning, structured JSON function tool execution, and contextual memory operations.
+* **Amazon Nova Lite (`apac.amazon.nova-lite-v1:0`):** Multimodal document & image analysis — snap a photo of handwritten notes or a whiteboard checklist and AtharvaOS extracts, schedules, and categorizes tasks automatically.
+* **Amazon Titan Text Embeddings v2 (`amazon.titan-embed-text-v2:0`):** Semantic vector retrieval for long-term user memory and knowledge base context.
+
+### 🔍 2. RAG Second Brain & Semantic Vector Search
 * **Semantic Vector Retrieval:** Uses Amazon Bedrock's **`amazon.titan-embed-text-v2:0`** in `ap-south-1` to generate 512-dimension normalized embeddings for every task, note, goal, bookmark, and study plan.
 * **Instant Historical Recall:** Performs vector cosine similarity search across your entire historical knowledge base on every query. Ask *"What did I plan for Rust?"* or *"What did I note down about OS assignments?"* and AtharvaOS grounds its response in your past records.
 * **Zero-Hallucination Context Grounding:** Injects real-time semantic context into LLM prompts without blowing context windows or incurring high token costs.
 
-### 🎙️ 2. Amazon Polly AI Voice Notes (`/speak`)
+### 🎙️ 3. Amazon Polly AI Voice Notes (`/speak`)
 * **Spoken Audio Briefings:** Generates native Telegram voice notes using Amazon Polly's **Matthew** neural voice.
 * **Speech Pronunciation Sanitizer:** Automatically scrubs Markdown symbols, code blocks, bullet points, and URLs into smooth conversational speech.
 * **Slash Commands & Natural Triggers:** Trigger via `/speak <prompt>`, `/voice <prompt>`, `/audio <prompt>`, or by simply asking *"speak to me"* or *"bol ke batao"*.
 * **Daily Quota Governance:** Unlimited voice synthesis for the Creator/Owner; 5 free notes per day for guests.
 
-### ⏰ 3. Automated Daily Briefings & Granular User Toggles
+### ⏰ 4. Automated Daily Briefings & Granular User Toggles
 * **8:00 AM Morning Game Plan:** Prioritizes today's urgent deadlines, focus items, and daily momentum.
 * **10:00 PM Nightly Accountability Check-In:** Reviews completed wins and highlights pending tasks before bed.
 * **1-Tap Interactive Control Hub (`/reminders` / `/daily`):** Easily turn ON/OFF 8 AM Morning Briefings, 10 PM Night Check-Ins, or all daily reminders with instant button toggles.
 * **Natural Voice/Text Controls:** Simply tell the bot *"stop morning messages"*, *"disable nightly check-in"*, or *"mute daily reminders"*.
 
-### 👥 4. Group Privacy & Direct Slash Commands (`/ask` / `/ai`)
+### 👥 5. Group Privacy & Direct Slash Commands (`/ask` / `/ai`)
 * **Strict Group Privacy Guardrail:** Automated personal reminders and daily summaries are **strictly excluded from group chats** to ensure your data stays 100% private.
 * **Direct Group Queries (`/ask <question>`):** Group members can query the bot with `/ask`, `/ai`, or by tagging `@Atharva_Produtivity_Bot`.
 * **Stateless Mention Parser:** Robust mention parsing ensures instant responses across all Telegram client variants.
 
-### 📱 5. Telegram Mini App (Flo 101 Design)
+### 📱 6. Telegram Mini App (Flo 101 Design)
 * **Safe Sandbox Experience:** Accessible via the Telegram menu button `[🔲 Open AtharvaOS]` or chat menu.
 * **Interactive SVG Progress Ring:** Real-time completion metrics, dynamic category filtering, and micro-animations.
 * **Project-Task Hierarchy:** Organize subtasks neatly inside high-level project containers.
 
-### 💬 6. Human-Paced Multi-Bubble Messaging
+### 💬 7. Human-Paced Multi-Bubble Messaging
 * **Conversational Pacing:** Automatically breaks multi-paragraph AI answers into natural multi-bubble messages.
 * **Micro-Typing Simulation:** Displays live `"typing"` indicators between message bubbles for an organic conversation flow.
-
-### 🎬 7. Reddit Video Streaming (`/video`)
-* **Binary Buffer Streaming:** Streams raw Reddit `.mp4` video buffers directly into Telegram with `{ supports_streaming: true }`, ensuring instant scrubbing and native audio playback.
 
 ---
 
@@ -103,7 +108,6 @@ flowchart TD
 | `/reflections` | View your 7-day retrospective growth log | `/reflections` |
 | `/done <id>` | Mark a specific task completed by ID | `/done 6a813d35...` |
 | `/delete <id>` | Delete a specific task or reminder | `/delete 6a813d35...` |
-| `/video [subreddit]` | Stream a video buffer from any subreddit | `/video dankvideos` |
 | `/motivate` | Instant high-energy motivation shot 🔥 | `/motivate` |
 | `/roast` | Playful, witty Hinglish roast 😂 | `/roast` |
 | `/help` | Complete interactive command guide | `/help` |
@@ -126,16 +130,14 @@ BOT_TOKEN=1234567890:ABCdefGHIjklMNOpqrsTUVwxyz
 CHAT_ID=5275149287
 MONGO_URI=mongodb+srv://user:pass@cluster0.mongodb.net/atharvaos?retryWrites=true&w=majority
 
-# Amazon Bedrock (ap-south-1)
+# Amazon Bedrock & AWS Services (ap-south-1)
 AWS_REGION=ap-south-1
 AWS_ACCESS_KEY_ID=your_aws_access_key
 AWS_SECRET_ACCESS_KEY=your_aws_secret_key
+BEDROCK_LLM_MODEL_ID=apac.amazon.nova-micro-v1:0
 BEDROCK_EMBEDDING_MODEL_ID=amazon.titan-embed-text-v2:0
 
-# LLM Reasoning & Fallback
-GROQ_API_KEY=gsk_key1,gsk_key2
-MEME_API_URL=https://redditreels.onrender.com
-MEME_API_KEY=your_meme_api_key
+# Admin Secret
 ADMIN_SECRET=your_admin_secret
 ```
 
@@ -164,13 +166,13 @@ The repository includes automated CI/CD (`.github/workflows/deploy.yml`) that bu
 Required **GitHub Actions Secrets**:
 * `AWS_ACCESS_KEY_ID` *(Lambda Deploy Role)*
 * `AWS_SECRET_ACCESS_KEY` *(Lambda Deploy Role)*
-* `BEDROCK_AWS_ACCESS_KEY_ID` *(Bedrock Titan & Polly Access)*
-* `BEDROCK_AWS_SECRET_ACCESS_KEY` *(Bedrock Titan & Polly Access)*
+* `BEDROCK_AWS_ACCESS_KEY_ID` *(Bedrock Nova, Titan & Polly Access)*
+* `BEDROCK_AWS_SECRET_ACCESS_KEY` *(Bedrock Nova, Titan & Polly Access)*
 * `BEDROCK_AWS_REGION` *(Default: `ap-south-1`)*
+* `BEDROCK_LLM_MODEL_ID` *(Default: `apac.amazon.nova-micro-v1:0`)*
 * `BEDROCK_EMBEDDING_MODEL_ID` *(Default: `amazon.titan-embed-text-v2:0`)*
 * `BOT_TOKEN`
 * `MONGO_URI`
-* `GROQ_API_KEY`
 * `CHAT_ID`
 
 ---
