@@ -8,50 +8,102 @@ const {
 } = require("../../utils/easterEggDetector");
 const { sendTelegramFormatted, sendTelegramHumanPaced } = require("../../utils/telegramFormatter");
 
-const MENTION_REGEX = /@Atharva_Produtivity_Bot|@Atharva_Productivity_Bot|@AtharvaOS/gi;
+function checkBotMentionOrReply(ctx, rawText = "") {
+  const isGroup = ctx.chat.type === "group" || ctx.chat.type === "supergroup";
+  if (!isGroup) {
+    return { shouldProcess: true, isMentioned: false, isReplyToBot: false, cleanText: rawText.trim() };
+  }
+
+  const botId = ctx.botInfo?.id || 7987805958;
+  const botUsername = (ctx.botInfo?.username || "Atharva_Produtivity_Bot").toLowerCase();
+
+  // 1. Check if user is replying directly to any of the bot's messages
+  const replyMsg = ctx.message?.reply_to_message;
+  const isReplyToBot = Boolean(
+    replyMsg?.from?.is_bot &&
+    (replyMsg.from.id === botId ||
+      (replyMsg.from.username && replyMsg.from.username.toLowerCase() === botUsername) ||
+      /@?atharva/i.test(replyMsg.from.username || ""))
+  );
+
+  // 2. Check if bot is mentioned via Telegram entities
+  const entities = ctx.message?.entities || [];
+  let isMentionedViaEntity = false;
+
+  for (const ent of entities) {
+    if (ent.type === "mention") {
+      const mentionText = rawText.substring(ent.offset, ent.offset + ent.length).toLowerCase();
+      if (
+        mentionText === `@${botUsername}` ||
+        mentionText === "@atharva_produtivity_bot" ||
+        mentionText === "@atharva_productivity_bot" ||
+        mentionText === "@atharvaos" ||
+        mentionText.startsWith("@atharva")
+      ) {
+        isMentionedViaEntity = true;
+        break;
+      }
+    } else if (ent.type === "text_mention") {
+      if (ent.user && (ent.user.id === botId || ent.user.is_bot)) {
+        isMentionedViaEntity = true;
+        break;
+      }
+    }
+  }
+
+  // 3. Check if bot is mentioned via plain text (stateless regex)
+  const isMentionedViaRegex = /(?:^|\s)@(atharva_produtivity_bot|atharva_productivity_bot|atharvaos|atharva)/i.test(rawText);
+
+  const isMentioned = isMentionedViaEntity || isMentionedViaRegex;
+
+  if (!isMentioned && !isReplyToBot) {
+    return { shouldProcess: false, isMentioned: false, isReplyToBot: false, cleanText: rawText.trim() };
+  }
+
+  // Clean mention from prompt text
+  const cleanText = rawText
+    .replace(/@(atharva_produtivity_bot|atharva_productivity_bot|atharvaos|atharva\w*)/gi, "")
+    .trim();
+
+  return {
+    shouldProcess: true,
+    isMentioned,
+    isReplyToBot,
+    cleanText,
+  };
+}
 
 module.exports = (bot) => {
   bot.on("text", async (ctx) => {
     try {
-      let userMessage = (ctx.message.text || "").trim();
+      const rawMessage = ctx.message.text || "";
       const chatId = ctx.chat.id;
       const chatType = ctx.chat.type;
       const isGroup = chatType === "group" || chatType === "supergroup";
 
       // 1. Group Chat Checks
       if (isGroup) {
-        // Check if group is enabled by owner
         const config = await GroupConfig.findOne({ chatId });
-        if (!config || !config.enabled) {
-          // Bot is turned OFF in this group -> Silently ignore
+        if (config && config.enabled === false) {
+          // Bot was explicitly turned OFF in this group by owner -> Silently ignore
           return;
         }
 
-        const isMentioned = MENTION_REGEX.test(userMessage) || 
-          ctx.message.entities?.some(
-            (e) =>
-              e.type === "mention" &&
-              /@Atharva_Produtivity_Bot/i.test(userMessage.substring(e.offset, e.offset + e.length))
-          );
-
-        const isReplyToBot =
-          ctx.message.reply_to_message?.from?.is_bot &&
-          (ctx.message.reply_to_message?.from?.id === 7987805958 ||
-            /@Atharva_Produtivity_Bot/i.test(ctx.message.reply_to_message?.from?.username || ""));
-
-        // In groups, ONLY respond if explicitly tagged or replied to
-        if (!isMentioned && !isReplyToBot) {
+        const mentionCheck = checkBotMentionOrReply(ctx, rawMessage);
+        if (!mentionCheck.shouldProcess) {
           return;
         }
 
-        // Clean mention from prompt text
-        userMessage = userMessage.replace(MENTION_REGEX, "").trim();
-        if (!userMessage && !isReplyToBot) {
+        if (!mentionCheck.cleanText && !mentionCheck.isReplyToBot) {
           return ctx.reply("Haan bhai! Kaho, kaise madad karu? 🚀", {
             reply_to_message_id: ctx.message.message_id,
           });
         }
       }
+
+      const mentionResult = checkBotMentionOrReply(ctx, rawMessage);
+      let userMessage = mentionResult.cleanText || rawMessage.trim();
+
 
       // 1.5 Check if user is replying to NSFW Meme confirmation (YES / NO)
       const User = require("../../models/User");
