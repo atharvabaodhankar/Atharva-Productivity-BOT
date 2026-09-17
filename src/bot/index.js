@@ -35,6 +35,7 @@ require("./commands/owner")(bot);
 require("./commands/groupToggle")(bot);
 require("./commands/easterEggs")(bot);
 require("./commands/speak")(bot);
+require("./commands/ask")(bot);
 require("./commands/help")(bot);
 
 // 3. Attach message, photo & video handlers
