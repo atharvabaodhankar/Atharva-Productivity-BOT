@@ -747,19 +747,28 @@ exports.handler = async (event, context) => {
     // 3. TELEGRAM WEBHOOK (Incoming Telegram Messages)
     // -------------------------------------------------------------
     if (event.body) {
+      let bodyStr = event.body;
+      if (event.isBase64Encoded && typeof bodyStr === "string") {
+        try {
+          bodyStr = Buffer.from(bodyStr, "base64").toString("utf-8");
+        } catch (b64err) {
+          console.warn("Failed to decode base64 body:", b64err.message);
+        }
+      }
+
       let body;
       try {
-        body = typeof event.body === "string" ? JSON.parse(event.body) : event.body;
+        body = typeof bodyStr === "string" ? JSON.parse(bodyStr) : bodyStr;
       } catch (e) {
         body = null;
       }
 
-      if (body && (body.update_id || body.callback_query || body.message || body.channel_post)) {
+      if (body && (body.update_id !== undefined || body.callback_query || body.message || body.channel_post || body.edited_message)) {
         await bot.handleUpdate(body);
         return {
           statusCode: 200,
           headers: CORS_HEADERS,
-          body: JSON.stringify({ message: "Update processed" }),
+          body: JSON.stringify({ ok: true, message: "Update processed" }),
         };
       }
     }
