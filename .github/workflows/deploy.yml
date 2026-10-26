@@ -78,10 +78,10 @@ jobs:
           echo "Linking Telegram Webhook for Bot Token..."
           node setWebhook.js https://ged2lb24hngndlzk5b73dmvdqy0ydsmo.lambda-url.ap-south-1.on.aws/
 
-          echo "Setting up Amazon EventBridge 5-minute reminder cron..."
+          echo "Setting up Amazon EventBridge 1-minute precision reminder cron..."
           aws events put-rule \
             --name "AtharvaOS-ReminderCron" \
-            --schedule-expression "rate(5 minutes)" \
+            --schedule-expression "rate(1 minute)" \
             --region ap-south-1
 
           aws lambda add-permission \

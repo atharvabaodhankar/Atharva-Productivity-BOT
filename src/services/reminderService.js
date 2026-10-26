@@ -122,6 +122,7 @@ async function checkUpcomingReminders(bot) {
     }
 
     // 1.1.1 Auto-complete past expired ONE-TIME reminders so they never linger in pending lists
+    // Only mark completed if the reminder was already delivered (reminderSent: true) or is older than 24 hours
     await Memory.updateMany(
       {
         type: "reminder",
@@ -129,7 +130,7 @@ async function checkUpcomingReminders(bot) {
         isRecurring: { $ne: true },
         $or: [
           { reminderSent: true },
-          { date: { $lt: new Date(now.getTime() - 2 * 60 * 1000) } },
+          { date: { $lt: oneDayAgo } },
         ],
       },
       { completed: true, reminderSent: true }
@@ -377,8 +378,8 @@ async function sendNightlyReflection(bot) {
 
 // 5. Local In-Memory Cron Scheduler (for node index.js local polling)
 function startReminderCron(bot) {
-  // Check every 5 minutes for upcoming deadlines & daily routines
-  cron.schedule("*/5 * * * *", async () => {
+  // Check every 1 minute for precision upcoming deadlines & daily routines
+  cron.schedule("* * * * *", async () => {
     try {
       await checkUpcomingReminders(bot);
     } catch (err) {
@@ -386,7 +387,7 @@ function startReminderCron(bot) {
     }
   });
 
-  console.log("⏰ Automated 5-Minute Reminder & Daily Briefing Cron Scheduled (node-cron)");
+  console.log("⏰ Automated 1-Minute Precision Reminder & Daily Briefing Cron Scheduled (node-cron)");
 }
 
 module.exports = {

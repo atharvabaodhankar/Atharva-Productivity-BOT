@@ -28,11 +28,10 @@ functions:
     url:
       cors: true
 
-  # Future Scope: Uncomment below to enable scheduled EventBridge reminders
-  # cronReminders:
-  #   handler: lambda.handler
-  #   events:
-  #     - schedule:
-  #         rate: rate(1 minute)
-  #         input:
-  #           task: checkReminders
+  cronReminders:
+    handler: lambda.handler
+    events:
+      - schedule:
+          rate: rate(1 minute)
+          input:
+            cron: true

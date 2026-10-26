@@ -26,9 +26,10 @@ async function retrieveRelevantMemories({
     return [];
   }
 
-  // 2. Fetch all memories for this user with embeddings
+  // 2. Fetch relevant memories for this user with embeddings (exclude stale completed reminders)
   const memories = await Memory.find({
     chatId,
+    $nor: [{ type: "reminder", completed: true }],
     embedding: { $exists: true, $not: { $size: 0 } },
   }).lean();
 
@@ -66,18 +67,17 @@ function formatRagContext(relevantItems, userTimezone = "Asia/Kolkata") {
     return "";
   }
 
-  let text = "🧠 RELEVANT HISTORICAL KNOWLEDGE & MEMORIES (SEMANTIC RAG):\n";
-  text += "(These items were semantically matched from the user's past notes, goals, ideas, and tasks based on their current question)\n";
+  let text = "🧠 RELEVANT HISTORICAL CONTEXT & KNOWLEDGE BASE:\n";
+  text += "(INTERNAL BACKGROUND REFERENCE ONLY: Use this knowledge to inform your answers naturally. NEVER copy-paste these lines verbatim, and NEVER mention similarity percentages or internal status tags to the user!)\n";
 
-  relevantItems.forEach(({ memory: m, similarity }, i) => {
-    const status = m.completed ? "COMPLETED" : "ACTIVE / PENDING";
+  relevantItems.forEach(({ memory: m }, i) => {
     const dateStr = m.date
-      ? ` | Due/Date: ${new Date(m.date).toLocaleDateString("en-US", { timeZone: userTimezone })}`
+      ? ` | Date: ${new Date(m.date).toLocaleDateString("en-US", { timeZone: userTimezone })}`
       : "";
     const projectStr = m.projectName ? ` | Project: "${m.projectName}"` : "";
     const urlStr = m.url ? ` | Link: ${m.url}` : "";
 
-    text += `${i + 1}. [${m.type.toUpperCase()}] "${m.content}" (Status: ${status}${projectStr}${urlStr}${dateStr}) [Similarity: ${Math.round(similarity * 100)}%]\n`;
+    text += `${i + 1}. [${m.type.toUpperCase()}] "${m.content}"${projectStr}${urlStr}${dateStr}\n`;
   });
 
   return text.trim();

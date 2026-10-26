@@ -3,7 +3,7 @@ const tools = [
     type: "function",
     function: {
       name: "add_memory",
-      description: "Create a new task, assignment, exam, project, goal, idea, reminder, note, or reflection for the user.",
+      description: "Create a new task, assignment, exam, project, goal, idea, reminder, note, or reflection. CRITICAL: Use ONLY when user EXPLICITLY asks to add, record, save, track, or schedule something. NEVER call this tool for questions, coding help, brainstorming, casual conversation, or when the user expresses negative intent (e.g. 'no projects', 'wait', 'don't add').",
       parameters: {
         type: "object",
         properties: {

@@ -10,13 +10,13 @@ const User = require("../models/User");
 const mongoose = require("mongoose");
 const { getReminders } = require("../services/memoryService");
 
-// Comprehensive sanitizer to strip any leaked reasoning, XML tags, or bot POV scratchpads
+// Comprehensive sanitizer to strip any leaked reasoning, XML tags, ObjectIds, RAG artifacts, or bot POV scratchpads
 function sanitizeOutput(text, userName = "bhai") {
   if (!text) return `Done ${userName}! Maine sab update kar diya hai! ✨`;
 
   let raw = String(text);
 
-  // 1. Strip all XML/HTML reasoning & tool call tags (including unclosed tags if output was truncated)
+  // 1. Strip all XML reasoning & tool call tags (including unclosed tags if output was truncated)
   raw = raw
     .replace(/<think>[\s\S]*?(?:<\/think>|$)/gi, "")
     .replace(/<thinking>[\s\S]*?(?:<\/thinking>|$)/gi, "")
@@ -24,8 +24,8 @@ function sanitizeOutput(text, userName = "bhai") {
     .replace(/<reasoning>[\s\S]*?(?:<\/reasoning>|$)/gi, "")
     .replace(/<thought_process>[\s\S]*?(?:<\/thought_process>|$)/gi, "")
     .replace(/<function=[\s\S]*?(?:<\/function>|$)/gi, "")
-    .replace(/<tool_call>[\s\S]*?(?:<\/tool_call>|$)/gi, "")
-    .replace(/<[\s\S]*?>/g, "");
+    .replace(/<\/?function>/gi, "")
+    .replace(/<\/?tool_call>/gi, "");
 
   // 2. If the model output a structured thought block with a labeled final spoken response:
   const labeledMatch = raw.match(
@@ -40,10 +40,27 @@ function sanitizeOutput(text, userName = "bhai") {
     .replace(/^(?:AtharvaOS\s*\(Bot POV\)|\[Bot POV\]|Bot POV:?)\s*/i, "")
     .trim();
 
-  // 4. Telegram Markdown Cleanup (convert **bold** to *bold*, remove headers #)
+  // 4. Scrub raw RAG metadata and status artifacts
+  raw = raw.replace(/\[Similarity:\s*\d+%\s*\]/gi, "");
+  raw = raw.replace(/\(Status:\s*(?:COMPLETED|ACTIVE|PENDING)[^)]*\)/gi, "");
+
+  // 5. Scrub system/database ObjectIds and "Here are the IDs / task ID is ... for your reference" phrases
+  raw = raw.replace(/\b(?:The\s+)?(?:task|item|project|goal|reminder)\s+ID\s*(?:is|:)?\s*[0-9a-fA-F]{24}\s*(?:for\s+your\s+reference\.?)?/gi, "");
+  raw = raw.replace(/\b(?:ID:?\s*)?[0-9a-fA-F]{24}\b/gi, "");
+  raw = raw.replace(/(?:task|item|project|goal|reminder)\s+ID\s*(?:is|:)?\s*/gi, "");
+  raw = raw.replace(/Here are the IDs(?:\s*for\s*future\s*reference)?:?/gi, "");
+  raw = raw.replace(/\bfor\s+your\s+reference\.?/gi, "");
+  raw = raw.replace(/\(ref_id:[^)]*\)/gi, "");
+  raw = raw.replace(/\[ref_id:[^\]]*\]/gi, "");
+
+  // 6. Clean dangling colons from lines where IDs were stripped (e.g. "- Task Name: \n" -> "- Task Name\n")
+  raw = raw.replace(/:\s*$/gm, "");
+
+  // 7. Telegram Markdown Cleanup (strip markdown headers '# Header', keep '#include', preserve code backticks)
   let cleaned = raw
-    .replace(/^["']|["']$/g, "")
-    .replace(/^[ \t]*#+[ \t]*/gm, "")
+    .replace(/^[\s"'”]+/, "")
+    .replace(/[\s"'”]+$/, "")
+    .replace(/^[ \t]*#{1,6}[ \t]+/gm, "")
     .replace(/\*\*/g, "*")
     .trim();
 
@@ -134,7 +151,7 @@ async function executeToolHandler(functionName, args, chatId, user) {
     });
 
     const parentNote = parentProjectName ? ` (inside project "${parentProjectName}")` : "";
-    return `Successfully created ${newMem.type}: "${newMem.content}"${parentNote} (ID: ${newMem._id})`;
+    return `Successfully created ${newMem.type}: "${newMem.content}"${parentNote}.`;
   } else if (functionName === "complete_memory") {
     const updated = await Memory.findOneAndUpdate(
       { _id: args.id, chatId },
@@ -153,7 +170,7 @@ async function executeToolHandler(functionName, args, chatId, user) {
       const deleted = await Memory.findOneAndDelete({ _id: id, chatId, type: "reminder" });
       return deleted
         ? `Deleted reminder: "${deleted.content}".`
-        : `Reminder with ID ${id} not found.`;
+        : `Reminder not found.`;
     } else if (query || (id && !mongoose.Types.ObjectId.isValid(id))) {
       const searchStr = (query || id).trim();
       const escaped = searchStr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
@@ -173,7 +190,7 @@ async function executeToolHandler(functionName, args, chatId, user) {
         await Memory.findByIdAndDelete(active[0]._id);
         return `Deleted your reminder: "${active[0].content}".`;
       } else {
-        return `Found multiple active reminders: ${active.map((r) => `"${r.content}" (ID: ${r._id})`).join(", ")}. Please specify which one to delete or say 'delete all reminders'.`;
+        return `Found multiple active reminders: ${active.map((r) => `"${r.content}"`).join(", ")}. Please specify which one to delete or say 'delete all reminders'.`;
       }
     }
   } else if (functionName === "delete_memory") {
@@ -272,8 +289,12 @@ async function askAI({
   const textPrompt =
     message || (base64ImageUrl ? "Analyze this image and extract any tasks or notes." : "");
 
+  // Skip semantic RAG on direct status checks (e.g. "what's my reminder", "show tasks", "kya reminder hai")
+  // because active items are already accurately represented in the active workspace!
+  const isDirectStatusQuery = /^(what('?s|\s+is|\s+are)|show|list|tell\s+me|mere|kya|dikhao)\s+(my\s+)?(reminders?|tasks?|goals?|schedule|today'?s?\s*plan)/i.test(textPrompt.trim());
+
   let ragContext = "";
-  if (!isGroup && textPrompt && textPrompt.length > 2) {
+  if (!isGroup && !isDirectStatusQuery && textPrompt && textPrompt.length > 2) {
     try {
       const relevantMemories = await retrieveRelevantMemories({
         chatId,
@@ -427,4 +448,4 @@ async function askAI({
   return sanitizeOutput(finalRawText, displayName);
 }
 
-module.exports = { askAI };
+module.exports = { askAI, sanitizeOutput };

@@ -50,7 +50,7 @@ function splitIntoHumanChunks(text, maxChunks = 3) {
     return [clean];
   }
 
-  // 1. Try splitting by double newline (distinct paragraphs/thoughts)
+  // 1. Split ONLY on true paragraph breaks (double newlines)
   let paragraphs = clean
     .split(/\n\s*\n/)
     .map((p) => p.trim())
@@ -68,19 +68,6 @@ function splitIntoHumanChunks(text, maxChunks = 3) {
       merged.push(paragraphs.slice(i, i + chunkSize).join("\n\n"));
     }
     return merged.slice(0, maxChunks);
-  }
-
-  // 2. If single long paragraph (> 200 chars), split on natural sentence boundaries
-  if (clean.length > 200) {
-    const sentences = clean.match(/[^.!?]+[.!?]+(\s+|$)/g);
-    if (sentences && sentences.length >= 2) {
-      const midpoint = Math.ceil(sentences.length / 2);
-      const part1 = sentences.slice(0, midpoint).join("").trim();
-      const part2 = sentences.slice(midpoint).join("").trim();
-      if (part1 && part2 && part1.length > 30 && part2.length > 30) {
-        return [part1, part2];
-      }
-    }
   }
 
   return [clean];
