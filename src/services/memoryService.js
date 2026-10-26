@@ -52,37 +52,88 @@ async function getRecentReflections(chatId, days = 7) {
   }).sort({ createdAt: -1 });
 }
 
-async function getTodaySummary(chatId) {
-  const startOfDay = new Date();
-  startOfDay.setHours(0, 0, 0, 0);
+async function getTodaySummary(chatId, userTimezone = "Asia/Kolkata") {
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("en-CA", { timeZone: userTimezone }); // YYYY-MM-DD
+  const offset = userTimezone === "Asia/Kolkata" ? "+05:30" : "Z";
 
-  const endOfDay = new Date(startOfDay);
-  endOfDay.setDate(endOfDay.getDate() + 1);
+  const startOfDay = new Date(`${dateStr}T00:00:00${offset}`);
+  const endOfDay = new Date(`${dateStr}T23:59:59.999${offset}`);
 
   const todayDue = await Memory.find({
     chatId,
-    date: { $gte: startOfDay, $lt: endOfDay },
+    date: { $gte: startOfDay, $lte: endOfDay },
     type: { $in: ["task", "assignment", "project", "exam"] },
     completed: false,
-  });
+  }).sort({ date: 1 });
+
+  const todayReminders = await Memory.find({
+    chatId,
+    type: "reminder",
+    completed: false,
+    $or: [
+      { date: { $gte: startOfDay, $lte: endOfDay } },
+      { isRecurring: true },
+    ],
+  }).sort({ date: 1 });
 
   const upcomingTasks = await Memory.find({
     chatId,
     type: { $in: ["task", "assignment", "project", "exam"] },
     completed: false,
+    $or: [{ date: { $gt: endOfDay } }, { date: null }],
   })
-    .sort({ date: 1 })
+    .sort({ date: 1, createdAt: -1 })
     .limit(5);
 
   return {
     todayDue,
+    todayReminders,
     upcomingTasks,
   };
 }
 
-async function completeMemory(chatId, id) {
+async function completeMemory(chatId, idOrQuery) {
+  if (!idOrQuery) return null;
+  const str = String(idOrQuery).trim();
+
+  // 1. If valid 24-character ObjectId
+  if (mongoose.Types.ObjectId.isValid(str)) {
+    const byId = await Memory.findOneAndUpdate(
+      { _id: str, chatId },
+      { completed: true },
+      { new: true }
+    );
+    if (byId) return byId;
+  }
+
+  // 2. If user passed a 1-based index number (e.g. "/done 1", "/done 2")
+  const numIndex = parseInt(str, 10);
+  if (!isNaN(numIndex) && numIndex >= 1 && String(numIndex) === str) {
+    const pendingTasks = await Memory.find({
+      chatId,
+      type: { $in: ["task", "assignment", "project", "exam"] },
+      completed: false,
+    }).sort({ date: 1, createdAt: -1 });
+
+    if (numIndex <= pendingTasks.length) {
+      const target = pendingTasks[numIndex - 1];
+      return await Memory.findByIdAndUpdate(
+        target._id,
+        { completed: true },
+        { new: true }
+      );
+    }
+  }
+
+  // 3. If user passed title keyword (e.g. "/done gym", "/done c++")
+  const escaped = str.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
   return await Memory.findOneAndUpdate(
-    { _id: id, chatId },
+    {
+      chatId,
+      completed: false,
+      content: new RegExp(escaped, "i"),
+    },
     { completed: true },
     { new: true }
   );
@@ -139,6 +190,7 @@ module.exports = {
   getReminders,
   getGoals,
   getRecentReflections,
+  getReflections: getRecentReflections,
   getTodaySummary,
   completeMemory,
   deleteMemory,

@@ -2,9 +2,18 @@ const { PollyClient, SynthesizeSpeechCommand } = require("@aws-sdk/client-polly"
 const User = require("../models/User");
 const History = require("../models/History");
 
-// Use AWS Lambda's built-in execution role credentials provider
+const accessKeyId =
+  process.env.BEDROCK_AWS_ACCESS_KEY_ID ||
+  process.env.AWS_ACCESS_KEY_ID;
+const secretAccessKey =
+  process.env.BEDROCK_AWS_SECRET_ACCESS_KEY ||
+  process.env.AWS_SECRET_ACCESS_KEY;
+
+const credentials = accessKeyId && secretAccessKey ? { accessKeyId, secretAccessKey } : undefined;
+
 const polly = new PollyClient({
-  region: process.env.AWS_REGION || "ap-south-1",
+  region: process.env.BEDROCK_AWS_REGION || process.env.AWS_REGION || "ap-south-1",
+  credentials,
 });
 
 const OWNER_ID = "5275149287";

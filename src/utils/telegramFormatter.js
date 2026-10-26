@@ -45,12 +45,7 @@ function splitIntoHumanChunks(text, maxChunks = 3) {
     return [clean];
   }
 
-  // If text is short (< 140 chars), send as single punchy bubble
-  if (clean.length < 140) {
-    return [clean];
-  }
-
-  // 1. Split ONLY on true paragraph breaks (double newlines)
+  // 1. Split on true paragraph breaks (double newlines)
   let paragraphs = clean
     .split(/\n\s*\n/)
     .map((p) => p.trim())

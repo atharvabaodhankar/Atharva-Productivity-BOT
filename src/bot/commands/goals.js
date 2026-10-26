@@ -8,18 +8,22 @@ module.exports = (bot) => {
     const goals = await getGoals(chatId);
 
     if (goals.length === 0) {
-      return ctx.reply("🎯 No goals set yet! Tell me 'Set a goal to...' to create one!");
+      return ctx.reply("🎯 <b>No goals set yet!</b>\n\nTell me <i>'Set a goal to read 20 pages daily'</i> or <i>'My goal is to learn Rust'</i> to create one!", { parse_mode: "HTML" });
     }
 
-    let message = "🎯 Your Active Goals:\n\n";
+    let message = "🎯 <b>Your Active Goals:</b>\n";
+    message += "━━━━━━━━━━━━━━━━━━━━━\n\n";
+
     goals.forEach((g, i) => {
-      message += `${i + 1}. ${g.content}\n`;
+      message += `<b>${i + 1}. ${g.content}</b>\n`;
       if (g.date) {
-        message += `   📅 Target: ${new Date(g.date).toLocaleDateString("en-US", { timeZone: userTimezone })}\n`;
+        message += `   📅 <i>Target Date: ${new Date(g.date).toLocaleDateString("en-US", { timeZone: userTimezone })}</i>\n`;
       }
-      message += `   ID: ${g._id}\n\n`;
+      message += "\n";
     });
 
-    ctx.reply(message);
+    message += "🔥 <i>Dream big, stay relentless, and make it happen!</i> 💪";
+
+    ctx.reply(message, { parse_mode: "HTML" });
   }));
 };

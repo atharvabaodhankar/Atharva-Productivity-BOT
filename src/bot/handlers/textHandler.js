@@ -221,6 +221,9 @@ module.exports = (bot) => {
         .map((h) => `${h.role}: ${h.content}`)
         .join("\n");
 
+      // Visual indicator while AI is thinking
+      await ctx.sendChatAction("typing").catch(() => {});
+
       const reply = await askAI({
         message: userMessage,
         chatId,

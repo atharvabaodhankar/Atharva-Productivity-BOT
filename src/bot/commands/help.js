@@ -1,36 +1,35 @@
 module.exports = (bot) => {
-  bot.command("help", (ctx) => {
+  bot.command(["help", "guide"], (ctx) => {
     const name = ctx.state.user ? ctx.state.user.firstName : "Friend";
     const helpText = `
-🤖 AtharvaOS — AI Productivity Copilot!
+🤖 <b>AtharvaOS — AI Productivity Copilot & Second Brain</b>
+━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-Hey ${name}! Here is what you can ask me:
+Hey <b>${name}</b>! Here is what I can do for you:
 
-💬 Natural AI Conversation (Powered by Vision & Groq):
-• Read Photos: Send an image of notes, a whiteboard, or a handwritten checklist with "Add these tasks".
-• Add Tasks & Deadlines: "DSA exam next Monday at 2 PM", "Add project task #work"
-• Reminders & Alarms: "Remind me daily at 8 PM to read", "Stop morning messages", "Mute daily reminders"
-• Goals & Habits: "Set a goal to run 5km every morning"
-• Mark Done: "Mark my DSA task as complete"
-• Delete / Clear: "Delete my reminder", "Cancel gym reminder", "Delete all reminders", or /delete
-• Vibe & Chat: "Roast me", "Motivate me", or ask for study tips!
+💬 <b>Natural AI Intelligence:</b>
+• <b>Ask Anything & Get Code:</b> <i>"program for c++ for loop"</i>, <i>"explain dynamic programming"</i>
+• <b>Vision OCR:</b> Send a photo of notes, whiteboard, or study checklist to extract tasks automatically!
+• <b>Schedule Reminders:</b> <i>"Remind me in 15 mins to stretch"</i>, <i>"Remind me daily at 8 PM to read"</i>
+• <b>Manage Briefings:</b> <i>"Stop morning messages"</i>, <i>"Turn off nightly check-in"</i>, <i>"Mute daily reminders"</i>
+• <b>Set Goals & Habits:</b> <i>"Goal: 5km run every morning"</i>, <i>"Note down: ideas for side project"</i>
+• <b>Spoken Voice Briefings:</b> Ask <i>"bol ke batao"</i>, <i>"speak to me"</i>, or <code>/speak &lt;prompt&gt;</code> for Amazon Polly Matthew AI voice notes! 🎙️
 
-📋 Quick Slash Commands:
-/tasks — View your pending tasks with deadline urgency
-/today — Get your daily morning/evening action plan
-/speak <prompt> — Get a spoken AI Voice Note (Matthew voice) 🎙️
-/video [subreddit] — Stream random Reddit video (.mp4) 🎬
-/reminders — View active reminders & toggle 8 AM morning / 10 PM night briefings
-/goals — View your long-term goals
-/reflections — View your 7-day growth log
-/done <id> — Mark task completed
-/delete — Interactive menu to delete reminders or tasks
-/motivate — Instant shot of energy 🔥
-/roast — Playful Hinglish roast 😂
-/help — Show this guide
+📋 <b>Quick Slash Commands:</b>
+• <code>/tasks</code> — View pending tasks with priority badges & 1-tap complete buttons
+• <code>/today</code> — Get your personalized action plan for today
+• <code>/done [1 | task_name]</code> — 1-tap or number-based task completion
+• <code>/reminders</code> — Interactive hub to manage reminders & briefing schedules
+• <code>/goals</code> — Track your long-term goals & milestones
+• <code>/reflections</code> — View your 7-day retrospective self-growth log
+• <code>/speak &lt;prompt&gt;</code> — Spoken AI Voice Note synthesized via Amazon Polly
+• <code>/delete</code> — Interactive menu to delete specific tasks or reminders
+• <code>/motivate</code> — Instant high-voltage motivation boost 🔥
+• <code>/roast</code> — Playful Hinglish roast 😂
+• <code>/owner</code> — Meet creator Atharva Baodhankar 🚀
 
-Let's crush those goals together! 🚀
-    `;
-    ctx.reply(helpText);
+💡 <i>Tap the menu button <b>[🔲 Open AtharvaOS]</b> anytime to launch the Mini App!</i>
+`;
+    ctx.reply(helpText, { parse_mode: "HTML" });
   });
 };

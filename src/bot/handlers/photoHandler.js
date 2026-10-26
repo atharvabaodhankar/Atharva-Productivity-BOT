@@ -87,9 +87,7 @@ module.exports = (bot) => {
       const fileId = photo.file_id;
 
 
-      ctx.reply("Reading your image with Vision... 🔎👀", {
-        reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
-      });
+      await ctx.sendChatAction("typing").catch(() => {});
 
       const fileLink = await ctx.telegram.getFileLink(fileId);
       const fileUrl = fileLink.href || String(fileLink);

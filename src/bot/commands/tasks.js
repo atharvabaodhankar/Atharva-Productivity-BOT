@@ -16,39 +16,67 @@ module.exports = (bot) => {
       return ctx.reply(funMessages[Math.floor(Math.random() * funMessages.length)]);
     }
 
-    let message = "📌 Alright boss, here's what's pending:\n\n";
+    let message = "📋 <b>Your Pending Tasks:</b>\n";
+    message += "━━━━━━━━━━━━━━━━━━━━━\n\n";
+
+    const inlineKeyboard = [];
+
     tasks.forEach((t, i) => {
-      const priorityEmoji = t.priority === "high" ? "🔥 " : t.priority === "low" ? "🟢 " : "⚡ ";
-      message += `${i + 1}. ${priorityEmoji}${t.content}\n`;
+      const priorityEmoji = t.priority === "high" ? "🔥" : t.priority === "low" ? "🟢" : "⚡";
+      const priorityLabel = (t.priority || "medium").toUpperCase();
+      const projTag = t.projectName ? ` 📁 <i>[${t.projectName}]</i>` : "";
+
+      message += `<b>${i + 1}. ${t.content}</b>${projTag}\n`;
+      message += `   ${priorityEmoji} <i>Priority: ${priorityLabel}</i>`;
 
       if (t.date) {
         const dueDate = new Date(t.date);
         const daysLeft = Math.ceil((dueDate - new Date()) / (1000 * 60 * 60 * 24));
-        const formattedDate = dueDate.toLocaleDateString("en-US", { timeZone: userTimezone });
+        const formattedDate = dueDate.toLocaleDateString("en-US", {
+          timeZone: userTimezone,
+          month: "short",
+          day: "numeric",
+        });
 
-        message += `   📅 ${formattedDate}`;
+        message += ` | 📅 ${formattedDate}`;
         if (daysLeft < 0) {
-          message += ` ⚠️ OVERDUE! Bhai kya kar raha hai? 😅`;
+          message += ` ⚠️ <b>OVERDUE!</b>`;
         } else if (daysLeft === 0) {
-          message += ` 🔥 DUE TODAY! Let's gooo!`;
+          message += ` 🔥 <b>DUE TODAY!</b>`;
         } else if (daysLeft <= 2) {
-          message += ` ⏰ ${daysLeft} days left! Hurry up!`;
+          message += ` ⏰ <i>${daysLeft}d left</i>`;
         }
-        message += "\n";
       }
 
       if (t.tags && t.tags.length > 0) {
-        message += `   🏷️ ${t.tags.map((tag) => `#${tag}`).join(" ")}\n`;
+        message += `\n   🏷️ ${t.tags.map((tag) => `#${tag}`).join(" ")}`;
       }
-      message += `   ID: ${t._id}\n\n`;
+
+      message += "\n\n";
+
+      // Add inline quick-complete button for top 4 tasks
+      if (i < 4) {
+        const snippet = t.content.length > 18 ? `${t.content.substring(0, 18)}…` : t.content;
+        inlineKeyboard.push([
+          {
+            text: `✅ Complete #${i + 1}: ${snippet}`,
+            callback_data: `done_task_${t._id}`,
+          },
+        ]);
+      }
     });
 
     if (tasks.length > 3) {
-      message += "💪 That's a lot! But you got this, champ! One task at a time! 🔥";
+      message += "💪 <i>That's solid focus! One task at a time, you got this!</i> 🔥";
     } else {
-      message += "🎯 Looking good! Finish these and you're golden! ✨";
+      message += "🎯 <i>Looking good! Finish these and you're golden!</i> ✨";
     }
 
-    ctx.reply(message);
+    message += "\n\n💡 <b>Tip:</b> <i>Type <code>/done 1</code> or tap a button below to mark complete!</i>";
+
+    ctx.reply(message, {
+      parse_mode: "HTML",
+      reply_markup: inlineKeyboard.length > 0 ? { inline_keyboard: inlineKeyboard } : undefined,
+    });
   }));
 };
