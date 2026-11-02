@@ -211,13 +211,13 @@ module.exports = (bot) => {
         return;
       }
 
-      // Fetch last 5 messages for conversation context
-      const history = await History.find({ chatId })
+      // Fetch last 10 messages for rich multi-turn conversation context
+      const historyDocs = await History.find({ chatId })
         .sort({ createdAt: -1 })
-        .limit(5);
+        .limit(10);
 
-      const historyContext = history
-        .reverse()
+      const historyList = historyDocs.reverse();
+      const historyContext = historyList
         .map((h) => `${h.role}: ${h.content}`)
         .join("\n");
 
@@ -228,6 +228,7 @@ module.exports = (bot) => {
         message: userMessage,
         chatId,
         historyContext,
+        recentHistory: historyList,
         isGroup,
         senderName: ctx.from?.first_name || "Friend",
       });

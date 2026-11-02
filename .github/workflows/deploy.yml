@@ -44,7 +44,7 @@ jobs:
           BEDROCK_AWS_ACCESS_KEY_ID: ${{ secrets.BEDROCK_AWS_ACCESS_KEY_ID }}
           BEDROCK_AWS_SECRET_ACCESS_KEY: ${{ secrets.BEDROCK_AWS_SECRET_ACCESS_KEY }}
           BEDROCK_AWS_REGION: ${{ secrets.BEDROCK_AWS_REGION || 'ap-south-1' }}
-          BEDROCK_LLM_MODEL_ID: ${{ secrets.BEDROCK_LLM_MODEL_ID || 'apac.amazon.nova-micro-v1:0' }}
+          BEDROCK_LLM_MODEL_ID: ${{ secrets.BEDROCK_LLM_MODEL_ID || 'apac.amazon.nova-lite-v1:0' }}
           BEDROCK_EMBEDDING_MODEL_ID: ${{ secrets.BEDROCK_EMBEDDING_MODEL_ID || 'amazon.titan-embed-text-v2:0' }}
         run: |
           echo "Attaching Amazon Polly permissions to Lambda Execution Role..."

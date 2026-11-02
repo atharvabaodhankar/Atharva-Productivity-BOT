@@ -31,6 +31,6 @@ module.exports = {
   AWS_REGION: getEnv("BEDROCK_AWS_REGION") || getEnv("AWS_REGION", "ap-south-1"),
   AWS_ACCESS_KEY_ID: getEnv("BEDROCK_AWS_ACCESS_KEY_ID") || getEnv("AWS_ACCESS_KEY_ID"),
   AWS_SECRET_ACCESS_KEY: getEnv("BEDROCK_AWS_SECRET_ACCESS_KEY") || getEnv("AWS_SECRET_ACCESS_KEY"),
-  BEDROCK_LLM_MODEL_ID: getEnv("BEDROCK_LLM_MODEL_ID", "apac.amazon.nova-micro-v1:0"),
+  BEDROCK_LLM_MODEL_ID: getEnv("BEDROCK_LLM_MODEL_ID", "apac.amazon.nova-lite-v1:0"),
   BEDROCK_EMBEDDING_MODEL_ID: getEnv("BEDROCK_EMBEDDING_MODEL_ID", "amazon.titan-embed-text-v2:0"),
 };

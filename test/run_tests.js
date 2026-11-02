@@ -1,9 +1,14 @@
 const assert = require("assert");
 const { parseUserDate } = require("../src/utils/dateHelper");
 const { sanitizeOutput } = require("../src/ai/aiService");
-const { splitIntoHumanChunks } = require("../src/utils/telegramFormatter");
+const {
+  markdownToTelegramHtml,
+  balanceTelegramTags,
+  splitIntoHumanChunks,
+} = require("../src/utils/telegramFormatter");
 const { buildSystemPrompt } = require("../src/ai/promptEngine");
 const { formatRagContext } = require("../src/services/ragService");
+const { BEDROCK_LLM_MODEL_ID } = require("../src/config/env");
 
 console.log("🧪 Starting AtharvaOS Test Suite...\n");
 
@@ -55,7 +60,6 @@ it("parses 'aadhe ghante baad' to 30 minutes", () => {
 it("parses time strings like '20:00'", () => {
   const d = parseUserDate("20:00", "Asia/Kolkata");
   assert.ok(d instanceof Date);
-  // 20:00 IST is 14:30 UTC
   assert.strictEqual(d.getUTCMinutes(), 30);
   assert.strictEqual(d.getUTCHours(), 14);
 });
@@ -90,14 +94,62 @@ it("preserves C++ headers (#include <iostream>) and does not strip code brackets
   assert.ok(clean.includes("#include <vector>"));
 });
 
+it("preserves double asterisks (**bold**) for the HTML parser", () => {
+  const raw = '**Important Note:** Always review your tasks.';
+  const clean = sanitizeOutput(raw);
+  assert.ok(clean.includes("**Important Note:**"));
+});
+
 it("strips reasoning blocks (<think>...</think>)", () => {
   const raw = '<think>I should tell the user about the tasks</think>Here are your tasks!';
   const clean = sanitizeOutput(raw);
   assert.strictEqual(clean, "Here are your tasks!");
 });
 
-// 3. Telegram Formatter & Bubble Tests
-console.log("\n💬 3. Telegram Multi-Bubble Sender:");
+// 3. Telegram HTML Formatter & Parser
+console.log("\n💬 3. Telegram HTML Formatter & Tag Balancer:");
+
+it("correctly handles bullet lists with asterisks without generating invalid <b> tags", () => {
+  const md = "* Item 1\n* Item 2 with **bold**\n* Item 3";
+  const html = markdownToTelegramHtml(md);
+  assert.ok(html.includes("• Item 1"));
+  assert.ok(html.includes("• Item 2 with <b>bold</b>"));
+  assert.ok(html.includes("• Item 3"));
+  assert.ok(!html.includes("<b> Item"));
+});
+
+it("formats code blocks with language specifiers and escapes HTML entities", () => {
+  const md = "```cpp\n#include <iostream>\nint a = 5 < 10;\n```";
+  const html = markdownToTelegramHtml(md);
+  assert.ok(html.includes('<pre><code class="language-cpp">'));
+  assert.ok(html.includes("#include &lt;iostream&gt;"));
+  assert.ok(html.includes("5 &lt; 10;"));
+  assert.ok(html.includes("</code></pre>"));
+});
+
+it("safely handles underscores in variable names without corrupting italic", () => {
+  const md = "Check chat_id and user_id in database. Also _this is italic_!";
+  const html = markdownToTelegramHtml(md);
+  assert.ok(html.includes("chat_id"));
+  assert.ok(html.includes("user_id"));
+  assert.ok(html.includes("<i>this is italic</i>"));
+});
+
+it("auto-balances unclosed HTML tags to prevent Telegram 400 Bad Request", () => {
+  const broken = "<b>This bold tag was never closed!";
+  const balanced = balanceTelegramTags(broken);
+  assert.strictEqual(balanced, "<b>This bold tag was never closed!</b>");
+});
+
+it("formats headers as bold and blockquotes as <blockquote>", () => {
+  const md = "### Architecture\n> Do not multitask";
+  const html = markdownToTelegramHtml(md);
+  assert.ok(html.includes("<b>Architecture</b>"));
+  assert.ok(html.includes("<blockquote>Do not multitask</blockquote>"));
+});
+
+// 4. Human-Paced Chunking
+console.log("\n📦 4. Human-Paced Chunking & Length Constraints:");
 
 it("does not split code blocks across message bubbles", () => {
   const code = 'Here is the code:\n```cpp\n#include <iostream>\nint main() {}\n```\nEnjoy coding!';
@@ -114,8 +166,15 @@ it("splits distinct paragraphs naturally without breaking sentences", () => {
   assert.strictEqual(chunks[1], "Paragraph 2: Ready to conquer today?");
 });
 
-// 4. System Prompt Architecture
-console.log("\n🧠 4. System Prompt Guardrails:");
+it("enforces chunk length limit <= 3800 characters to never breach Telegram 4096 ceiling", () => {
+  const longText = "A".repeat(5000);
+  const chunks = splitIntoHumanChunks(longText);
+  assert.ok(chunks.length >= 2);
+  chunks.forEach((chunk) => assert.ok(chunk.length <= 3800));
+});
+
+// 5. System Prompt & Model Routing
+console.log("\n🧠 5. System Prompt Architecture & High-IQ Defaults:");
 
 it("replaces raw [ID: ...] with [ref_id: ...] and sets strict coding rules", () => {
   const prompt = buildSystemPrompt({
@@ -134,6 +193,10 @@ it("formats RAG context cleanly without similarity numbers", () => {
   const rag = formatRagContext([{ memory: { type: "task", content: "Build OS" }, similarity: 0.89 }]);
   assert.ok(rag.includes('[TASK] "Build OS"'));
   assert.ok(!rag.includes("Similarity:"));
+});
+
+it("ensures BEDROCK_LLM_MODEL_ID defaults to apac.amazon.nova-lite-v1:0", () => {
+  assert.strictEqual(BEDROCK_LLM_MODEL_ID, "apac.amazon.nova-lite-v1:0");
 });
 
 // Summary

@@ -20,10 +20,8 @@ async function executeBedrockConverse({
     throw new Error("Bedrock client not initialized.");
   }
 
-  // Model selection: Nova Lite for vision, Nova Micro for text & tools
-  const modelId = base64ImageUrl
-    ? "apac.amazon.nova-lite-v1:0"
-    : (process.env.BEDROCK_LLM_MODEL_ID || BEDROCK_LLM_MODEL_ID || "apac.amazon.nova-micro-v1:0");
+  // Model selection: Nova Lite for high-intelligence reasoning, structured coding, tools, and vision
+  const modelId = process.env.BEDROCK_LLM_MODEL_ID || BEDROCK_LLM_MODEL_ID || "apac.amazon.nova-lite-v1:0";
 
   const bedrockMessages = [];
 

@@ -56,12 +56,10 @@ function sanitizeOutput(text, userName = "bhai") {
   // 6. Clean dangling colons from lines where IDs were stripped (e.g. "- Task Name: \n" -> "- Task Name\n")
   raw = raw.replace(/:\s*$/gm, "");
 
-  // 7. Telegram Markdown Cleanup (strip markdown headers '# Header', keep '#include', preserve code backticks)
+  // 7. Clean outer whitespace/quotes without damaging markdown formatting
   let cleaned = raw
     .replace(/^[\s"'”]+/, "")
     .replace(/[\s"'”]+$/, "")
-    .replace(/^[ \t]*#{1,6}[ \t]+/gm, "")
-    .replace(/\*\*/g, "*")
     .trim();
 
   if (!cleaned || cleaned.length < 2) {
@@ -253,6 +251,7 @@ async function askAI({
   message,
   chatId,
   historyContext = "",
+  recentHistory = [],
   base64ImageUrl = null,
   isGroup = false,
   senderName = "Friend",
@@ -318,7 +317,7 @@ async function askAI({
     senderName,
   });
 
-  const model = "qwen/qwen3.6-27b";
+  const model = "qwen/qwen3.8-27b";
 
   let userContent = textPrompt;
   if (base64ImageUrl) {
@@ -331,10 +330,34 @@ async function askAI({
     ];
   }
 
+  // Construct structured multi-turn conversation messages with strict role alternation
   const messages = [
     { role: "system", content: systemPrompt },
-    { role: "user", content: userContent },
   ];
+
+  if (Array.isArray(recentHistory) && recentHistory.length > 0) {
+    let lastRole = null;
+    for (const h of recentHistory) {
+      const role = h.role === "assistant" ? "assistant" : "user";
+      const cleanContent = sanitizeOutput(h.content || "", user?.firstName || senderName || "bhai");
+      if (!cleanContent || cleanContent.trim().length === 0) continue;
+
+      // Bedrock Converse requires alternating roles: user, assistant, user, assistant...
+      if (role === lastRole) {
+        continue;
+      }
+
+      messages.push({ role, content: cleanContent });
+      lastRole = role;
+    }
+  }
+
+  // Ensure message right before the final turn is not a user message (so current userContent cleanly follows an assistant message or system)
+  if (messages.length > 1 && messages[messages.length - 1].role === "user") {
+    messages.pop();
+  }
+
+  messages.push({ role: "user", content: userContent });
 
   const cleanInput = (message || "").trim().toLowerCase();
   const isDirectChat = CASUAL_GREETINGS.has(cleanInput) || isGroup || !!base64ImageUrl;

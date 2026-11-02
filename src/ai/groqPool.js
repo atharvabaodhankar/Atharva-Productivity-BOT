@@ -4,17 +4,12 @@ const { GROQ_API_KEYS } = require("../config/env");
 let currentKeyIndex = 0;
 
 const TEXT_MODELS = [
-  "qwen/qwen3.6-27b",
-  "qwen-2.5-32b",
-  "llama-3.3-70b-versatile",
-  "llama-3.1-8b-instant",
-  "deepseek-r1-distill-llama-70b",
-  "llama3-70b-8192",
-  "llama3-8b-8192",
+  "qwen/qwen3.8-27b",
+  "openai/gpt-oss-120b",
+  "openai/gpt-oss-20b",
 ];
 
 const VISION_MODELS = [
-  "qwen/qwen3.6-27b",
   "qwen/qwen3.8-27b",
 ];
 
@@ -39,7 +34,7 @@ async function executeWithFailover(createParams) {
   const fallbackList = hasImage ? VISION_MODELS : TEXT_MODELS;
   const primaryModel =
     createParams.model ||
-    (hasImage ? "qwen/qwen3.6-27b" : "qwen/qwen3.6-27b");
+    (hasImage ? "qwen/qwen3.8-27b" : "qwen/qwen3.8-27b");
 
   // Build model fallback sequence
   const modelsToTry = [
