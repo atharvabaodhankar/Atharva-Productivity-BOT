@@ -362,6 +362,16 @@ async function askAI({
       const cleanContent = sanitizeOutput(h.content || "", user?.firstName || senderName || "bhai");
       if (!cleanContent || cleanContent.trim().length === 0) continue;
 
+      // Disinfect transient system/database/SpendWise errors so they don't poison subsequent turns
+      if (
+        role === "assistant" &&
+        /firebase console indexes|index build process|technical (?:issue|problem) with spendwise|spendwise backend returned a server notice|spendwise service at the moment/i.test(
+          cleanContent
+        )
+      ) {
+        continue;
+      }
+
       // Bedrock Converse requires alternating roles: user, assistant, user, assistant...
       if (role === lastRole) {
         continue;

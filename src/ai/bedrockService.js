@@ -54,13 +54,46 @@ async function executeBedrockConverse({
     }
   }
 
+  // 1. Ensure conversation starts with a user message (strict AWS Bedrock requirement)
+  while (bedrockMessages.length > 0 && bedrockMessages[0].role !== "user") {
+    bedrockMessages.shift();
+  }
+
+  // 2. Enforce strict role alternation (merge consecutive messages with identical role)
+  const cleanBedrockMessages = [];
+  for (const msg of bedrockMessages) {
+    if (cleanBedrockMessages.length === 0) {
+      if (msg.role === "user") cleanBedrockMessages.push(msg);
+    } else {
+      const lastMsg = cleanBedrockMessages[cleanBedrockMessages.length - 1];
+      if (lastMsg.role === msg.role) {
+        lastMsg.content.push(...msg.content);
+      } else {
+        cleanBedrockMessages.push(msg);
+      }
+    }
+  }
+
+  // 3. Ensure conversation ends with the latest user message
+  if (cleanBedrockMessages.length === 0) {
+    cleanBedrockMessages.push({
+      role: "user",
+      content: [{ text: "Hello" }],
+    });
+  } else if (cleanBedrockMessages[cleanBedrockMessages.length - 1].role !== "user") {
+    cleanBedrockMessages.push({
+      role: "user",
+      content: [{ text: "Please assist." }],
+    });
+  }
+
   const toolConfig = tools ? convertToolsToBedrockSpec(tools) : undefined;
   const system = systemPrompt ? [{ text: systemPrompt }] : undefined;
 
   const command = new ConverseCommand({
     modelId,
     system,
-    messages: bedrockMessages,
+    messages: cleanBedrockMessages,
     toolConfig,
     inferenceConfig: {
       temperature: 0.7,
@@ -70,7 +103,7 @@ async function executeBedrockConverse({
 
   const response = await client.send(command);
   const responseMessage = response.output.message;
-  bedrockMessages.push(responseMessage);
+  cleanBedrockMessages.push(responseMessage);
 
   const usage1 = response.usage || {};
   let usage2 = {};
@@ -101,7 +134,7 @@ async function executeBedrockConverse({
       });
     }
 
-    bedrockMessages.push({
+    cleanBedrockMessages.push({
       role: "user",
       content: toolResults,
     });
@@ -110,7 +143,7 @@ async function executeBedrockConverse({
     const followUpCmd = new ConverseCommand({
       modelId,
       system,
-      messages: bedrockMessages,
+      messages: cleanBedrockMessages,
       toolConfig,
       inferenceConfig: {
         temperature: 0.7,

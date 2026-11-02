@@ -28,6 +28,11 @@ function disinfectHistory(rawHistory) {
     /^(?:assistant:\s*)?The current active reminders are:/i,
     /^(?:assistant:\s*)?-\s*(Two|One|Three|\d+|Last|Current|There are|IDs?|[0-9a-fA-F]{16,})/i,
     /^(?:assistant:\s*)?-\s*"(?:Raat|Subah|Every|Daily|[0-9a-fA-F]{10,})/i,
+    /Firebase Console Indexes/i,
+    /index build process/i,
+    /technical (?:issue|problem) with SpendWise/i,
+    /SpendWise service at the moment/i,
+    /SpendWise backend returned a server notice/i,
   ];
 
   const lines = rawHistory.split("\n");
@@ -299,6 +304,7 @@ ${!isGroupChat && user?.spendwiseApiKey ? `
    - When ${userName} asks to split a bill with friends, call 'spendwise_split_expense'.
    - When ${userName} asks who owes them or what they owe, call 'spendwise_get_debts'.
    - Do NOT turn financial expense logs into tasks or reminders!
+   - ALWAYS execute the SpendWise tool afresh for EVERY new inquiry! NEVER assume a past error, index build, or server outage from previous conversation history is still ongoing. Live API queries must always be executed.
 ` : ""}
 ${ragContext ? `\n${ragContext}\n` : ""}
 ACTIVE WORKSPACE FOR ${userName.toUpperCase()}:
