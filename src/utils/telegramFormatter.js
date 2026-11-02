@@ -1,7 +1,7 @@
 /**
  * Safe Telegram HTML formatter and Human-Paced Multi-Bubble Sender.
- * Converts standard Markdown to valid Telegram HTML format with robust error fallback,
- * and splits multi-sentence conversational responses into natural human-like message bubbles.
+ * Converts standard Markdown and preserves valid Telegram HTML tags with robust error fallback,
+ * ensuring no raw HTML tags or malformed entities are ever displayed to the user.
  */
 
 /**
@@ -70,9 +70,23 @@ function balanceTelegramTags(html) {
 }
 
 /**
- * Converts Markdown text into valid Telegram Bot API HTML.
- * Protects code blocks & inline code from accidental formatting,
- * escapes entities, converts headers/quotes/lists/bold/italic, and balances tags.
+ * Strips all HTML tags and unescapes entities to produce clean, safe plain text
+ */
+function stripHtmlToCleanText(html) {
+  if (!html) return "";
+  return String(html)
+    .replace(/<pre><code[^>]*>([\s\S]*?)<\/code><\/pre>/gi, "\n$1\n")
+    .replace(/<[^>]+>/g, "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .trim();
+}
+
+/**
+ * Converts Markdown text into valid Telegram Bot API HTML while preserving existing valid HTML tags.
+ * Protects code blocks, inline code, and existing Telegram HTML from accidental double-escaping.
  */
 function markdownToTelegramHtml(markdown) {
   if (!markdown) return "";
@@ -100,10 +114,23 @@ function markdownToTelegramHtml(markdown) {
     return placeholder;
   });
 
-  // 3. Escape HTML entities in general text
-  text = escapeHtml(text);
+  // 3. Extract and protect existing VALID Telegram HTML tags so they are not escaped into &lt;b&gt;
+  const existingTags = [];
+  const validTagRegex = /<\/?(?:b|strong|i|em|u|ins|s|strike|del|code|pre|blockquote|tg-spoiler|a(?:\s+href="[^"]*")?)\s*\/?>/gi;
+  text = text.replace(validTagRegex, (match) => {
+    const placeholder = `\x00HT${existingTags.length}\x00`;
+    existingTags.push(match);
+    return placeholder;
+  });
 
-  // 4. Blockquotes: lines starting with &gt;
+  // 4. Escape general HTML entities in remaining raw text (&, <, >)
+  // Only escape & if not part of an existing entity like &amp; &lt; &gt; &quot;
+  text = text
+    .replace(/&(?!amp;|lt;|gt;|quot;|#\d+;)/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+
+  // 5. Blockquotes: lines starting with &gt;
   text = text.replace(/(?:^|\n)(&gt;[^\n]*(?:\n&gt;[^\n]*)*)/g, (match, quoteBlock) => {
     const cleanedQuote = quoteBlock
       .split("\n")
@@ -113,36 +140,39 @@ function markdownToTelegramHtml(markdown) {
     return `\n<blockquote>${cleanedQuote}</blockquote>\n`;
   });
 
-  // 5. Headers: # Header -> <b>Header</b>
+  // 6. Headers: # Header -> <b>Header</b>
   text = text.replace(/^[ \t]*#{1,6}[ \t]+(.*)$/gm, "<b>$1</b>");
 
-  // 6. Horizontal rules: --- or ***
+  // 7. Horizontal rules: --- or ***
   text = text.replace(/^[ \t]*[-*_]{3,}[ \t]*$/gm, "—".repeat(20));
 
-  // 7. Bullet lists: lines starting with *, -, + followed by space -> • 
+  // 8. Bullet lists: lines starting with *, -, + followed by space -> • 
   text = text.replace(/^[ \t]*[\*\-\+][ \t]+(.*)$/gm, "• $1");
 
-  // 8. Markdown Links: [title](url)
+  // 9. Markdown Links: [title](url)
   text = text.replace(/\[([^\]]+)\]\((https?:\/\/[^\s\)]+)\)/g, '<a href="$2">$1</a>');
 
-  // 9. Bold: **text** or __text__
+  // 10. Bold: **text** or *text* (word boundary) or __text__
   text = text.replace(/\*\*([^*\n]+?)\*\*/g, "<b>$1</b>");
   text = text.replace(/__([^_\n]+?)__/g, "<b>$1</b>");
+  text = text.replace(/(^|[\s.,!?;:("'])\*([^*\n]+?)\*(?=[\s.,!?;:)"']|$)/g, "$1<b>$2</b>");
 
-  // 10. Strikethrough: ~~text~~
+  // 11. Strikethrough: ~~text~~
   text = text.replace(/~~([^~\n]+?)~~/g, "<s>$1</s>");
 
-  // 11. Italic: *text* (word boundary / safe) or _text_ (surrounded by space/punctuation, not inside identifiers like chat_id)
-  text = text.replace(/(^|[\s.,!?;:("'])\*([^*\n]+?)\*(?=[\s.,!?;:)"']|$)/g, "$1<i>$2</i>");
+  // 12. Italic: _text_ (surrounded by space/punctuation, not inside identifiers like chat_id)
   text = text.replace(/(^|[\s.,!?;:("'])_([^_\n]+?)_(?=[\s.,!?;:)"']|$)/g, "$1<i>$2</i>");
 
-  // 12. Restore inline code
+  // 13. Restore existing valid HTML tags
+  text = text.replace(/\x00HT(\d+)\x00/g, (match, idx) => existingTags[parseInt(idx, 10)] || "");
+
+  // 14. Restore inline code
   text = text.replace(/\x00IC(\d+)\x00/g, (match, idx) => inlineCodes[parseInt(idx, 10)] || "");
 
-  // 13. Restore code blocks
+  // 15. Restore code blocks
   text = text.replace(/\x00CB(\d+)\x00/g, (match, idx) => codeBlocks[parseInt(idx, 10)] || "");
 
-  // 14. HTML Tag Balance Validator
+  // 16. HTML Tag Balance Validator
   text = balanceTelegramTags(text);
 
   return text.trim();
@@ -211,8 +241,31 @@ async function sendTelegramFormatted(ctx, text, extra = {}) {
       disable_web_page_preview: false,
     });
   } catch (htmlErr) {
-    console.warn("HTML formatting failed, sending plain text fallback:", htmlErr.message);
-    return await ctx.reply(text, {
+    console.warn("HTML formatting failed, sending clean plain text fallback:", htmlErr.message);
+    const cleanText = stripHtmlToCleanText(html);
+    return await ctx.reply(cleanText, {
+      ...extra,
+      disable_web_page_preview: false,
+    });
+  }
+}
+
+/**
+ * Safely sends a formatted message to a chatId using the bot instance with HTML parse mode and fallback
+ */
+async function sendSafeTelegramMessage(bot, chatId, text, extra = {}) {
+  const html = markdownToTelegramHtml(text);
+
+  try {
+    return await bot.telegram.sendMessage(chatId, html, {
+      ...extra,
+      parse_mode: "HTML",
+      disable_web_page_preview: false,
+    });
+  } catch (htmlErr) {
+    console.warn(`HTML sendMessage failed for ${chatId}, sending clean plain text fallback:`, htmlErr.message);
+    const cleanText = stripHtmlToCleanText(html);
+    return await bot.telegram.sendMessage(chatId, cleanText, {
       ...extra,
       disable_web_page_preview: false,
     });
@@ -247,7 +300,9 @@ async function sendTelegramHumanPaced(ctx, text, extra = {}) {
 module.exports = {
   markdownToTelegramHtml,
   balanceTelegramTags,
+  stripHtmlToCleanText,
   splitIntoHumanChunks,
   sendTelegramFormatted,
+  sendSafeTelegramMessage,
   sendTelegramHumanPaced,
 };

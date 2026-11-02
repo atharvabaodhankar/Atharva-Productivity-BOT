@@ -1,6 +1,7 @@
 const cron = require("node-cron");
 const Memory = require("../models/Memory");
 const User = require("../models/User");
+const { sendSafeTelegramMessage } = require("../utils/telegramFormatter");
 
 // Helper to check if an error is permanent (user blocked, chat not found, bot kicked)
 function isTelegramPermanentError(err) {
@@ -75,7 +76,7 @@ async function checkUpcomingReminders(bot) {
             message = funReminders[Math.floor(Math.random() * funReminders.length)];
           }
 
-          await bot.telegram.sendMessage(item.chatId, message, { parse_mode: "Markdown" });
+          await sendSafeTelegramMessage(bot, item.chatId, message);
 
           // IF RECURRING REMINDER: Advance date to next occurrence (e.g. tomorrow) and reset reminderSent
           if (item.isRecurring && item.type === "reminder") {
@@ -271,7 +272,7 @@ async function sendDailySummaryForUser(bot, user, dateKey) {
     message += "💪 _Let's make today count! Ready to crush it?_\n\n";
     message += "⚙️ _To turn off morning briefings anytime, send /reminders or ask me 'stop morning messages'_";
 
-    await bot.telegram.sendMessage(chatId, message, { parse_mode: "Markdown" });
+    await sendSafeTelegramMessage(bot, chatId, message);
 
     // Mark today's summary as sent
     await User.findByIdAndUpdate(user._id, {
@@ -346,7 +347,7 @@ async function sendNightlyReflectionForUser(bot, user, dateKey) {
       message += `⚙️ _To turn off nightly check-ins anytime, send /reminders or ask me 'stop night messages'_`;
     }
 
-    await bot.telegram.sendMessage(chatId, message, { parse_mode: "Markdown" });
+    await sendSafeTelegramMessage(bot, chatId, message);
 
     // Mark tonight's reflection as sent
     await User.findByIdAndUpdate(user._id, {

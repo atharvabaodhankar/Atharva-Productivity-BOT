@@ -148,6 +148,26 @@ it("formats headers as bold and blockquotes as <blockquote>", () => {
   assert.ok(html.includes("<blockquote>Do not multitask</blockquote>"));
 });
 
+it("preserves pre-existing valid HTML tags and does not double-escape into &lt;b&gt;", () => {
+  const input = '<b>Connect SpendWise</b> with link <a href="https://spendwise.app">SpendWise</a> and <code>spw_live_test</code>';
+  const html = markdownToTelegramHtml(input);
+  assert.ok(html.includes("<b>Connect SpendWise</b>"));
+  assert.ok(!html.includes("&lt;b&gt;"));
+  assert.ok(html.includes('<a href="https://spendwise.app">SpendWise</a>'));
+  assert.ok(!html.includes("&lt;a"));
+  assert.ok(html.includes("<code>spw_live_test</code>"));
+  assert.ok(!html.includes("&lt;code&gt;"));
+});
+
+it("strips HTML cleanly to plain text for safe fallback delivery", () => {
+  const { stripHtmlToCleanText } = require("../src/utils/telegramFormatter");
+  const html = "<b>Important:</b> Check <code>user_id</code> &amp; balance!";
+  const clean = stripHtmlToCleanText(html);
+  assert.strictEqual(clean, "Important: Check user_id & balance!");
+  assert.ok(!clean.includes("<b>"));
+  assert.ok(!clean.includes("<code>"));
+});
+
 // 4. Human-Paced Chunking
 console.log("\n📦 4. Human-Paced Chunking & Length Constraints:");
 
