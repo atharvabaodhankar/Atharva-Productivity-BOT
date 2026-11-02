@@ -141,32 +141,44 @@ function formatSpendWiseSummary(summaryData) {
   if (!summaryData) return "No summary data returned from SpendWise.";
 
   // Handle if summaryData is a string or parsed object
-  const data = typeof summaryData === "string" ? { raw: summaryData } : summaryData;
+  let data = summaryData;
+  if (typeof summaryData === "string") {
+    try {
+      data = JSON.parse(summaryData);
+    } catch (_) {
+      data = { raw: summaryData };
+    }
+  }
 
-  const online = data.onlineBalance ?? data.currentOnlineBalance ?? data.online ?? null;
-  const cash = data.cashBalance ?? data.currentCashBalance ?? data.cash ?? null;
-  const monthly = data.monthlySpend ?? data.currentMonthSpending ?? data.monthlySpent ?? null;
-  const budget = data.budget ?? data.monthlyBudget ?? null;
+  const online = data.onlineBalance ?? data.currentOnlineBalance ?? data.online ?? data.balances?.online ?? null;
+  const cash = data.cashBalance ?? data.currentCashBalance ?? data.cash ?? data.balances?.cash ?? null;
+  const total = data.totalBalance ?? data.balances?.total ?? (online !== null && cash !== null ? Number(online) + Number(cash) : null);
+  const monthly = data.monthlySpend ?? data.currentMonthSpending ?? data.monthlySpent ?? data.currentMonth?.totalSpent ?? null;
+  const budget = data.budget ?? data.monthlyBudget ?? data.currentMonth?.budgetLimit ?? null;
+  const monthName = data.currentMonth?.month || "";
 
   let text = `💳 <b>SpendWise Financial Summary</b>\n`;
   text += `━━━━━━━━━━━━━━━━━━━━━\n\n`;
 
   if (online !== null) {
-    text += `🌐 <b>Online Balance (UPI/Bank):</b> ₹${Number(online).toLocaleString("en-IN")}\n`;
+    const formattedOnline = Number(online) < 0 ? `-₹${Math.abs(Number(online)).toLocaleString("en-IN")}` : `₹${Number(online).toLocaleString("en-IN")}`;
+    text += `🌐 <b>Online Balance (UPI/Bank):</b> ${formattedOnline}\n`;
   }
   if (cash !== null) {
-    text += `💵 <b>Cash Balance:</b> ₹${Number(cash).toLocaleString("en-IN")}\n`;
+    const formattedCash = Number(cash) < 0 ? `-₹${Math.abs(Number(cash)).toLocaleString("en-IN")}` : `₹${Number(cash).toLocaleString("en-IN")}`;
+    text += `💵 <b>Cash Balance:</b> ${formattedCash}\n`;
   }
 
-  if (online !== null && cash !== null) {
-    const total = Number(online) + Number(cash);
-    text += `💰 <b>Total Net Balance:</b> ₹${total.toLocaleString("en-IN")}\n`;
+  if (total !== null) {
+    const formattedTotal = Number(total) < 0 ? `-₹${Math.abs(Number(total)).toLocaleString("en-IN")}` : `₹${Number(total).toLocaleString("en-IN")}`;
+    text += `💰 <b>Total Net Balance:</b> ${formattedTotal}\n`;
   }
 
   text += `\n`;
 
   if (monthly !== null) {
-    text += `📊 <b>This Month's Spending:</b> ₹${Number(monthly).toLocaleString("en-IN")}\n`;
+    const monthPrefix = monthName ? `${monthName} ` : "This Month's ";
+    text += `📊 <b>${monthPrefix}Spending:</b> ₹${Number(monthly).toLocaleString("en-IN")}\n`;
   }
   if (budget !== null) {
     text += `🎯 <b>Monthly Budget:</b> ₹${Number(budget).toLocaleString("en-IN")}\n`;
