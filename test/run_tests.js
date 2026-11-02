@@ -199,6 +199,88 @@ it("ensures BEDROCK_LLM_MODEL_ID defaults to apac.amazon.nova-lite-v1:0", () => 
   assert.strictEqual(BEDROCK_LLM_MODEL_ID, "apac.amazon.nova-lite-v1:0");
 });
 
+// 6. SpendWise MCP Integration
+console.log("\n💳 6. SpendWise MCP Integration & Wallet Tools:");
+
+const {
+  maskApiKey,
+  formatSpendWiseSummary,
+  formatSpendWiseTransactions,
+} = require("../src/services/spendwiseService");
+const { getToolsForUser } = require("../src/ai/tools");
+
+it("masks SpendWise API key securely", () => {
+  const masked = maskApiKey("spw_live_68fcc5bf72baf6e87af25afd751e3cc1087dc1d1cd3f6667");
+  assert.strictEqual(masked, "spw_live_68fc••••••••6667");
+});
+
+it("filters SpendWise tools when user has no key", () => {
+  const toolsWithoutKey = getToolsForUser({ telegramId: 123 });
+  assert.ok(!toolsWithoutKey.some((t) => t.function.name.startsWith("spendwise_")));
+  assert.ok(toolsWithoutKey.some((t) => t.function.name === "add_memory"));
+});
+
+it("includes SpendWise tools when user has spendwiseApiKey", () => {
+  const toolsWithKey = getToolsForUser({ telegramId: 123, spendwiseApiKey: "spw_live_test" });
+  assert.ok(toolsWithKey.some((t) => t.function.name === "spendwise_add_transaction"));
+  assert.ok(toolsWithKey.some((t) => t.function.name === "spendwise_get_summary"));
+  assert.ok(toolsWithKey.some((t) => t.function.name === "spendwise_list_transactions"));
+});
+
+it("formats SpendWise financial summary with currency and progress bar", () => {
+  const formatted = formatSpendWiseSummary({
+    onlineBalance: 25400,
+    cashBalance: 4200,
+    monthlySpend: 8600,
+    budget: 20000,
+  });
+  assert.ok(formatted.includes("₹25,400"));
+  assert.ok(formatted.includes("₹4,200"));
+  assert.ok(formatted.includes("₹29,600")); // Total
+  assert.ok(formatted.includes("43%")); // Progress
+});
+
+it("formats SpendWise transactions with income/expense emojis and categories", () => {
+  const formatted = formatSpendWiseTransactions([
+    {
+      type: "expense",
+      amount: 450,
+      category: "Food & Dining",
+      paymentMethod: "online",
+      date: "2026-11-02",
+      description: "Starbucks Coffee",
+    },
+    {
+      type: "income",
+      amount: 15000,
+      category: "Freelance",
+      paymentMethod: "online",
+      date: "2026-11-01",
+      description: "Client Website Project",
+    },
+  ]);
+  assert.ok(formatted.includes("🔴 <b>-₹450</b>"));
+  assert.ok(formatted.includes("🟢 <b>+₹15,000</b>"));
+  assert.ok(formatted.includes("Starbucks Coffee"));
+  assert.ok(formatted.includes("Client Website Project"));
+});
+
+it("injects SpendWise MCP prompt section when user has active key", () => {
+  const prompt = buildSystemPrompt({
+    user: {
+      telegramId: 5275149287,
+      firstName: "Atharva",
+      spendwiseApiKey: "spw_live_68fcc5bf72baf6e87af25afd751e3cc1087dc1d1cd3f6667",
+    },
+    memories: [],
+    pendingTasksCount: 0,
+    historyText: "",
+    isGroupChat: false,
+  });
+  assert.ok(prompt.includes("SPENDWISE AI EXPENSE TRACKER (CONNECTED)"));
+  assert.ok(prompt.includes("spendwise_add_transaction"));
+});
+
 // Summary
 console.log(`\n========================================`);
 console.log(`Results: ${passed} / ${total} tests passed! ✨`);

@@ -178,6 +178,70 @@ module.exports = (bot) => {
         return;
       }
 
+      // 1.7 Check if user pasted a SpendWise API Key (starts with spw_live_ or awaiting key)
+      const hasSpendWiseKeyPattern = /spw_live_[0-9a-fA-F]{16,}/i.test(userMessage);
+      if (hasSpendWiseKeyPattern || (userDoc && userDoc.awaitingSpendwiseKey && /spw_live_/i.test(userMessage))) {
+        const keyMatch = userMessage.match(/spw_live_[0-9a-fA-F]+/i);
+        if (keyMatch) {
+          const rawKey = keyMatch[0].trim();
+          const {
+            verifySpendWiseKey,
+            maskApiKey,
+            formatSpendWiseSummary,
+          } = require("../../services/spendwiseService");
+
+          await ctx.sendChatAction("typing").catch(() => {});
+          const verifyResult = await verifySpendWiseKey(rawKey);
+
+          if (!verifyResult.valid) {
+            const failMsg = `❌ <b>SpendWise Connection Failed:</b>\n\n${verifyResult.message}\n\nPlease check your secret key in SpendWise Settings -> API Keys & MCP.`;
+            await sendTelegramFormatted(ctx, failMsg, {
+              reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
+            });
+            return;
+          }
+
+          userDoc.spendwiseApiKey = rawKey;
+          userDoc.spendwiseConnectedAt = new Date();
+          userDoc.awaitingSpendwiseKey = false;
+          await userDoc.save();
+
+          let confirmMsg = `🎉 <b>SpendWise Connected Successfully!</b>\n`;
+          confirmMsg += `━━━━━━━━━━━━━━━━━━━━━\n`;
+          confirmMsg += `🔑 <b>Linked Key:</b> <code>${maskApiKey(rawKey)}</code>\n\n`;
+
+          if (verifyResult.summary) {
+            confirmMsg += formatSpendWiseSummary(verifyResult.summary);
+          } else {
+            confirmMsg += `Your SpendWise wallet is now integrated with AtharvaOS!\n\n`;
+            confirmMsg += `💬 <b>Natural AI Voice/Chat:</b>\n`;
+            confirmMsg += `• <i>"Spent ₹250 on Starbucks via UPI"</i>\n`;
+            confirmMsg += `• <i>"Added ₹5,000 freelance income"</i>\n`;
+            confirmMsg += `• <i>"What's my current balance?"</i>\n`;
+            confirmMsg += `• <i>"Show my last 5 transactions"</i>\n`;
+            confirmMsg += `• <i>"Split ₹1,200 dinner with rahul@gmail.com"</i>\n`;
+          }
+
+          const sentMsg = await sendTelegramFormatted(ctx, confirmMsg, {
+            reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
+          });
+
+          await History.create({
+            chatId,
+            role: "user",
+            content: `[Connected SpendWise Key ${maskApiKey(rawKey)}]`,
+            telegramMessageId: ctx.message.message_id,
+          });
+          await History.create({
+            chatId,
+            role: "assistant",
+            content: confirmMsg,
+            telegramMessageId: sentMsg?.message_id || null,
+          });
+          return;
+        }
+      }
+
       // 2. Check for Easter Eggs or NSFW triggers
       const detectedTrigger = checkEasterEggOrNsfw(userMessage);
       if (detectedTrigger) {

@@ -63,6 +63,18 @@ const userSchema = new mongoose.Schema(
       type: Boolean,
       default: false,
     },
+    spendwiseApiKey: {
+      type: String,
+      default: "",
+    },
+    spendwiseConnectedAt: {
+      type: Date,
+      default: null,
+    },
+    awaitingSpendwiseKey: {
+      type: Boolean,
+      default: false,
+    },
     voiceUsage: {
       countToday: {
         type: Number,

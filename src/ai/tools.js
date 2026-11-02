@@ -164,7 +164,147 @@ const tools = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "spendwise_add_transaction",
+      description: "Log an expense or income transaction in SpendWise. Automatically adjusts online (UPI/Bank) or cash balance and updates monthly budget tracking.",
+      parameters: {
+        type: "object",
+        properties: {
+          amount: {
+            type: "number",
+            description: "The amount of money (e.g. 250, 1500.50).",
+          },
+          type: {
+            type: "string",
+            enum: ["expense", "income"],
+            description: "Type: 'expense' for money spent, 'income' for earnings/money received (default: expense).",
+          },
+          category: {
+            type: "string",
+            description: "Category (e.g. Food & Dining, Shopping, Transport, Entertainment, Bills & Utilities, Groceries, Health, Freelance, Salary, Other).",
+          },
+          paymentMethod: {
+            type: "string",
+            enum: ["online", "cash"],
+            description: "Payment method: 'online' for UPI, card, netbanking; 'cash' for physical cash (default: online).",
+          },
+          description: {
+            type: "string",
+            description: "Short note, merchant name, or reason (e.g. 'Starbucks coffee', 'Freelance payment').",
+          },
+          date: {
+            type: "string",
+            description: "Optional ISO date in YYYY-MM-DD format (defaults to today).",
+          },
+        },
+        required: ["amount"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "spendwise_get_summary",
+      description: "Get real-time financial summary from SpendWise: current online balance, cash balance, total spending this month, and budget progress.",
+      parameters: {
+        type: "object",
+        properties: {},
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "spendwise_list_transactions",
+      description: "Filter and view recent transactions in SpendWise.",
+      parameters: {
+        type: "object",
+        properties: {
+          limit: {
+            type: "number",
+            description: "Maximum number of transactions to return (default: 5, max: 20).",
+          },
+          category: {
+            type: "string",
+            description: "Filter by category name (e.g. 'Food', 'Transport').",
+          },
+          type: {
+            type: "string",
+            enum: ["expense", "income"],
+            description: "Filter by expense or income.",
+          },
+          search: {
+            type: "string",
+            description: "Filter by merchant name or keyword in description.",
+          },
+        },
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "spendwise_split_expense",
+      description: "Split a bill with friends in SpendWise: records your share and creates debt records for friends.",
+      parameters: {
+        type: "object",
+        properties: {
+          totalAmount: {
+            type: "number",
+            description: "Total bill amount paid.",
+          },
+          description: {
+            type: "string",
+            description: "Description of the split (e.g. 'Dinner at Olive Garden').",
+          },
+          friendEmails: {
+            type: "array",
+            items: { type: "string" },
+            description: "List of friend email addresses splitting the bill.",
+          },
+          paymentMethod: {
+            type: "string",
+            enum: ["online", "cash"],
+            description: "Payment method used (default: online).",
+          },
+          category: {
+            type: "string",
+            description: "Category for the bill (default: 'Food & Dining').",
+          },
+        },
+        required: ["totalAmount", "description", "friendEmails"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "spendwise_get_debts",
+      description: "View active bill split debts: see who owes you money and who you owe money to in SpendWise.",
+      parameters: {
+        type: "object",
+        properties: {
+          filter: {
+            type: "string",
+            enum: ["all", "you_owe", "owed_to_you"],
+            description: "Filter debts: 'all', 'you_owe', or 'owed_to_you' (default: all).",
+          },
+        },
+      },
+    },
+  },
 ];
 
-module.exports = { tools };
+function getToolsForUser(user) {
+  const hasSpendWise = Boolean(user && user.spendwiseApiKey);
+  if (!hasSpendWise) {
+    // Return standard productivity tools (exclude spendwise tools so LLM does not call them without a key)
+    return tools.filter((t) => !t.function.name.startsWith("spendwise_"));
+  }
+  return tools;
+}
+
+module.exports = { tools, getToolsForUser };
 

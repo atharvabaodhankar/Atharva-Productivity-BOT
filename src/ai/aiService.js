@@ -1,6 +1,6 @@
 const { executeWithFailover } = require("./groqPool");
 const { executeBedrockConverse, isBedrockConfigured } = require("./bedrockService");
-const { tools } = require("./tools");
+const { tools, getToolsForUser } = require("./tools");
 const { buildSystemPrompt } = require("./promptEngine");
 const { parseUserDate } = require("../utils/dateHelper");
 const { generateEmbedding } = require("../services/embeddingService");
@@ -243,6 +243,24 @@ async function executeToolHandler(functionName, args, chatId, user) {
     await user.save();
     return `Successfully updated reminder preferences: ${updates.join(", ")}.`;
   }
+
+  if (functionName.startsWith("spendwise_")) {
+    if (!user || !user.spendwiseApiKey) {
+      return "SpendWise wallet is not connected! Tell the user to use /spendwise to link their SpendWise API key first.";
+    }
+
+    const { executeSpendWiseTool } = require("../services/spendwiseService");
+    const mcpToolName = functionName.replace(/^spendwise_/, "");
+
+    try {
+      const result = await executeSpendWiseTool(user.spendwiseApiKey, mcpToolName, args);
+      return typeof result === "string" ? result : JSON.stringify(result);
+    } catch (err) {
+      console.error(`SpendWise tool [${mcpToolName}] execution error:`, err.message);
+      return `SpendWise error: ${err.message}`;
+    }
+  }
+
   return "Unknown tool";
 }
 
@@ -361,6 +379,7 @@ async function askAI({
 
   const cleanInput = (message || "").trim().toLowerCase();
   const isDirectChat = CASUAL_GREETINGS.has(cleanInput) || isGroup || !!base64ImageUrl;
+  const activeTools = isDirectChat ? undefined : getToolsForUser(user);
 
   let responseMessage;
 
@@ -372,7 +391,7 @@ async function askAI({
       const bedrockOutput = await executeBedrockConverse({
         messages,
         systemPrompt,
-        tools: isDirectChat ? undefined : tools,
+        tools: activeTools,
         base64ImageUrl,
         executeToolHandler: (fnName, toolArgs) =>
           executeToolHandler(fnName, toolArgs, chatId, user),
@@ -410,7 +429,7 @@ async function askAI({
       model,
       temperature: 0.65,
       max_completion_tokens: 1500,
-      tools,
+      tools: activeTools,
       tool_choice: "auto",
     });
     responseMessage = response.choices[0].message;

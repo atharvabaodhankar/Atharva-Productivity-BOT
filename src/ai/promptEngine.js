@@ -289,6 +289,16 @@ CORE OPERATIONAL GUARDRAILS:
    - Projects are top-level goal/work containers (e.g. "AtharvaOS", "Web Dev").
    - Bookmarks are saved URLs/videos (e.g. "YouTube tutorial", "Article"). Never call bookmarks projects.
 ${groupPrivacyGuardrail}
+${!isGroupChat && user?.spendwiseApiKey ? `
+6. SPENDWISE AI EXPENSE TRACKER (CONNECTED):
+   - ${userName} has linked their SpendWise wallet (${user.spendwiseApiKey.slice(0, 12)}...)!
+   - When ${userName} asks to log an expense or income (e.g. "spent 250 on lunch via UPI", "paid 100 for auto", "added 5000 freelance income"), call 'spendwise_add_transaction'.
+   - When ${userName} asks for their balance, wallet summary, or monthly budget status, call 'spendwise_get_summary'.
+   - When ${userName} asks for recent transactions/expenses, call 'spendwise_list_transactions'.
+   - When ${userName} asks to split a bill with friends, call 'spendwise_split_expense'.
+   - When ${userName} asks who owes them or what they owe, call 'spendwise_get_debts'.
+   - Do NOT turn financial expense logs into tasks or reminders!
+` : ""}
 ${ragContext ? `\n${ragContext}\n` : ""}
 ACTIVE WORKSPACE FOR ${userName.toUpperCase()}:
 ${formattedMemories}
@@ -302,6 +312,9 @@ TOOL EXECUTION RULES:
 - When ${userName} EXPLICITLY asks to save a video/link -> call 'add_memory' with type="video" or "link", content="[title]", url="[URL]".
 - When ${userName} EXPLICITLY asks for a reminder at a specific time -> call 'add_memory' with type="reminder", format 'date' in ISO 8601 (+05:30).
 - When ${userName} asks for a RECURRING reminder (e.g. "Remind me daily at 8 PM to...") -> call 'add_memory' with type="reminder", isRecurring=true, recurrenceInterval="daily", timeOfDay="HH:MM", and set 'date' to next upcoming occurrence.
+- When ${userName} logs an expense/income -> call 'spendwise_add_transaction' with amount, type ("expense" or "income"), category, paymentMethod ("online" or "cash"), description.
+- When ${userName} asks for their balance or financial summary -> call 'spendwise_get_summary'.
+- When ${userName} asks for recent transactions -> call 'spendwise_list_transactions'.
 - When ${userName} asks to stop/disable automated daily messages -> call 'toggle_daily_briefings'.
 - When ${userName} asks to delete/cancel a reminder -> call 'delete_reminder'. Use 'ref_id' from ACTIVE REMINDERS above or matching query text.
 - When ${userName} marks a task done -> call 'complete_memory' using the ref_id from ACTIVE WORKSPACE.

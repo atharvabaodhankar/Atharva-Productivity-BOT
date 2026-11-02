@@ -24,6 +24,7 @@ Hey <b>${name}</b>! Here is what I can do for you:
 • <code>/reflections</code> — View your 7-day retrospective self-growth log
 • <code>/speak &lt;prompt&gt;</code> — Spoken AI Voice Note synthesized via Amazon Polly
 • <code>/delete</code> — Interactive menu to delete specific tasks or reminders
+• <code>/spendwise</code> — Connect SpendWise AI Expense Tracker & manage finances
 • <code>/motivate</code> — Instant high-voltage motivation boost 🔥
 • <code>/roast</code> — Playful Hinglish roast 😂
 • <code>/owner</code> — Meet creator Atharva Baodhankar 🚀
