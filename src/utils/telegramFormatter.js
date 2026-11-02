@@ -114,6 +114,9 @@ function markdownToTelegramHtml(markdown) {
     return placeholder;
   });
 
+  // 2.5 Strip any stray LLM XML wrappers (<response>, </response>, <output>, etc.)
+  text = text.replace(/<\/?(?:response|output|message|answer|reply|final_answer|think|thinking|thought|reasoning)>/gi, "");
+
   // 3. Extract and protect existing VALID Telegram HTML tags so they are not escaped into &lt;b&gt;
   const existingTags = [];
   const validTagRegex = /<\/?(?:b|strong|i|em|u|ins|s|strike|del|code|pre|blockquote|tg-spoiler|a(?:\s+href="[^"]*")?)\s*\/?>/gi;

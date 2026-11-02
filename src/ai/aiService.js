@@ -23,9 +23,11 @@ function sanitizeOutput(text, userName = "bhai") {
     .replace(/<thought>[\s\S]*?(?:<\/thought>|$)/gi, "")
     .replace(/<reasoning>[\s\S]*?(?:<\/reasoning>|$)/gi, "")
     .replace(/<thought_process>[\s\S]*?(?:<\/thought_process>|$)/gi, "")
+    .replace(/<scratchpad>[\s\S]*?(?:<\/scratchpad>|$)/gi, "")
     .replace(/<function=[\s\S]*?(?:<\/function>|$)/gi, "")
     .replace(/<\/?function>/gi, "")
-    .replace(/<\/?tool_call>/gi, "");
+    .replace(/<\/?tool_call>/gi, "")
+    .replace(/<\/?(?:response|output|message|answer|reply|final_answer|model_output)>/gi, "");
 
   // 2. If the model output a structured thought block with a labeled final spoken response:
   const labeledMatch = raw.match(

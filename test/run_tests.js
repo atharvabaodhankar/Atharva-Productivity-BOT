@@ -106,6 +106,14 @@ it("strips reasoning blocks (<think>...</think>)", () => {
   assert.strictEqual(clean, "Here are your tasks!");
 });
 
+it("strips XML output wrappers (<response>...</response>) cleanly", () => {
+  const raw = '<response>Hey Atharva bhai! How can I assist you today? 😊</response>';
+  const clean = sanitizeOutput(raw);
+  assert.strictEqual(clean, "Hey Atharva bhai! How can I assist you today? 😊");
+  assert.ok(!clean.includes("<response>"));
+  assert.ok(!clean.includes("</response>"));
+});
+
 // 3. Telegram HTML Formatter & Parser
 console.log("\n💬 3. Telegram HTML Formatter & Tag Balancer:");
 
