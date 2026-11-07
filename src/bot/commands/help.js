@@ -23,6 +23,8 @@ Hey <b>${name}</b>! Here is what I can do for you:
 • <code>/goals</code> — Track your long-term goals & milestones
 • <code>/reflections</code> — View your 7-day retrospective self-growth log
 • <code>/speak &lt;prompt&gt;</code> — Spoken AI Voice Note synthesized via Amazon Polly
+• <code>/bookmark &lt;link&gt; [title]</code> — Save any link, video, or URL directly to second brain
+• <code>/bookmarks</code> — View all saved bookmarks with 1-tap open & delete buttons
 • <code>/delete</code> — Interactive menu to delete specific tasks or reminders
 • <code>/spendwise</code> — Connect SpendWise AI Expense Tracker & manage finances
 • <code>/motivate</code> — Instant high-voltage motivation boost 🔥

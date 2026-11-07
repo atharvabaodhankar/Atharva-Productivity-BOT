@@ -21,6 +21,7 @@ const memorySchema = new mongoose.Schema(
         "reflection",
         "video",
         "link",
+        "bookmark",
       ],
       required: true,
       default: "task",

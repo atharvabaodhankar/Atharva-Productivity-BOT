@@ -108,6 +108,9 @@ flowchart TD
 | `/reflections` | View your 7-day retrospective growth log | `/reflections` |
 | `/done <id>` | Mark a specific task completed by ID | `/done 6a813d35...` |
 | `/delete <id>` | Delete a specific task or reminder | `/delete 6a813d35...` |
+| `/bookmark <url> [title]` | Save any link, video, article, or resource directly without censorship | `/bookmark https://github.com/my-project My Repo` |
+| `/bookmarks` | View all saved bookmarks with 1-tap open & delete buttons | `/bookmarks` |
+| `/spendwise` | Connect SpendWise AI Expense Tracker & view balances | `/spendwise` |
 | `/motivate` | Instant high-energy motivation shot 🔥 | `/motivate` |
 | `/roast` | Playful, witty Hinglish roast 😂 | `/roast` |
 | `/help` | Complete interactive command guide | `/help` |

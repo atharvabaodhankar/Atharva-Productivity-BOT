@@ -21,6 +21,7 @@ const tools = [
               "reflection",
               "video",
               "link",
+              "bookmark",
             ],
             description: "The category of item to store.",
           },

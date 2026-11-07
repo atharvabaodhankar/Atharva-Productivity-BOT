@@ -41,6 +41,55 @@ async function getGoals(chatId) {
   }).sort({ date: 1 });
 }
 
+async function getBookmarks(chatId) {
+  return await Memory.find({
+    chatId,
+    $or: [
+      { type: { $in: ["bookmark", "link", "video"] } },
+      { url: { $ne: "" } },
+    ],
+  }).sort({ createdAt: -1 });
+}
+
+async function saveBookmark({ chatId, url, title = "", tags = [] }) {
+  if (!url) throw new Error("A valid URL is required to save a bookmark.");
+  let cleanUrl = String(url).trim();
+  if (!/^https?:\/\//i.test(cleanUrl)) {
+    cleanUrl = `https://${cleanUrl}`;
+  }
+
+  let cleanTitle = String(title || "").trim();
+  if (!cleanTitle) {
+    try {
+      const parsed = new URL(cleanUrl);
+      const host = parsed.hostname.replace(/^www\./i, "");
+      const pathSnippet = parsed.pathname && parsed.pathname.length > 1 ? parsed.pathname.slice(0, 30) : "";
+      cleanTitle = host + pathSnippet;
+    } catch (_) {
+      cleanTitle = cleanUrl;
+    }
+  }
+
+  let embedding = [];
+  try {
+    const { generateEmbedding } = require("./embeddingService");
+    embedding = (await generateEmbedding(`bookmark: ${cleanTitle} (${cleanUrl})`)) || [];
+  } catch (err) {
+    console.warn("Bookmark embedding warning:", err.message);
+  }
+
+  return await Memory.create({
+    chatId,
+    type: "bookmark",
+    content: cleanTitle,
+    url: cleanUrl,
+    tags,
+    priority: "medium",
+    completed: false,
+    embedding,
+  });
+}
+
 async function getRecentReflections(chatId, days = 7) {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - days);
@@ -189,6 +238,8 @@ module.exports = {
   getPendingTasks,
   getReminders,
   getGoals,
+  getBookmarks,
+  saveBookmark,
   getRecentReflections,
   getReflections: getRecentReflections,
   getTodaySummary,

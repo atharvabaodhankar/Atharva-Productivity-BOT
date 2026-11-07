@@ -309,6 +309,47 @@ it("injects SpendWise MCP prompt section when user has active key", () => {
   assert.ok(prompt.includes("spendwise_add_transaction"));
 });
 
+// 7. Bookmark Extraction & Zero-Censorship Tests
+console.log("🔖 7. Bookmark Extraction & Zero-Censorship Policy:");
+
+const { extractUrlAndTitle } = require("../src/bot/commands/bookmark");
+const { checkEasterEggOrNsfw } = require("../src/utils/easterEggDetector");
+
+it("extracts clean URL and title from quoted input", () => {
+  const res = extractUrlAndTitle('"https://github.com/atharvabaodhankar/AtharvaOS" AtharvaOS Repo');
+  assert.strictEqual(res.url, "https://github.com/atharvabaodhankar/AtharvaOS");
+  assert.strictEqual(res.title, "AtharvaOS Repo");
+});
+
+it("extracts bare URL without title", () => {
+  const res = extractUrlAndTitle("https://spend-wise-money.vercel.app");
+  assert.strictEqual(res.url, "https://spend-wise-money.vercel.app");
+  assert.strictEqual(res.title, "");
+});
+
+it("automatically adds https:// protocol if omitted", () => {
+  const res = extractUrlAndTitle("www.google.com Search Engine");
+  assert.strictEqual(res.url, "https://www.google.com");
+  assert.strictEqual(res.title, "Search Engine");
+});
+
+it("extracts adult and explicit links without censoring or failing", () => {
+  const res = extractUrlAndTitle('bookmark "https://pornhub.com/view_video.php?viewkey=123" "Spicy Video"');
+  assert.strictEqual(res.url, "https://pornhub.com/view_video.php?viewkey=123");
+  assert.strictEqual(res.title, "Spicy Video");
+});
+
+it("bypasses Easter egg and NSFW guardrails on URLs and bookmarks", () => {
+  const adultUrlCheck = checkEasterEggOrNsfw('bookmark "https://pornhub.com/video"');
+  assert.strictEqual(adultUrlCheck, null);
+
+  const xxxUrlCheck = checkEasterEggOrNsfw("https://xxx-adult-site.com");
+  assert.strictEqual(xxxUrlCheck, null);
+
+  const bookmarkWordCheck = checkEasterEggOrNsfw("bookmark this sex education article");
+  assert.strictEqual(bookmarkWordCheck, null);
+});
+
 // Summary
 console.log(`\n========================================`);
 console.log(`Results: ${passed} / ${total} tests passed! ✨`);

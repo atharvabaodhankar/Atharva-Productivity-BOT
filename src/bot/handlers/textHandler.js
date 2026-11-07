@@ -242,6 +242,78 @@ module.exports = (bot) => {
         }
       }
 
+      // 1.8 Fast-path for Natural Language Bookmark Requests
+      // e.g. 'bookmark "https://..."', 'bookmark https://...', 'save bookmark https://...', 'save link https://...'
+      // CRITICAL: NEVER filter or censor adult/explicit URLs. Save immediately without moralizing.
+      const isBookmarkTrigger = /^\s*(?:bookmark|save\s+bookmark|save\s+link|link)\b/i.test(userMessage);
+      if (isBookmarkTrigger) {
+        const { extractUrlAndTitle } = require("../commands/bookmark");
+        const { saveBookmark } = require("../../services/memoryService");
+
+        const cleanContent = userMessage
+          .replace(/^\s*(?:bookmark|save\s+bookmark|save\s+link|link)[:\s]*/i, "")
+          .trim();
+
+        const { url, title } = extractUrlAndTitle(cleanContent);
+
+        if (url) {
+          try {
+            const savedDoc = await saveBookmark({
+              chatId,
+              url,
+              title,
+            });
+
+            const confirmMsg =
+              `🔖 <b>Bookmark Saved!</b>\n` +
+              `━━━━━━━━━━━━━━━━━━━━━\n` +
+              `📌 <b>Title:</b> ${savedDoc.content}\n` +
+              `🔗 <b>Link:</b> <a href="${savedDoc.url}">${savedDoc.url}</a>\n\n` +
+              `💡 <i>View all your bookmarks anytime with /bookmarks!</i>`;
+
+            const inlineKeyboard = [
+              [
+                { text: "🌐 Open Link", url: savedDoc.url },
+                { text: "🗑️ Delete", callback_data: `del_bm_${savedDoc._id}` },
+              ],
+            ];
+
+            const sentMsg = await ctx.reply(confirmMsg, {
+              parse_mode: "HTML",
+              disable_web_page_preview: false,
+              reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
+              reply_markup: { inline_keyboard: inlineKeyboard },
+            });
+
+            await History.create({
+              chatId,
+              role: "user",
+              content: userMessage,
+              telegramMessageId: ctx.message.message_id,
+            });
+            await History.create({
+              chatId,
+              role: "assistant",
+              content: confirmMsg,
+              telegramMessageId: sentMsg?.message_id || null,
+            });
+            return;
+          } catch (err) {
+            console.error("Fast-path bookmark save error:", err);
+            return ctx.reply(`❌ Could not save bookmark: ${err.message}`);
+          }
+        } else {
+          return ctx.reply(
+            `🔖 <b>How to Save a Bookmark:</b>\n` +
+            `━━━━━━━━━━━━━━━━━━━━━\n` +
+            `Send: <code>bookmark "https://example.com" [Optional Title]</code>\n` +
+            `Or send: <code>/bookmark https://example.com</code>\n\n` +
+            `📋 <i>View all your saved bookmarks anytime with /bookmarks!</i>`,
+            { parse_mode: "HTML", reply_to_message_id: isGroup ? ctx.message.message_id : undefined }
+          );
+        }
+      }
+
       // 2. Check for Easter Eggs or NSFW triggers
       const detectedTrigger = checkEasterEggOrNsfw(userMessage);
       if (detectedTrigger) {

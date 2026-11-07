@@ -26,6 +26,15 @@ function checkEasterEggOrNsfw(text) {
   if (!text) return null;
   const clean = text.trim();
 
+  // Never intercept URLs or bookmark commands with Easter egg / NSFW jokes or alerts
+  if (
+    /https?:\/\/|www\./i.test(clean) ||
+    /^\s*\/?(?:bookmark|bookmarks|save\s+bookmark|save\s+link)\b/i.test(clean) ||
+    /[a-zA-Z0-9-]+\.(?:com|org|net|io|co|in|xyz|tv|me|app|dev|ai|cc|to|site|online)\b/i.test(clean)
+  ) {
+    return null;
+  }
+
   for (const item of EASTER_EGG_PATTERNS) {
     if (item.regex.test(clean)) {
       return {

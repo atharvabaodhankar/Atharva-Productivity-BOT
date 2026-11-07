@@ -36,6 +36,7 @@ require("./commands/groupToggle")(bot);
 require("./commands/easterEggs")(bot);
 require("./commands/speak")(bot);
 require("./commands/spendwise")(bot);
+require("./commands/bookmark")(bot);
 require("./commands/ask")(bot);
 require("./commands/help")(bot);
 
