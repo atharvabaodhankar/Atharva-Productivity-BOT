@@ -77,6 +77,100 @@ const CASUAL_GREETINGS = new Set([
   "kesa he bro", "kaisa hai bro", "kaisa he", "who made you"
 ]);
 
+/**
+ * Detects whether the user is attempting to log an expense or income transaction
+ * in SpendWise (e.g. "30rs aggarbatti", "10rs surfexcel", "spent 250 on lunch via UPI").
+ *
+ * CRITICAL GUARDRAIL:
+ * Must ONLY match standard expense/income transactions. Must NOT match other dedicated
+ * SpendWise tools (e.g. split_expense, settle_debt, set_budget, add_recurring_transaction,
+ * add_investment, add_salary) or financial queries/summaries so those tools are not hijacked.
+ */
+function isExpenseLoggingIntent(text) {
+  if (!text || typeof text !== "string") return false;
+  const clean = text.trim().toLowerCase();
+
+  // 1. Never match reminders, tasks, projects, bookmarks, or general conversation
+  if (/^(?:remind|reminder|alarm|set\s+reminder|yad\s+dilana)\b/i.test(clean)) return false;
+  if (/^(?:bookmark|save\s+bookmark|save\s+link|link)\b/i.test(clean)) return false;
+  if (/^(?:add\s+task|new\s+task|task:|todo:|project:|create\s+project)\b/i.test(clean)) return false;
+
+  // 2. Never match other dedicated SpendWise actions / tools:
+  // a) Bill splits: split, divide, hissa, share bill, or containing an email address
+  if (/\b(?:split|divide|hissa|share\s+bill)\b/i.test(clean) || /[^\s@]+@[^\s@]+\.[^\s@]+/.test(clean)) {
+    return false;
+  }
+  // b) Debts / Debt settlements: debts, settle, paid debt, mark paid, udhar
+  if (/\b(?:debt|debts|settle|settled|owed|owes|karz|udhar|udhary|lena\s+hai|dena\s+hai)\b/i.test(clean)) {
+    return false;
+  }
+  // c) Monthly budget ceiling: set budget, monthly budget, budget limit
+  if (/\b(?:budget|spending\s+limit|ceiling)\b/i.test(clean)) {
+    return false;
+  }
+  // d) Recurring transactions / subscriptions / recurring bills
+  if (/\b(?:recurring|subscription|har\s+mahine|every\s+month|per\s+month|yearly|weekly\s+bill)\b/i.test(clean)) {
+    return false;
+  }
+  // e) Investments / Portfolio: SIP, mutual fund, stock, share market, gold, silver, fd, fixed deposit, crypto, portfolio, groww, zerodha
+  if (/\b(?:sip|mutual\s+fund|stocks?|shares?|gold|silver|fd|fixed\s+deposit|crypto|portfolio|groww|zerodha)\b/i.test(clean)) {
+    return false;
+  }
+  // f) Salary credits from employer / company: "salary of ... from Google", "add salary"
+  if (/\b(?:add\s+salary|log\s+salary|salary\s+of)\b/i.test(clean) && /\b(?:from|company|employer|source|org)\b/i.test(clean)) {
+    return false;
+  }
+  // g) Direct balance updates: "set online balance to ...", "update cash balance"
+  if (/\b(?:set\s+(?:online|cash|wallet)?\s*balance|update\s+(?:online|cash|wallet)?\s*balance|balance\s+set|balance\s+update)\b/i.test(clean)) {
+    return false;
+  }
+
+  // 3. Exclude queries / questions / summaries / views / analytics (unless explicitly asking to log/record/enter)
+  if (
+    /^(?:what|how\s+much|how\s+many|show|list|tell|check|view|get|mere|kya|kitna|dikhao|batao|analytics|report)\b/i.test(clean) &&
+    !/^(?:log|add|record|enter|save)\b/i.test(clean)
+  ) {
+    return false;
+  }
+
+  // 4. Explicit logging verbs with amount/noun
+  if (/\b(?:log|record|enter|track)\s+(?:an?\s+)?(?:expense|transaction|spending|kharcha|income|payment)\b/i.test(clean)) {
+    return true;
+  }
+  if (
+    /\b(?:spent|spend|paid|pay|kharch|kharcha|de\s+diya|diya|bought|purchased)\b/i.test(clean) &&
+    /(?:₹|rs\.?|inr|rupees?|rupay|bucks|\d+)/i.test(clean)
+  ) {
+    return true;
+  }
+  if (
+    /\b(?:received|got|credited|salary|freelance\s+income)\b/i.test(clean) &&
+    /(?:₹|rs\.?|inr|rupees?|rupay|bucks|\d+)/i.test(clean)
+  ) {
+    return true;
+  }
+
+  // 5. Currency + amount patterns:
+  // e.g. "30rs aggarbatti", "10 rs surfexcel", "20rs fast card", "500/- for petrol", "₹450 lunch", "rs 50 coffee"
+  const hasCurrencyAmount = /(?:(?:₹|rs\.?|inr|rupees?|rupay)\s*\d+(?:\.\d+)?|\d+(?:\.\d+)?\s*(?:rs|rupees?|rupay|inr|\/-))/i.test(clean);
+  if (hasCurrencyAmount) {
+    if (/\?$/.test(clean) && /^(?:is|was|can|could|will|kya)\b/i.test(clean)) {
+      return false;
+    }
+    return true;
+  }
+
+  // 6. Amount with preposition: "250 for lunch", "100 on groceries", "50 pe tea"
+  if (/\b\d+(?:\.\d+)?\s*(?:for|on|pe|mein|in|ko|via)\s+[a-z0-9]/i.test(clean)) {
+    if (/\bfor\s+\d+\s+(?:min|minutes|hours|days|weeks|sec|seconds)\b/i.test(clean)) {
+      return false;
+    }
+    return true;
+  }
+
+  return false;
+}
+
 async function executeToolHandler(functionName, args, chatId, user) {
   if (functionName === "add_memory") {
     const parsedDate = parseUserDate(args.date, user ? user.timezone : "Asia/Kolkata");
@@ -251,11 +345,47 @@ async function executeToolHandler(functionName, args, chatId, user) {
       return "SpendWise wallet is not connected! Tell the user to use /spendwise to link their SpendWise API key first.";
     }
 
-    const { executeSpendWiseTool } = require("../services/spendwiseService");
+    const {
+      executeSpendWiseTool,
+      formatTransactionReceipt,
+    } = require("../services/spendwiseService");
     const mcpToolName = functionName.replace(/^spendwise_/, "");
 
     try {
       const result = await executeSpendWiseTool(user.spendwiseApiKey, mcpToolName, args);
+
+      // Deterministic formatting for add_transaction to guarantee 100% balance & spending accuracy
+      if (mcpToolName === "add_transaction" && result && (result.success !== false || result.transactionId)) {
+        let monthTotalSpent = null;
+        let monthName = null;
+        let extraBalances = null;
+
+        const needsMonthly = Boolean(user.preferences?.spendwiseShowMonthlySpend);
+        const needsBalances = user.preferences?.spendwiseShowBalances !== false;
+        const missingBalances = !result.updatedBalances && !result.balances;
+
+        if (needsMonthly || (needsBalances && missingBalances)) {
+          try {
+            const summary = await executeSpendWiseTool(user.spendwiseApiKey, "get_summary", {});
+            monthTotalSpent = summary?.currentMonth?.totalSpent ?? null;
+            monthName = summary?.currentMonth?.month ?? null;
+            if (missingBalances && summary?.balances) {
+              extraBalances = summary.balances;
+            }
+          } catch (sumErr) {
+            console.warn("Failed to fetch summary for receipt:", sumErr.message);
+          }
+        }
+
+        const receipt = formatTransactionReceipt(result, user.preferences, {
+          monthTotalSpent,
+          monthName,
+          balances: extraBalances,
+        });
+
+        return { isSpendwiseReceipt: true, text: receipt };
+      }
+
       return typeof result === "string" ? result : JSON.stringify(result);
     } catch (err) {
       console.error(`SpendWise tool [${mcpToolName}] execution error:`, err.message);
@@ -362,12 +492,15 @@ async function askAI({
       const cleanContent = sanitizeOutput(h.content || "", user?.firstName || senderName || "bhai");
       if (!cleanContent || cleanContent.trim().length === 0) continue;
 
-      // Disinfect transient system/database/SpendWise errors so they don't poison subsequent turns
+      // Disinfect transient system/database/SpendWise errors and receipt templates so they don't poison subsequent turns
       if (
         role === "assistant" &&
-        /firebase console indexes|index build process|technical (?:issue|problem) with spendwise|spendwise backend returned a server notice|spendwise service at the moment/i.test(
+        (/firebase console indexes|index build process|technical (?:issue|problem) with spendwise|spendwise backend returned a server notice|spendwise service at the moment/i.test(
           cleanContent
-        )
+        ) ||
+          /(?:Expense|Income|Transaction)\s+Logged\s+Successfully|Updated\s+Balances:|Successfully\s+logged\s+(?:expense|income)/i.test(
+            cleanContent
+          ))
       ) {
         continue;
       }
@@ -393,6 +526,19 @@ async function askAI({
   const isDirectChat = CASUAL_GREETINGS.has(cleanInput) || isGroup || !!base64ImageUrl;
   const activeTools = isDirectChat ? undefined : getToolsForUser(user);
 
+  const isExpenseIntent = isExpenseLoggingIntent(textPrompt);
+  const hasSpendwise = Boolean(user && user.spendwiseApiKey);
+
+  const bedrockToolChoice =
+    isExpenseIntent && hasSpendwise
+      ? { tool: { name: "spendwise_add_transaction" } }
+      : undefined;
+
+  const groqToolChoice =
+    isExpenseIntent && hasSpendwise
+      ? { type: "function", function: { name: "spendwise_add_transaction" } }
+      : "auto";
+
   let responseMessage;
 
   const displayName = user?.firstName || senderName || "bhai";
@@ -408,6 +554,7 @@ async function askAI({
         executeToolHandler: (fnName, toolArgs) =>
           executeToolHandler(fnName, toolArgs, chatId, user),
         chatId,
+        toolChoice: bedrockToolChoice,
       });
 
       if (bedrockOutput && bedrockOutput.trim().length > 0) {
@@ -442,7 +589,7 @@ async function askAI({
       temperature: 0.65,
       max_completion_tokens: 1500,
       tools: activeTools,
-      tool_choice: "auto",
+      tool_choice: groqToolChoice,
     });
     responseMessage = response.choices[0].message;
   } catch (err) {
@@ -471,7 +618,11 @@ async function askAI({
 
       let resultContent = "";
       try {
-        resultContent = await executeToolHandler(functionName, args, chatId, user);
+        const handlerRes = await executeToolHandler(functionName, args, chatId, user);
+        if (handlerRes && typeof handlerRes === "object" && handlerRes.isSpendwiseReceipt) {
+          return sanitizeOutput(handlerRes.text, displayName);
+        }
+        resultContent = handlerRes;
       } catch (err) {
         console.error(`Tool execution error [${functionName}]:`, err);
         resultContent = `Error: ${err.message}`;
@@ -502,4 +653,9 @@ async function askAI({
   return sanitizeOutput(finalRawText, displayName);
 }
 
-module.exports = { askAI, sanitizeOutput };
+module.exports = {
+  askAI,
+  sanitizeOutput,
+  isExpenseLoggingIntent,
+  executeToolHandler,
+};

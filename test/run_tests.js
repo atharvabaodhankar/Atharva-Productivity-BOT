@@ -234,8 +234,12 @@ const {
   maskApiKey,
   formatSpendWiseSummary,
   formatSpendWiseTransactions,
+  formatTransactionReceipt,
 } = require("../src/services/spendwiseService");
 const { getToolsForUser } = require("../src/ai/tools");
+const { isExpenseLoggingIntent } = require("../src/ai/aiService");
+const { convertToolsToBedrockSpec } = require("../src/ai/bedrockClient");
+const User = require("../src/models/User");
 
 it("masks SpendWise API key securely", () => {
   const masked = maskApiKey("spw_live_68fcc5bf72baf6e87af25afd751e3cc1087dc1d1cd3f6667");
@@ -307,6 +311,174 @@ it("injects SpendWise MCP prompt section when user has active key", () => {
   });
   assert.ok(prompt.includes("SPENDWISE AI EXPENSE TRACKER (CONNECTED)"));
   assert.ok(prompt.includes("spendwise_add_transaction"));
+});
+
+it("detects expense logging natural language intent accurately", () => {
+  // Should match expense & transaction logging
+  assert.strictEqual(isExpenseLoggingIntent("30rs aggarbatti"), true);
+  assert.strictEqual(isExpenseLoggingIntent("10rs surfexcel"), true);
+  assert.strictEqual(isExpenseLoggingIntent("20rs fast card"), true);
+  assert.strictEqual(isExpenseLoggingIntent("Spent ₹450 on lunch via UPI"), true);
+  assert.strictEqual(isExpenseLoggingIntent("Added ₹5,000 freelance income"), true);
+  assert.strictEqual(isExpenseLoggingIntent("Paid 1200 for electricity bill"), true);
+  assert.strictEqual(isExpenseLoggingIntent("₹100 auto fare"), true);
+  assert.strictEqual(isExpenseLoggingIntent("500/- for petrol"), true);
+
+  // Should NOT match other dedicated SpendWise actions / tools
+  assert.strictEqual(isExpenseLoggingIntent("Split ₹3,600 dinner with rahul@gmail.com and sneha@gmail.com"), false);
+  assert.strictEqual(isExpenseLoggingIntent("Mark my ₹1,200 debt to Rahul as paid"), false);
+  assert.strictEqual(isExpenseLoggingIntent("Set my monthly budget to ₹40,000"), false);
+  assert.strictEqual(isExpenseLoggingIntent("Log a ₹15,000 monthly SIP in Parag Parikh Flexi Cap via Groww"), false);
+  assert.strictEqual(isExpenseLoggingIntent("Add a recurring Netflix subscription of ₹649 every month"), false);
+  assert.strictEqual(isExpenseLoggingIntent("Log July 2026 salary of ₹1,40,000 from Google"), false);
+  assert.strictEqual(isExpenseLoggingIntent("set online balance to 25000"), false);
+  assert.strictEqual(isExpenseLoggingIntent("Who owes me money and who do I owe?"), false);
+  assert.strictEqual(isExpenseLoggingIntent("Where did most of my money go this month?"), false);
+
+  // Should NOT match queries or non-expense intents
+  assert.strictEqual(isExpenseLoggingIntent("what is my balance"), false);
+  assert.strictEqual(isExpenseLoggingIntent("show recent transactions"), false);
+  assert.strictEqual(isExpenseLoggingIntent("how much did I spend this month"), false);
+  assert.strictEqual(isExpenseLoggingIntent("remind me in 15 minutes to call mom"), false);
+  assert.strictEqual(isExpenseLoggingIntent("bookmark https://spend-wise-money.vercel.app"), false);
+  assert.strictEqual(isExpenseLoggingIntent("add task finish documentation"), false);
+  assert.strictEqual(isExpenseLoggingIntent("hello how are you"), false);
+});
+
+it("formats transaction receipt with updated balances by default and negative cash balance", () => {
+  const sampleTx = {
+    success: true,
+    amount: 10,
+    type: "expense",
+    category: "Household Items",
+    paymentMethod: "online",
+    description: "Surfexcel",
+    date: "2026-11-16",
+    updatedBalances: {
+      online: 24712,
+      cash: -30,
+    },
+    message: 'Successfully logged expense of ₹10.00 for "Surfexcel" (online wallet).',
+  };
+
+  const receipt = formatTransactionReceipt(sampleTx, {
+    spendwiseShowBalances: true,
+    spendwiseShowMonthlySpend: false,
+  });
+
+  assert.ok(receipt.includes("💳 <b>Expense Logged Successfully!</b>"));
+  assert.ok(receipt.includes("💵 <b>Amount:</b> ₹10"));
+  assert.ok(receipt.includes("🔗 <b>Category:</b> Household Items"));
+  assert.ok(receipt.includes("🌐 <b>Payment Method:</b> Online"));
+  assert.ok(receipt.includes('📝 <b>Note:</b> "Surfexcel"'));
+  assert.ok(receipt.includes("💡 <i>Updated Balances:</i>"));
+  assert.ok(receipt.includes("🌐 <b>Online Balance:</b> ₹24,712"));
+  assert.ok(receipt.includes("💵 <b>Cash Balance:</b> -₹30"));
+  assert.ok(!receipt.includes("Spending:"));
+  assert.ok(receipt.includes('Successfully logged expense of ₹10.00 for "Surfexcel"'));
+});
+
+it("hides updated balances when spendwiseShowBalances is toggled off", () => {
+  const sampleTx = {
+    amount: 20,
+    type: "expense",
+    category: "Food & Dining",
+    paymentMethod: "online",
+    description: "Fast Card",
+    updatedBalances: { online: 24712, cash: -30 },
+  };
+
+  const receipt = formatTransactionReceipt(sampleTx, {
+    spendwiseShowBalances: false,
+  });
+
+  assert.ok(!receipt.includes("💡 <i>Updated Balances:</i>"));
+  assert.ok(!receipt.includes("Online Balance:"));
+  assert.ok(receipt.includes("💵 <b>Amount:</b> ₹20"));
+});
+
+it("shows month spending when spendwiseShowMonthlySpend is toggled on", () => {
+  const sampleTx = {
+    amount: 30,
+    type: "expense",
+    category: "Household Items",
+    paymentMethod: "online",
+    description: "Aggarbatti",
+    updatedBalances: { online: 24742, cash: -30 },
+  };
+
+  const receipt = formatTransactionReceipt(
+    sampleTx,
+    { spendwiseShowBalances: true, spendwiseShowMonthlySpend: true },
+    { monthTotalSpent: 5170, monthName: "November 2026" }
+  );
+
+  assert.ok(receipt.includes("💡 <i>Updated Balances:</i>"));
+  assert.ok(receipt.includes("📊 <b>November 2026 Spending:</b> ₹5,170"));
+});
+
+it("supports toolChoice enforcement in convertToolsToBedrockSpec", () => {
+  const spec = convertToolsToBedrockSpec(
+    [{ function: { name: "spendwise_add_transaction", description: "Log", parameters: {} } }],
+    { tool: { name: "spendwise_add_transaction" } }
+  );
+  assert.ok(spec.tools && spec.tools.length === 1);
+  assert.deepStrictEqual(spec.toolChoice, { tool: { name: "spendwise_add_transaction" } });
+});
+
+it("validates User schema default preferences for spendwise balances and monthly spend", () => {
+  const testUser = new User({ telegramId: 999999999 });
+  assert.strictEqual(testUser.preferences.spendwiseShowBalances, true);
+  assert.strictEqual(testUser.preferences.spendwiseShowMonthlySpend, false);
+});
+
+it("disinfects multi-line past SpendWise receipts and balances completely from prompt history", () => {
+  const sampleReceiptHistory = [
+    "user: 10rs surfexcel",
+    "assistant: 💳 <b>Expense Logged Successfully!</b>",
+    "━━━━━━━━━━━━━━━━━━━━━━",
+    "💵 <b>Amount:</b> ₹10",
+    "🔗 <b>Category:</b> Household Items",
+    "🌐 <b>Payment Method:</b> Online",
+    "📅 <b>Date:</b> <code>2026-11-16</code>",
+    "📝 <b>Note:</b> \"Surfexcel\"",
+    "",
+    "💡 <i>Updated Balances:</i>",
+    "🌐 <b>Online Balance:</b> ₹24,712",
+    "💵 <b>Cash Balance:</b> -₹30",
+    "",
+    "📊 <b>November 2026 Spending:</b> ₹5,170",
+    "",
+    "<i>Successfully logged expense of ₹10.00 for \"Surfexcel\" (online wallet).</i>",
+    "user: what is my balance"
+  ].join("\n");
+
+  const prompt = buildSystemPrompt({
+    user: { firstName: "Atharva", telegramId: 12345, spendwiseApiKey: "spw_live_test" },
+    memories: [],
+    historyText: sampleReceiptHistory,
+  });
+
+  const contextIdx = prompt.indexOf("CONVERSATION CONTEXT:");
+  const contextSnippet = prompt.slice(contextIdx, prompt.indexOf("TOOL EXECUTION RULES:"));
+
+  assert.ok(!contextSnippet.includes("Online Balance:"));
+  assert.ok(!contextSnippet.includes("Cash Balance:"));
+  assert.ok(!contextSnippet.includes("24,712"));
+  assert.ok(!contextSnippet.includes("-₹30"));
+  assert.ok(!contextSnippet.includes("Expense Logged Successfully"));
+  assert.ok(!contextSnippet.includes("Updated Balances"));
+  assert.ok(!contextSnippet.includes("━━━━━━━━━━━━━━━━━━━━━━"));
+  assert.ok(contextSnippet.includes("user: 10rs surfexcel"));
+  assert.ok(contextSnippet.includes("user: what is my balance"));
+});
+
+it("includes settle_debt and set_budget tools when user has active SpendWise key", () => {
+  const userWithKey = { spendwiseApiKey: "spw_live_test_12345678" };
+  const toolsWithKey = getToolsForUser(userWithKey);
+  const toolNames = toolsWithKey.map(t => t.function.name);
+  assert.ok(toolNames.includes("spendwise_settle_debt"));
+  assert.ok(toolNames.includes("spendwise_set_budget"));
 });
 
 // 7. Bookmark Extraction & Zero-Censorship Tests

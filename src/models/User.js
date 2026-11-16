@@ -58,6 +58,14 @@ const userSchema = new mongoose.Schema(
         type: String,
         default: "",
       },
+      spendwiseShowBalances: {
+        type: Boolean,
+        default: true,
+      },
+      spendwiseShowMonthlySpend: {
+        type: Boolean,
+        default: false,
+      },
     },
     awaitingMemeConfirmation: {
       type: Boolean,

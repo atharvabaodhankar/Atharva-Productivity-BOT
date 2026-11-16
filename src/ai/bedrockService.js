@@ -14,6 +14,7 @@ async function executeBedrockConverse({
   base64ImageUrl,
   executeToolHandler,
   chatId,
+  toolChoice,
 }) {
   const client = getBedrockClient();
   if (!client) {
@@ -87,7 +88,7 @@ async function executeBedrockConverse({
     });
   }
 
-  const toolConfig = tools ? convertToolsToBedrockSpec(tools) : undefined;
+  const toolConfig = tools ? convertToolsToBedrockSpec(tools, toolChoice) : undefined;
   const system = systemPrompt ? [{ text: systemPrompt }] : undefined;
 
   const command = new ConverseCommand({
@@ -121,7 +122,19 @@ async function executeBedrockConverse({
 
       let resultContent = "";
       try {
-        resultContent = await executeToolHandler(fnName, args, chatId);
+        const handlerRes = await executeToolHandler(fnName, args, chatId);
+        if (handlerRes && typeof handlerRes === "object" && handlerRes.isSpendwiseReceipt) {
+          const { recordTokenUsage } = require("../services/statsService");
+          recordTokenUsage({
+            model: modelId,
+            inputTokens: usage1.inputTokens || 0,
+            outputTokens: usage1.outputTokens || 0,
+            totalTokens: (usage1.inputTokens || 0) + (usage1.outputTokens || 0),
+          }).catch(() => {});
+
+          return handlerRes.text;
+        }
+        resultContent = handlerRes;
       } catch (err) {
         resultContent = `Error: ${err.message}`;
       }
@@ -139,12 +152,12 @@ async function executeBedrockConverse({
       content: toolResults,
     });
 
-    // Follow-up call with tool execution results
+    // Follow-up call with tool execution results (do not force toolChoice on follow-up)
     const followUpCmd = new ConverseCommand({
       modelId,
       system,
       messages: cleanBedrockMessages,
-      toolConfig,
+      toolConfig: tools ? convertToolsToBedrockSpec(tools) : undefined,
       inferenceConfig: {
         temperature: 0.7,
         maxTokens: 1500,

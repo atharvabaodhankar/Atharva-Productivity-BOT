@@ -296,6 +296,45 @@ const tools = [
       },
     },
   },
+  {
+    type: "function",
+    function: {
+      name: "spendwise_settle_debt",
+      description: "Mark a debt as paid (as debtor) or confirm receipt of payment (as creditor) in SpendWise.",
+      parameters: {
+        type: "object",
+        properties: {
+          debtId: {
+            type: "string",
+            description: "The unique ID of the debt to settle.",
+          },
+          action: {
+            type: "string",
+            enum: ["mark_paid", "confirm_receipt"],
+            description: "Action to perform: 'mark_paid' when you paid the debt, or 'confirm_receipt' when friend paid you back (default: mark_paid).",
+          },
+        },
+        required: ["debtId"],
+      },
+    },
+  },
+  {
+    type: "function",
+    function: {
+      name: "spendwise_set_budget",
+      description: "Set or update monthly spending budget limit in SpendWise.",
+      parameters: {
+        type: "object",
+        properties: {
+          monthlyLimit: {
+            type: "number",
+            description: "Monthly spending limit ceiling in INR (e.g. 40000).",
+          },
+        },
+        required: ["monthlyLimit"],
+      },
+    },
+  },
 ];
 
 function getToolsForUser(user) {

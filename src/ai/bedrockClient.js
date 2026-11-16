@@ -53,7 +53,7 @@ function isBedrockConfigured() {
 }
 
 // Convert OpenAI tool definitions to Bedrock toolSpec format
-function convertToolsToBedrockSpec(tools) {
+function convertToolsToBedrockSpec(tools, toolChoice) {
   if (!tools || !Array.isArray(tools)) return undefined;
 
   const bedrockTools = tools.map((t) => {
@@ -69,7 +69,11 @@ function convertToolsToBedrockSpec(tools) {
     };
   });
 
-  return { tools: bedrockTools };
+  const config = { tools: bedrockTools };
+  if (toolChoice) {
+    config.toolChoice = toolChoice;
+  }
+  return config;
 }
 
 // Convert base64 data URL to Bedrock image block

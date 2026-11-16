@@ -1,46 +1,63 @@
 function disinfectHistory(rawHistory) {
   if (!rawHistory) return "";
 
-  const reasoningLinePatterns = [
-    /^(?:assistant:\s*)?Looking at (the |active |conversation |workspace |user |context)/i,
-    /^(?:assistant:\s*)?(The )?Last (user |assistant )message/i,
-    /^(?:assistant:\s*)?Current time:/i,
-    /^(?:assistant:\s*)?Contextually,/i,
-    /^(?:assistant:\s*)?Given the (user|context|duplicates)/i,
-    /^(?:assistant:\s*)?The user('s)? ("?[^"]+"? )?(likely |wants |said |asked |is |replied )/i,
-    /^(?:assistant:\s*)?User:\s*"/i,
-    /^(?:assistant:\s*)?Assistant:\s*"/i,
-    /^(?:assistant:\s*)?However,\s*(the |previous |since |it )/i,
-    /^(?:assistant:\s*)?Since (there are|the user)/i,
-    /^(?:assistant:\s*)?If I delete/i,
-    /^(?:assistant:\s*)?I should (probably|delete|clear|mark|proceed|ask)/i,
-    /^(?:assistant:\s*)?I will (delete|clear|mark|call|proceed|confirm|ask)/i,
-    /^(?:assistant:\s*)?I'll (complete|delete|call|clear)/i,
-    /^(?:assistant:\s*)?It looks like (duplicate|the user)/i,
-    /^(?:assistant:\s*)?Then I will confirm/i,
-    /^(?:assistant:\s*)?IDs(?:\s+to\s+delete)?:?/i,
-    /^(?:assistant:\s*)?AtharvaOS\s*\(Bot POV\)/i,
-    /^(?:assistant:\s*)?\(Bot POV\)/i,
-    /^(?:assistant:\s*)?Bot POV:/i,
-    /^(?:assistant:\s*)?[0-9a-fA-F]{16,40}$/, // Raw MongoDB ObjectId line
-    /^(?:assistant:\s*)?[0-9]+\.\s*[0-9a-fA-F]{16,40}$/, // Numbered ObjectID line
-    /^(?:assistant:\s*)?(Plan|Draft|Step \d+|Analysis|Interpretation|Thought|Internal):/i,
-    /^(?:assistant:\s*)?The current active reminders are:/i,
-    /^(?:assistant:\s*)?-\s*(Two|One|Three|\d+|Last|Current|There are|IDs?|[0-9a-fA-F]{16,})/i,
-    /^(?:assistant:\s*)?-\s*"(?:Raat|Subah|Every|Daily|[0-9a-fA-F]{10,})/i,
-    /Firebase Console Indexes/i,
-    /index build process/i,
-    /technical (?:issue|problem) with SpendWise/i,
-    /SpendWise service at the moment/i,
-    /SpendWise backend returned a server notice/i,
-  ];
-
   const lines = rawHistory.split("\n");
   const cleanedLines = [];
 
   for (const line of lines) {
     const trimmed = line.trim();
     if (!trimmed) continue;
+
+    // 1. Immediately drop all SpendWise receipt template and transient notice lines
+    // MUST drop before quote-salvaging so lines like 'Note: "Surfexcel"' or receipt balances are not salvaged!
+    const isSpendwiseArtifact =
+      /^(?:assistant:\s*)?[💳💰💵]?\s*(?:<b>)?(?:Expense|Income|Transaction)\s+Logged/i.test(trimmed) ||
+      /(?:Expense|Income|Transaction)\s+Logged\s+Successfully/i.test(trimmed) ||
+      /Successfully\s+logged\s+(?:expense|income)/i.test(trimmed) ||
+      /Updated\s+Balances:/i.test(trimmed) ||
+      /(?:Online|Cash|Total Net)\s+Balance:/i.test(trimmed) ||
+      /^\s*[💳💰💵🔗🌐📅📝💡📊]?\s*(?:<b>|<i>)?\s*(?:Amount|Category|Payment Method|Date|Note|Online Balance|Cash Balance|Total Net Balance|\w+\s+\d{4}\s+Spending|This Month's Spending):/iu.test(trimmed) ||
+      /\b(?:January|February|March|April|May|June|July|August|September|October|November|December)\s+\d{4}\s+Spending:/i.test(trimmed) ||
+      /\bThis\s+Month's\s+Spending:/i.test(trimmed) ||
+      /^[━─-]{5,}$/.test(trimmed) ||
+      /Firebase Console Indexes/i.test(trimmed) ||
+      /index build process/i.test(trimmed) ||
+      /technical (?:issue|problem) with SpendWise/i.test(trimmed) ||
+      /SpendWise service at the moment/i.test(trimmed) ||
+      /SpendWise backend returned a server notice/i.test(trimmed);
+
+    if (isSpendwiseArtifact) {
+      continue;
+    }
+
+    const reasoningLinePatterns = [
+      /^(?:assistant:\s*)?Looking at (the |active |conversation |workspace |user |context)/i,
+      /^(?:assistant:\s*)?(The )?Last (user |assistant )message/i,
+      /^(?:assistant:\s*)?Current time:/i,
+      /^(?:assistant:\s*)?Contextually,/i,
+      /^(?:assistant:\s*)?Given the (user|context|duplicates)/i,
+      /^(?:assistant:\s*)?The user('s)? ("?[^"]+"? )?(likely |wants |said |asked |is |replied )/i,
+      /^(?:assistant:\s*)?User:\s*"/i,
+      /^(?:assistant:\s*)?Assistant:\s*"/i,
+      /^(?:assistant:\s*)?However,\s*(the |previous |since |it )/i,
+      /^(?:assistant:\s*)?Since (there are|the user)/i,
+      /^(?:assistant:\s*)?If I delete/i,
+      /^(?:assistant:\s*)?I should (probably|delete|clear|mark|proceed|ask)/i,
+      /^(?:assistant:\s*)?I will (delete|clear|mark|call|proceed|confirm|ask)/i,
+      /^(?:assistant:\s*)?I'll (complete|delete|call|clear)/i,
+      /^(?:assistant:\s*)?It looks like (duplicate|the user)/i,
+      /^(?:assistant:\s*)?Then I will confirm/i,
+      /^(?:assistant:\s*)?IDs(?:\s+to\s+delete)?:?/i,
+      /^(?:assistant:\s*)?AtharvaOS\s*\(Bot POV\)/i,
+      /^(?:assistant:\s*)?\(Bot POV\)/i,
+      /^(?:assistant:\s*)?Bot POV:/i,
+      /^(?:assistant:\s*)?[0-9a-fA-F]{16,40}$/, // Raw MongoDB ObjectId line
+      /^(?:assistant:\s*)?[0-9]+\.\s*[0-9a-fA-F]{16,40}$/, // Numbered ObjectID line
+      /^(?:assistant:\s*)?(Plan|Draft|Step \d+|Analysis|Interpretation|Thought|Internal):/i,
+      /^(?:assistant:\s*)?The current active reminders are:/i,
+      /^(?:assistant:\s*)?-\s*(Two|One|Three|\d+|Last|Current|There are|IDs?|[0-9a-fA-F]{16,})/i,
+      /^(?:assistant:\s*)?-\s*"(?:Raat|Subah|Every|Daily|[0-9a-fA-F]{10,})/i,
+    ];
 
     const isLeakedThought = reasoningLinePatterns.some((p) => p.test(trimmed));
 
@@ -304,6 +321,8 @@ ${!isGroupChat && user?.spendwiseApiKey ? `
    - When ${userName} asks for recent transactions/expenses, call 'spendwise_list_transactions'.
    - When ${userName} asks to split a bill with friends, call 'spendwise_split_expense'.
    - When ${userName} asks who owes them or what they owe, call 'spendwise_get_debts'.
+   - When ${userName} asks to settle a debt or mark debt paid, call 'spendwise_settle_debt'.
+   - When ${userName} asks to set or adjust their monthly budget limit, call 'spendwise_set_budget'.
    - Do NOT turn financial expense logs into tasks or reminders!
    - ALWAYS execute the SpendWise tool afresh for EVERY new inquiry! NEVER assume a past error, index build, or server outage from previous conversation history is still ongoing. Live API queries must always be executed.
 ` : ""}
@@ -323,6 +342,10 @@ TOOL EXECUTION RULES:
 - When ${userName} logs an expense/income -> call 'spendwise_add_transaction' with amount, type ("expense" or "income"), category, paymentMethod ("online" or "cash"), description.
 - When ${userName} asks for their balance or financial summary -> call 'spendwise_get_summary'.
 - When ${userName} asks for recent transactions -> call 'spendwise_list_transactions'.
+- When ${userName} asks to split a bill with friends -> call 'spendwise_split_expense'.
+- When ${userName} asks to check debts -> call 'spendwise_get_debts'.
+- When ${userName} asks to settle a debt -> call 'spendwise_settle_debt'.
+- When ${userName} asks to set monthly budget -> call 'spendwise_set_budget'.
 - When ${userName} asks to stop/disable automated daily messages -> call 'toggle_daily_briefings'.
 - When ${userName} asks to delete/cancel a reminder -> call 'delete_reminder'. Use 'ref_id' from ACTIVE REMINDERS above or matching query text.
 - When ${userName} marks a task done -> call 'complete_memory' using the ref_id from ACTIVE WORKSPACE.

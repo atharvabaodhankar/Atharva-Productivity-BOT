@@ -231,6 +231,97 @@ function formatSpendWiseTransactions(transactions) {
   return text;
 }
 
+/**
+ * Formats a transaction execution result into a deterministic Telegram HTML receipt
+ * based on user preferences.
+ * @param {Object|string} txResult - Result from executeSpendWiseTool('add_transaction')
+ * @param {Object} [userPreferences] - user.preferences ({ spendwiseShowBalances, spendwiseShowMonthlySpend })
+ * @param {Object} [extra] - optional extra data { monthTotalSpent, monthName, budgetLimit }
+ * @returns {string} Clean HTML formatted receipt
+ */
+function formatTransactionReceipt(txResult, userPreferences = {}, extra = {}) {
+  let data = txResult;
+  if (typeof txResult === "string") {
+    try {
+      data = JSON.parse(txResult);
+    } catch (_) {
+      data = { raw: txResult };
+    }
+  }
+
+  if (!data) return "Transaction recorded.";
+  if (data.raw && !data.amount) return String(data.raw);
+
+  const isIncome = String(data.type || "").toLowerCase() === "income";
+  const title = isIncome
+    ? "💰 <b>Income Logged Successfully!</b>"
+    : "💳 <b>Expense Logged Successfully!</b>";
+
+  const amountNum = Number(data.amount || 0);
+  const formattedAmount = `₹${amountNum.toLocaleString("en-IN")}`;
+  const category = data.category || (isIncome ? "Income" : "General");
+  const methodRaw = String(data.paymentMethod || "online").toLowerCase();
+  const paymentMethodStr = methodRaw === "cash" ? "Cash" : "Online";
+  const dateStr = data.date || new Date().toISOString().split("T")[0];
+  const description = data.description ? String(data.description).trim() : "";
+
+  let text = `${title}\n`;
+  text += `━━━━━━━━━━━━━━━━━━━━━━\n`;
+  text += `💵 <b>Amount:</b> ${formattedAmount}\n`;
+  text += `🔗 <b>Category:</b> ${category}\n`;
+  text += `🌐 <b>Payment Method:</b> ${paymentMethodStr}\n`;
+  text += `📅 <b>Date:</b> <code>${dateStr}</code>\n`;
+  if (description) {
+    text += `📝 <b>Note:</b> "${description}"\n`;
+  }
+
+  // Updated Balances: Enabled by default (unless explicitly false)
+  const showBalances = userPreferences?.spendwiseShowBalances !== false;
+  const balances = data.updatedBalances || data.balances || extra?.balances;
+  if (showBalances && balances) {
+    const online = balances.online ?? null;
+    const cash = balances.cash ?? null;
+    if (online !== null || cash !== null) {
+      text += `\n💡 <i>Updated Balances:</i>\n`;
+      if (online !== null) {
+        const formattedOnline =
+          Number(online) < 0
+            ? `-₹${Math.abs(Number(online)).toLocaleString("en-IN")}`
+            : `₹${Number(online).toLocaleString("en-IN")}`;
+        text += `🌐 <b>Online Balance:</b> ${formattedOnline}\n`;
+      }
+      if (cash !== null) {
+        const formattedCash =
+          Number(cash) < 0
+            ? `-₹${Math.abs(Number(cash)).toLocaleString("en-IN")}`
+            : `₹${Number(cash).toLocaleString("en-IN")}`;
+        text += `💵 <b>Cash Balance:</b> ${formattedCash}\n`;
+      }
+    }
+  }
+
+  // Month Spending: Disabled by default (only if user preference is true)
+  const showMonthlySpend = Boolean(userPreferences?.spendwiseShowMonthlySpend);
+  const monthlySpent =
+    extra?.monthTotalSpent ??
+    data.monthTotalSpent ??
+    data.currentMonth?.totalSpent ??
+    userPreferences?.monthTotalSpent ??
+    null;
+  const monthName = extra?.monthName ?? data.monthName ?? data.currentMonth?.month ?? "";
+  if (showMonthlySpend && monthlySpent !== null) {
+    const monthPrefix = monthName ? `${monthName} ` : "This Month's ";
+    const formattedSpent = `₹${Number(monthlySpent).toLocaleString("en-IN")}`;
+    text += `\n📊 <b>${monthPrefix}Spending:</b> ${formattedSpent}\n`;
+  }
+
+  if (data.message) {
+    text += `\n<i>${data.message}</i>`;
+  }
+
+  return text;
+}
+
 module.exports = {
   SPENDWISE_MCP_ENDPOINT,
   maskApiKey,
@@ -239,4 +330,5 @@ module.exports = {
   executeSpendWiseTool,
   formatSpendWiseSummary,
   formatSpendWiseTransactions,
+  formatTransactionReceipt,
 };
