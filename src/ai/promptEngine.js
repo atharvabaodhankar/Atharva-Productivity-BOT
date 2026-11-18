@@ -316,7 +316,16 @@ ${groupPrivacyGuardrail}
 ${!isGroupChat && user?.spendwiseApiKey ? `
 6. SPENDWISE AI EXPENSE TRACKER (CONNECTED):
    - ${userName} has linked their SpendWise wallet (${user.spendwiseApiKey.slice(0, 12)}...)!
-   - When ${userName} asks to log an expense or income (e.g. "spent 250 on lunch via UPI", "paid 100 for auto", "added 5000 freelance income"), call 'spendwise_add_transaction'.
+   - When ${userName} asks to log an expense or income (e.g. "spent 250 on lunch via UPI", "paid 100 for auto", "Yesterday dinner 100", "Yesterday eggs 150", "added 5000 freelance income"), call 'spendwise_add_transaction'.
+   - CRITICAL NOTE / DESCRIPTION EXTRACTION RULE:
+     * 'description' MUST be ONLY the clean item, merchant, or reason (e.g. "Dinner", "Eggs", "Lunch", "Petrol", "Coffee", "Groceries", "Auto").
+     * NEVER include temporal or date words in 'description' (e.g. NEVER "Yesterday dinner", "kal dinner", "today lunch", "yesterday eggs")! Temporal words indicate the transaction 'date' parameter, NOT the note!
+     * NEVER include payment methods (e.g. "via UPI", "in cash") or currency amounts (e.g. "100", "₹250") in 'description'! Those belong in 'paymentMethod' and 'amount'.
+     * Examples:
+       - "Yesterday dinner 100" -> description: "Dinner", date: "[yesterday YYYY-MM-DD]", amount: 100, paymentMethod: "cash"
+       - "Yesterday eggs 150" -> description: "Eggs", date: "[yesterday YYYY-MM-DD]", amount: 150, paymentMethod: "cash"
+       - "Kal petrol 500 cash" -> description: "Petrol", date: "[yesterday YYYY-MM-DD]", amount: 500, paymentMethod: "cash"
+       - "Spent 250 on lunch via UPI" -> description: "Lunch", date: "[today YYYY-MM-DD]", amount: 250, paymentMethod: "online"
    - When ${userName} asks for their balance, wallet summary, or monthly budget status, call 'spendwise_get_summary'.
    - When ${userName} asks for recent transactions/expenses, call 'spendwise_list_transactions'.
    - When ${userName} asks to split a bill with friends, call 'spendwise_split_expense'.
@@ -339,7 +348,7 @@ TOOL EXECUTION RULES:
 - When ${userName} EXPLICITLY asks to save a bookmark, link, or video -> call 'add_memory' with type="bookmark" or "link", content="[title]", url="[URL]".
 - When ${userName} EXPLICITLY asks for a reminder at a specific time -> call 'add_memory' with type="reminder", format 'date' in ISO 8601 (+05:30).
 - When ${userName} asks for a RECURRING reminder (e.g. "Remind me daily at 8 PM to...") -> call 'add_memory' with type="reminder", isRecurring=true, recurrenceInterval="daily", timeOfDay="HH:MM", and set 'date' to next upcoming occurrence.
-- When ${userName} logs an expense/income -> call 'spendwise_add_transaction' with amount, type ("expense" or "income"), category, paymentMethod ("online" or "cash"), description.
+- When ${userName} logs an expense/income -> call 'spendwise_add_transaction' with amount, type ("expense" or "income"), category, paymentMethod ("online" or "cash"), clean description (e.g. "Dinner", "Eggs" — NEVER include temporal words like "yesterday" or "today" in note), and date.
 - When ${userName} asks for their balance or financial summary -> call 'spendwise_get_summary'.
 - When ${userName} asks for recent transactions -> call 'spendwise_list_transactions'.
 - When ${userName} asks to split a bill with friends -> call 'spendwise_split_expense'.

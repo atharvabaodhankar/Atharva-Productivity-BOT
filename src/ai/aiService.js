@@ -348,8 +348,14 @@ async function executeToolHandler(functionName, args, chatId, user) {
     const {
       executeSpendWiseTool,
       formatTransactionReceipt,
+      cleanExpenseDescription,
     } = require("../services/spendwiseService");
     const mcpToolName = functionName.replace(/^spendwise_/, "");
+
+    // Sanitize description before tool execution (e.g. "Yesterday dinner" -> "Dinner", "Yesterday eggs" -> "Eggs")
+    if ((mcpToolName === "add_transaction" || mcpToolName === "split_expense") && args && args.description) {
+      args.description = cleanExpenseDescription(args.description, args.amount || args.totalAmount, args.category);
+    }
 
     try {
       const result = await executeSpendWiseTool(user.spendwiseApiKey, mcpToolName, args);

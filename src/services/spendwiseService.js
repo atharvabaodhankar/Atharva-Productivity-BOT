@@ -104,6 +104,92 @@ async function verifySpendWiseKey(apiKey) {
 }
 
 /**
+ * Sanitizes and cleans an expense/income description by stripping temporal indicators,
+ * dates, payment methods, currency amounts, and filler prepositions.
+ * E.g.: "Yesterday dinner" -> "Dinner", "Yesterday eggs" -> "Eggs", "kal dinner 100" -> "Dinner"
+ * @param {string} rawDescription
+ * @param {number|string} [amount]
+ * @param {string} [fallbackCategory]
+ * @returns {string} Clean, title-cased item/reason description
+ */
+function cleanExpenseDescription(rawDescription, amount = null, fallbackCategory = "") {
+  if (!rawDescription || typeof rawDescription !== "string") {
+    return fallbackCategory || "Expense";
+  }
+
+  let desc = rawDescription.trim();
+  desc = desc.replace(/^["'“”]+|["'“”]+$/gu, "").trim();
+
+  // 1. Strip exact amount if provided and matches (with or without currency symbols)
+  if (amount !== null && amount !== undefined && !isNaN(Number(amount))) {
+    const num = Number(amount);
+    const amtRegex = new RegExp(
+      `(?:₹|rs\\.?|inr|rupees?|rupay)?\\s*\\b${num}(?:\\.0+)?\\b(?:\\s*(?:rs\\.?|rupees?|rupay|inr|\\/-))?`,
+      "gi"
+    );
+    desc = desc.replace(amtRegex, " ");
+  } else {
+    // If amount was not passed, strip trailing bare number
+    desc = desc.replace(/\s+\d+(?:\.\d+)?$/g, " ");
+  }
+
+  // 2. Strip explicit currency amounts (e.g. "₹500", "500rs", "500/-", "rs. 50")
+  desc = desc.replace(
+    /(?:(?:₹|rs\.?|inr|rupees?|rupay)\s*\d+(?:\.\d+)?|\d+(?:\.\d+)?\s*(?:rs\.?|rupees?|rupay|inr|\/-))/gi,
+    " "
+  );
+
+  // 3. Strip payment methods & channels
+  const paymentPatterns = [
+    /\b(?:via|by|through|on|in|using|se|pe)\s+(?:upi|gpay|google\s*pay|phonepe|paytm|cash|card|debit\s*card|credit\s*card|netbanking|bank(?:\s*transfer)?)\b/gi,
+    /\b(?:in\s+cash|by\s+cash|via\s+cash|cash\s+se|via\s+online|online\s+se)\b/gi,
+    /\b(?:cash|online)\s+wallet\b/gi,
+    /\b(?:upi|gpay|phonepe|paytm)\b/gi,
+  ];
+  for (const p of paymentPatterns) {
+    desc = desc.replace(p, " ");
+  }
+
+  // 4. Strip temporal / date words (English and Hinglish)
+  const temporalPatterns = [
+    /\b(?:yesterday'?s?|today'?s?|tomorrow'?s?)\b/gi,
+    /\b(?:last\s+night'?s?|last\s+evening|last\s+week|last\s+month)\b/gi,
+    /\b(?:this\s+morning|this\s+evening|this\s+afternoon|tonight)\b/gi,
+    /\b(?:on\s+)?(?:monday|tuesday|wednesday|thursday|friday|saturday|sunday)(?:'?s)?\b/gi,
+    /\b\d+\s+days?\s+ago\b/gi,
+    /\b(?:kal\s+raat|kal\s+shaam|kal\s+subah|kal\s+dopahar)(?:\s+(?:ka|ki|ke))?\b/gi,
+    /\bkal(?:\s+(?:ka|ki|ke))?\b/gi,
+    /\b(?:aaj\s+raat|aaj\s+subah|aaj\s+shaam|aaj\s+dopahar)(?:\s+(?:ka|ki|ke))?\b/gi,
+    /\baaj(?:\s+(?:ka|ki|ke))?\b/gi,
+    /\bparso(?:n)?(?:\s+(?:ka|ki|ke))?\b/gi,
+    /\b(?:beete\s+kal|pichle\s+(?:hafte|mahine))\b/gi,
+    /\b(?:subah|shaam|raat|dopahar)(?:\s+(?:ka|ki|ke))?\b/gi,
+  ];
+  for (const t of temporalPatterns) {
+    desc = desc.replace(t, " ");
+  }
+
+  // 5. Strip leading & trailing verbs / prepositions
+  let prev;
+  do {
+    prev = desc;
+    desc = desc
+      .replace(/^(?:spent|spend|paid|pay|bought|purchased|kharch|kharcha|for|on|pe|mein|in|ko|ka|ki|ke|ke\s+liye)\s+/gi, "")
+      .replace(/\s+(?:pe|mein|in|ko|ka|ki|ke|ke\s+liye|de\s+diya|diya|spent|paid)$/gi, "")
+      .trim();
+  } while (desc !== prev);
+
+  desc = desc.replace(/[–—:,\-_]+/g, " ").replace(/\s+/g, " ").trim();
+  desc = desc.replace(/^["'“”]+|["'“”]+$/gu, "").trim();
+
+  if (!desc || desc.length === 0) {
+    return fallbackCategory || "Expense";
+  }
+
+  return desc.charAt(0).toUpperCase() + desc.slice(1);
+}
+
+/**
  * Executes a named SpendWise MCP tool
  * Available tools:
  * - add_transaction: { amount, type, category, paymentMethod, description, date, affectCurrentBalance }
@@ -114,6 +200,17 @@ async function verifySpendWiseKey(apiKey) {
  * - settle_debt: { debtId, action }
  */
 async function executeSpendWiseTool(apiKey, toolName, toolArgs = {}) {
+  // Sanitize description before passing to SpendWise MCP
+  if ((toolName === "add_transaction" || toolName === "split_expense") && toolArgs) {
+    if (toolArgs.description) {
+      toolArgs.description = cleanExpenseDescription(
+        toolArgs.description,
+        toolArgs.amount || toolArgs.totalAmount,
+        toolArgs.category
+      );
+    }
+  }
+
   const result = await callSpendWiseMcp(apiKey, "tools/call", {
     name: toolName,
     arguments: toolArgs,
@@ -263,7 +360,10 @@ function formatTransactionReceipt(txResult, userPreferences = {}, extra = {}) {
   const methodRaw = String(data.paymentMethod || "online").toLowerCase();
   const paymentMethodStr = methodRaw === "cash" ? "Cash" : "Online";
   const dateStr = data.date || new Date().toISOString().split("T")[0];
-  const description = data.description ? String(data.description).trim() : "";
+  const rawDesc = data.description ? String(data.description).trim() : "";
+  const description = rawDesc
+    ? cleanExpenseDescription(rawDesc, data.amount, data.category)
+    : "";
 
   let text = `${title}\n`;
   text += `━━━━━━━━━━━━━━━━━━━━━━\n`;
@@ -316,7 +416,11 @@ function formatTransactionReceipt(txResult, userPreferences = {}, extra = {}) {
   }
 
   if (data.message) {
-    text += `\n<i>${data.message}</i>`;
+    let msg = String(data.message);
+    if (description && rawDesc && rawDesc !== description) {
+      msg = msg.replace(new RegExp(`"${rawDesc}"`, "g"), `"${description}"`);
+    }
+    text += `\n<i>${msg}</i>`;
   }
 
   return text;
@@ -328,6 +432,7 @@ module.exports = {
   callSpendWiseMcp,
   verifySpendWiseKey,
   executeSpendWiseTool,
+  cleanExpenseDescription,
   formatSpendWiseSummary,
   formatSpendWiseTransactions,
   formatTransactionReceipt,

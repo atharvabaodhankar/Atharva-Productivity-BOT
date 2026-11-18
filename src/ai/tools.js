@@ -193,7 +193,7 @@ const tools = [
           },
           description: {
             type: "string",
-            description: "Short note, merchant name, or reason (e.g. 'Starbucks coffee', 'Freelance payment').",
+            description: "Short note, merchant name, or reason (e.g. 'Dinner', 'Eggs', 'Starbucks coffee', 'Freelance payment'). CRITICAL: Must ONLY be the clean item/reason. NEVER include temporal/date words (like 'yesterday', 'today', 'kal') or payment methods/amounts here.",
           },
           date: {
             type: "string",
@@ -258,7 +258,7 @@ const tools = [
           },
           description: {
             type: "string",
-            description: "Description of the split (e.g. 'Dinner at Olive Garden').",
+            description: "Description of the split (e.g. 'Dinner at Olive Garden'). CRITICAL: Must ONLY be the clean event/item name without temporal words ('yesterday', 'kal') or payment methods.",
           },
           friendEmails: {
             type: "array",

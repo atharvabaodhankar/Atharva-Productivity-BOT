@@ -235,6 +235,7 @@ const {
   formatSpendWiseSummary,
   formatSpendWiseTransactions,
   formatTransactionReceipt,
+  cleanExpenseDescription,
 } = require("../src/services/spendwiseService");
 const { getToolsForUser } = require("../src/ai/tools");
 const { isExpenseLoggingIntent } = require("../src/ai/aiService");
@@ -479,6 +480,42 @@ it("includes settle_debt and set_budget tools when user has active SpendWise key
   const toolNames = toolsWithKey.map(t => t.function.name);
   assert.ok(toolNames.includes("spendwise_settle_debt"));
   assert.ok(toolNames.includes("spendwise_set_budget"));
+});
+
+it("cleans temporal and date indicators from expense description ('Yesterday dinner' -> 'Dinner')", () => {
+  assert.strictEqual(cleanExpenseDescription("Yesterday dinner", 100), "Dinner");
+  assert.strictEqual(cleanExpenseDescription("Yesterday eggs", 150), "Eggs");
+  assert.strictEqual(cleanExpenseDescription("yesterday's dinner", 100), "Dinner");
+  assert.strictEqual(cleanExpenseDescription("kal dinner 100", 100), "Dinner");
+  assert.strictEqual(cleanExpenseDescription("kal ka dinner", 100), "Dinner");
+  assert.strictEqual(cleanExpenseDescription("kal raat ka dinner", 100), "Dinner");
+  assert.strictEqual(cleanExpenseDescription("aaj lunch 250", 250), "Lunch");
+  assert.strictEqual(cleanExpenseDescription("dinner yesterday", 100), "Dinner");
+  assert.strictEqual(cleanExpenseDescription("spent 250 on lunch via UPI", 250), "Lunch");
+  assert.strictEqual(cleanExpenseDescription("paid 100 for auto in cash", 100), "Auto");
+});
+
+it("preserves product names containing numbers when cleaning description", () => {
+  assert.strictEqual(cleanExpenseDescription("iPhone 15", 70000), "IPhone 15");
+  assert.strictEqual(cleanExpenseDescription("5 star chocolate", 20), "5 star chocolate");
+  assert.strictEqual(cleanExpenseDescription("Starbucks coffee", 350), "Starbucks coffee");
+});
+
+it("sanitizes uncleaned 'Yesterday dinner' note in formatTransactionReceipt", () => {
+  const uncleanedTx = {
+    amount: 100,
+    type: "expense",
+    category: "Food & Dining",
+    paymentMethod: "cash",
+    description: "Yesterday dinner",
+    date: "2026-11-17",
+    message: 'Successfully logged expense of ₹100.00 for "Yesterday dinner" (cash wallet).',
+  };
+
+  const receipt = formatTransactionReceipt(uncleanedTx);
+  assert.ok(receipt.includes('📝 <b>Note:</b> "Dinner"'));
+  assert.ok(!receipt.includes('Note: "Yesterday dinner"'));
+  assert.ok(receipt.includes('Successfully logged expense of ₹100.00 for "Dinner" (cash wallet).'));
 });
 
 // 7. Bookmark Extraction & Zero-Censorship Tests
