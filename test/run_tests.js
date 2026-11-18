@@ -522,7 +522,7 @@ it("sanitizes uncleaned 'Yesterday dinner' note in formatTransactionReceipt", ()
 console.log("🔖 7. Bookmark Extraction & Zero-Censorship Policy:");
 
 const { extractUrlAndTitle } = require("../src/bot/commands/bookmark");
-const { checkEasterEggOrNsfw } = require("../src/utils/easterEggDetector");
+const { checkEasterEggOrNsfw, SFW_REFUSAL_MESSAGE } = require("../src/utils/easterEggDetector");
 
 it("extracts clean URL and title from quoted input", () => {
   const res = extractUrlAndTitle('"https://github.com/atharvabaodhankar/AtharvaOS" AtharvaOS Repo');
@@ -557,6 +557,12 @@ it("bypasses Easter egg and NSFW guardrails on URLs and bookmarks", () => {
 
   const bookmarkWordCheck = checkEasterEggOrNsfw("bookmark this sex education article");
   assert.strictEqual(bookmarkWordCheck, null);
+});
+
+it("flags NSFW keyword queries and provides SFW refusal message", () => {
+  const trigger = checkEasterEggOrNsfw("send nsfw");
+  assert.ok(trigger && trigger.isNsfw);
+  assert.ok(SFW_REFUSAL_MESSAGE.includes("100% SFW"));
 });
 
 // Summary

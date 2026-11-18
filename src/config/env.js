@@ -25,8 +25,6 @@ module.exports = {
   CHAT_ID: getEnv("CHAT_ID"),
   WEBHOOK_DOMAIN: getEnv("WEBHOOK_DOMAIN"),
   GROQ_API_KEYS: getGroqKeys(),
-  MEME_API_URL: getEnv("MEME_API_URL"),
-  MEME_API_KEY: getEnv("MEME_API_KEY"),
   ADMIN_SECRET: getEnv("ADMIN_SECRET"),
   AWS_REGION: getEnv("BEDROCK_AWS_REGION") || getEnv("AWS_REGION", "ap-south-1"),
   AWS_ACCESS_KEY_ID: getEnv("BEDROCK_AWS_ACCESS_KEY_ID") || getEnv("AWS_ACCESS_KEY_ID"),

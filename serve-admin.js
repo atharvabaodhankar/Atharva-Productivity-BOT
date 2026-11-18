@@ -361,51 +361,6 @@ const server = http.createServer(async (req, res) => {
         return res.end(JSON.stringify({ ok: false, error: err.message }));
       }
     }
-
-    // 5. Admin Meme Approval / Rejection API
-    if (req.url.startsWith("/api/admin/meme-action") && req.method === "POST") {
-      try {
-        const payload = await readJsonBody(req, res);
-        const { requestId, action } = payload;
-        const isApproved = action === "approve";
-
-        const bot = require("./src/bot");
-        const { processMemeApproval } = require("./src/services/memeService");
-        const result = await processMemeApproval(bot, requestId, isApproved);
-
-        res.writeHead(200, { "Content-Type": "application/json" });
-        return res.end(JSON.stringify({ ok: true, result }));
-      } catch (err) {
-        if (res.writableEnded) return;
-        console.error("Meme action error:", err);
-        res.writeHead(500, { "Content-Type": "application/json" });
-        return res.end(JSON.stringify({ ok: false, error: err.message }));
-      }
-    }
-
-    // 6. Direct Quick-Cast Random Meme API
-    if (req.url.startsWith("/api/admin/send-random-meme") && req.method === "POST") {
-      try {
-        const payload = await readJsonBody(req, res);
-        const { targetChatId } = payload;
-        if (!targetChatId) {
-          res.writeHead(400, { "Content-Type": "application/json" });
-          return res.end(JSON.stringify({ ok: false, error: "targetChatId is required." }));
-        }
-
-        const bot = require("./src/bot");
-        const { sendRandomMemeToChat } = require("./src/services/memeService");
-        const result = await sendRandomMemeToChat(bot, targetChatId);
-
-        res.writeHead(200, { "Content-Type": "application/json" });
-        return res.end(JSON.stringify({ ok: true, result }));
-      } catch (err) {
-        if (res.writableEnded) return;
-        console.error("send-random-meme error:", err);
-        res.writeHead(500, { "Content-Type": "application/json" });
-        return res.end(JSON.stringify({ ok: false, error: err.message }));
-      }
-    }
   }
 
   // 7. GET /api/stats (Local User Directory Fetch)

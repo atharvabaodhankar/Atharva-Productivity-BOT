@@ -3,19 +3,21 @@ const { BOT_TOKEN } = require("../config/env");
 
 const OWNER_ID = "5275149287";
 
+const SFW_REFUSAL_MESSAGE =
+  "I am AtharvaOS, your personal productivity copilot. 🚀\n" +
+  "I am a 100% SFW assistant and do not provide adult, explicit, or NSFW content. Let's focus on your tasks, goals, and schedule! 💪✨";
+
 const EASTER_EGG_PATTERNS = [
-  { regex: /\b(carcasting|casting couch)\b/i, type: "NSFW_TRIGGER", name: "Carcasting / Casting" },
-  { regex: /\b(nsfw|porn|nude|nudes|xxx|hentai|onlyfans|boobs|bobs|vagina|vegene|strip|sex)\b/i, type: "NSFW_TRIGGER", name: "NSFW Keyword" },
+  { regex: /\b(carcasting|casting couch|nsfw|porn|nude|nudes|xxx|hentai|onlyfans|boobs|bobs|vagina|vegene|strip|sex)\b/i, type: "NSFW_TRIGGER", name: "NSFW Keyword", isNsfw: true },
   { regex: /\b(secret|secret code|secret bot|easter egg|easteregg|easter eggs)\b/i, type: "EASTER_EGG", name: "Secret / Easter Egg" },
-  { regex: /\b(memes|dank meme|dank memes)\b/i, type: "EASTER_EGG", name: "Meme Search" },
   { regex: /\b(hack|hack bot|bypass|jailbreak)\b/i, type: "SECRET_COMMAND", name: "Jailbreak / Hack" },
 ];
 
 const RESPONSES = [
-  "Arre bhai bhai bhai! 😂 Yeh kya search ho raha hai? Lagta hai tumne ek secret easter egg dhoondh liya! 👀 Aur bhi bohot saare secret easter eggs chupe hain AtharvaOS me... try karte raho! 🥚✨\n\n💡 *P.S.* Agar NSFW memes chahiye toh `/show_meme` try karo... dekhte hain himmat hai kya! 😏",
-  "Wah bete mauj kardi! 🚗💨 Carcasting ya secret codes dhoondh rahe ho? 😂 AtharvaOS ke pass aise bohot saare hidden easter eggs hain... aur dhoondho dekhte hain kya milta hai! 🕵️‍♂️🔥\n\n💡 *P.S.* NSFW memes dekhne hain? Try command `/show_meme` if you dare! 🔞",
-  "Caught in 4K! 📸👀 Lagta hai curiosity peak par hai! Ek secret easter egg unlock ho gaya hai, par aur bhi bohot kuch chupa hai bot me... keep exploring! 🥚💡\n\n💡 *P.S.* Waise agar NSFW memes chahiye toh `/show_meme` try kar sakte ho! 👀",
-  "Ayyy shabaash! 🤫 Secret discovery unlocked! Lekin ye toh sirf shuruat hai, try other crazy prompts and discover more secret easter eggs! 🚀✨\n\n💡 *P.S.* For NSFW memes, type `/show_meme`... 😏",
+  "Arre bhai bhai bhai! 😂 Yeh kya search ho raha hai? Lagta hai tumne ek secret easter egg dhoondh liya! 👀 Aur bhi bohot saare productivity tricks chupe hain AtharvaOS me... keep exploring! 🥚✨",
+  "Wah bete mauj kardi! 🚗💨 Secret codes dhoondh rahe ho? 😂 AtharvaOS ke pass aise bohot saare helpful productivity shortcuts hain... keep exploring! 🕵️‍♂️🔥",
+  "Caught in 4K! 📸👀 Curiosity peak par hai! Ek secret easter egg unlock ho gaya hai, par aur bhi bohot kuch chupa hai bot me... keep exploring! 🥚💡",
+  "Ayyy shabaash! 🤫 Secret discovery unlocked! Lekin ye toh sirf shuruat hai, try other prompts and stay consistent with your goals! 🚀✨",
 ];
 
 function getRandomResponse() {
@@ -41,6 +43,7 @@ function checkEasterEggOrNsfw(text) {
         matched: true,
         type: item.type,
         trigger: item.name,
+        isNsfw: Boolean(item.isNsfw),
         text: clean,
       };
     }
@@ -93,4 +96,5 @@ module.exports = {
   checkEasterEggOrNsfw,
   triggerAlertAndNotify,
   getRandomResponse,
+  SFW_REFUSAL_MESSAGE,
 };

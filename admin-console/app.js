@@ -838,57 +838,7 @@ function renderAlertsModal() {
           })
         : "";
 
-      const typeLabel = alert.type === "NSFW_TRIGGER" ? "NSFW / SPOILER" : alert.type || "EASTER_EGG";
-
-      const hasMemeRequest = alert.memeRequestId && alert.memeUrl;
-      const isPendingMeme = hasMemeRequest && alert.memeStatus === "PENDING";
-      const isApprovedMeme = hasMemeRequest && alert.memeStatus === "APPROVED";
-      const isRejectedMeme = hasMemeRequest && alert.memeStatus === "REJECTED";
-
-      let memeActionDeck = "";
-      if (hasMemeRequest) {
-        if (isPendingMeme) {
-          memeActionDeck = `
-            <div class="alert-meme-preview-wrap">
-              <div class="alert-meme-thumb">
-                <img src="${escapeHtml(alert.memeUrl)}" alt="Meme Preview" onerror="this.style.display='none'">
-              </div>
-              <div class="alert-meme-actions">
-                <button class="meme-action-btn approve" data-req-id="${alert.memeRequestId}">
-                  <i data-lucide="check"></i> Approve & Send
-                </button>
-                <button class="meme-action-btn reject" data-req-id="${alert.memeRequestId}">
-                  <i data-lucide="x"></i> Reject
-                </button>
-              </div>
-            </div>
-          `;
-        } else if (isApprovedMeme) {
-          memeActionDeck = `
-            <div class="alert-status-badge approved">
-              <i data-lucide="check-circle-2"></i> APPROVED & DELIVERED (WITH SPOILER)
-            </div>
-          `;
-        } else if (isRejectedMeme) {
-          memeActionDeck = `
-            <div class="alert-status-badge rejected">
-              <i data-lucide="x-circle"></i> REJECTED BY ADMIN
-            </div>
-          `;
-        }
-      } else if (
-        alert.type === "NSFW_TRIGGER" ||
-        (alert.trigger && alert.trigger.toLowerCase().includes("meme")) ||
-        (alert.message && alert.message.toLowerCase().includes("show_meme"))
-      ) {
-        memeActionDeck = `
-          <div class="alert-meme-preview-wrap" style="justify-content: flex-end;">
-            <button class="meme-action-btn approve send-direct-meme-btn" data-chat-id="${alert.chatId}">
-              <i data-lucide="flame"></i> Send Random NSFW Meme (Spoiler)
-            </button>
-          </div>
-        `;
-      }
+      const typeLabel = alert.type || "ALERT";
 
       return `
         <div class="alert-item-card ${alert.isRead ? "" : "unread"}" data-chat-id="${alert.chatId}">
@@ -903,73 +853,13 @@ function renderAlertsModal() {
           <div class="alert-message-box">
             🎯 <strong>${escapeHtml(alert.trigger)}</strong>: "${escapeHtml(alert.message)}"
           </div>
-          ${memeActionDeck}
         </div>
       `;
     })
     .join("");
 
-  alertsListBody.querySelectorAll(".meme-action-btn.approve:not(.send-direct-meme-btn)").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const reqId = btn.dataset.reqId;
-      const alertDoc = cachedAlerts.find((a) => String(a.memeRequestId) === String(reqId));
-      const targetUserText = alertDoc ? `${alertDoc.userName || "User"} (@${alertDoc.username || "none"})` : "Requested User";
-
-      openConfirmModal({
-        title: "CONFIRM MEME APPROVAL",
-        icon: "check-circle-2",
-        iconColor: "#22C55E",
-        text: "Are you sure you want to approve & deliver this meme to:",
-        targetText: targetUserText,
-        subtext: "The media will be delivered to Telegram with native spoiler blur enabled.",
-        actionText: "APPROVE & DELIVER",
-        actionColor: "#22C55E",
-        onConfirm: async () => {
-          btn.disabled = true;
-          btn.innerHTML = `<span class="upload-spinner" style="width:10px;height:10px;"></span> Sending...`;
-          await executeMemeAction(reqId, "approve");
-        },
-      });
-    });
-  });
-
-  alertsListBody.querySelectorAll(".meme-action-btn.reject").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const reqId = btn.dataset.reqId;
-      const alertDoc = cachedAlerts.find((a) => String(a.memeRequestId) === String(reqId));
-      const targetUserText = alertDoc ? `${alertDoc.userName || "User"} (@${alertDoc.username || "none"})` : "Requested User";
-
-      openConfirmModal({
-        title: "CONFIRM REJECTION",
-        icon: "x-circle",
-        iconColor: "#EF4444",
-        text: "Are you sure you want to reject this meme request for:",
-        targetText: targetUserText,
-        subtext: "User will be notified that the request was declined by admin.",
-        actionText: "REJECT REQUEST",
-        actionColor: "#EF4444",
-        onConfirm: async () => {
-          btn.disabled = true;
-          btn.innerHTML = `<span class="upload-spinner" style="width:10px;height:10px;"></span> Rejecting...`;
-          await executeMemeAction(reqId, "reject");
-        },
-      });
-    });
-  });
-
-  alertsListBody.querySelectorAll(".send-direct-meme-btn").forEach((btn) => {
-    btn.addEventListener("click", (e) => {
-      e.stopPropagation();
-      const targetChatId = btn.dataset.chatId;
-      triggerQuickCastConfirm(targetChatId);
-    });
-  });
-
   alertsListBody.querySelectorAll(".alert-item-card").forEach((card) => {
-    card.addEventListener("click", (e) => {
-      if (e.target.closest(".meme-action-btn")) return;
+    card.addEventListener("click", () => {
       const targetChatId = Number(card.dataset.chatId);
       const user = allUsers.find((u) => u.telegramId === targetChatId);
       if (user) {
@@ -982,152 +872,6 @@ function renderAlertsModal() {
   });
 
   refreshIcons();
-}
-
-let pendingActionConfig = null;
-
-const quickCastMemeBtn = document.getElementById("quickCastMemeBtn");
-const confirmMemeModalOverlay = document.getElementById("confirmMemeModalOverlay");
-const closeConfirmMemeModalBtn = document.getElementById("closeConfirmMemeModalBtn");
-const cancelConfirmMemeBtn = document.getElementById("cancelConfirmMemeBtn");
-const executeConfirmMemeBtn = document.getElementById("executeConfirmMemeBtn");
-
-function openConfirmModal({ title, icon, iconColor, text, targetText, subtext, actionText, actionColor, onConfirm }) {
-  pendingActionConfig = onConfirm;
-
-  const mTitle = document.getElementById("confirmModalTitle");
-  const mIcon = document.getElementById("confirmModalIcon");
-  const mText = document.getElementById("confirmModalText");
-  const mTarget = document.getElementById("confirmMemeTargetUser");
-  const mSubtext = document.getElementById("confirmModalSubtext");
-  const mBtn = document.getElementById("executeConfirmMemeBtn");
-
-  if (mTitle) mTitle.textContent = title || "CONFIRM ACTION";
-  if (mIcon) {
-    mIcon.setAttribute("data-lucide", icon || "flame");
-    mIcon.style.color = iconColor || "#F59E0B";
-  }
-  if (mText) mText.textContent = text || "Are you sure you want to proceed with this action?";
-  if (mTarget) mTarget.textContent = targetText || "Atharva (@op_athu)";
-  if (mSubtext) mSubtext.textContent = subtext || "Transmission will execute directly on Telegram.";
-  if (mBtn) {
-    mBtn.style.background = actionColor || "#F59E0B";
-    mBtn.style.color = "#000";
-    mBtn.innerHTML = `<i data-lucide="${icon || 'flame'}"></i> <span>${actionText || 'CONFIRM'}</span>`;
-  }
-
-  if (confirmMemeModalOverlay) {
-    confirmMemeModalOverlay.style.display = "flex";
-    refreshIcons();
-  }
-}
-
-function closeConfirmModal() {
-  pendingActionConfig = null;
-  if (confirmMemeModalOverlay) {
-    confirmMemeModalOverlay.style.display = "none";
-  }
-}
-
-function triggerQuickCastConfirm(targetChatId) {
-  if (!targetChatId) {
-    showToast("Please select a target user conversation from the directory first.", "error");
-    return;
-  }
-
-  const user = allUsers.find((u) => String(u.telegramId) === String(targetChatId)) || activeTargetUser;
-  const handle = user?.username ? `@${user.username}` : `ID: ${targetChatId}`;
-  const targetUserText = `${user?.firstName || "User"} (${handle})`;
-
-  openConfirmModal({
-    title: "CONFIRM MEME DISPATCH",
-    icon: "flame",
-    iconColor: "#F59E0B",
-    text: "Are you sure you want to fetch a random NSFW meme from Reddit and transmit it to:",
-    targetText: targetUserText,
-    subtext: "The media will be delivered to Telegram with native spoiler blur enabled.",
-    actionText: "TRANSMIT MEME",
-    actionColor: "#F59E0B",
-    onConfirm: async () => {
-      await quickCastMeme(targetChatId);
-    },
-  });
-}
-
-if (quickCastMemeBtn) {
-  quickCastMemeBtn.addEventListener("click", () => {
-    if (!activeTargetUser) {
-      showToast("Please select a user conversation first.", "error");
-      return;
-    }
-    triggerQuickCastConfirm(activeTargetUser.telegramId);
-  });
-}
-
-if (closeConfirmMemeModalBtn) closeConfirmMemeModalBtn.addEventListener("click", closeConfirmModal);
-if (cancelConfirmMemeBtn) cancelConfirmMemeBtn.addEventListener("click", closeConfirmModal);
-
-if (executeConfirmMemeBtn) {
-  executeConfirmMemeBtn.addEventListener("click", async () => {
-    const actionFn = pendingActionConfig;
-    closeConfirmModal();
-    if (typeof actionFn === "function") {
-      await actionFn();
-    }
-  });
-}
-
-async function quickCastMeme(targetChatId) {
-  if (!targetChatId) {
-    showToast("Please select a user conversation first.", "error");
-    return;
-  }
-
-  try {
-    showToast("🌶️ Fetching and transmitting random NSFW meme...", "success");
-
-    const res = await authenticatedFetch(getApiUrl("/admin/send-random-meme"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ targetChatId }),
-    });
-
-    const data = await res.json();
-    if (data.ok) {
-      showToast(`✅ Delivered: "${data.result?.meme?.title || "Meme"}" with spoiler blur!`, "success");
-      if (activeTargetUser && String(activeTargetUser.telegramId) === String(targetChatId)) {
-        await loadConversationMessages(true);
-      }
-    } else {
-      showToast(`❌ Error: ${data.error || "Could not send meme"}`, "error");
-    }
-  } catch (err) {
-    showToast(`❌ Failed to send meme: ${err.message}`, "error");
-  }
-}
-
-async function executeMemeAction(requestId, action) {
-  try {
-    const res = await authenticatedFetch(getApiUrl("/admin/meme-action"), {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ requestId, action }),
-    });
-    const data = await res.json();
-    if (data.ok) {
-      showToast(
-        action === "approve"
-          ? "✅ Meme approved & delivered to user with spoiler blur!"
-          : "❌ Meme request rejected.",
-        "success"
-      );
-      await fetchAlerts();
-    } else {
-      showToast(`Error: ${data.error || "Failed to process"}`, "error");
-    }
-  } catch (err) {
-    showToast(`Action failed: ${err.message}`, "error");
-  }
 }
 
 function openAlertsModal() {

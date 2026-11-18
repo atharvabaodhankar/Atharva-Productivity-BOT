@@ -5,6 +5,7 @@ const {
   checkEasterEggOrNsfw,
   triggerAlertAndNotify,
   getRandomResponse,
+  SFW_REFUSAL_MESSAGE,
 } = require("../../utils/easterEggDetector");
 const { sendTelegramFormatted, sendTelegramHumanPaced } = require("../../utils/telegramFormatter");
 
@@ -104,81 +105,7 @@ module.exports = (bot) => {
       const mentionResult = checkBotMentionOrReply(ctx, rawMessage);
       let userMessage = mentionResult.cleanText || rawMessage.trim();
 
-
-      // 1.5 Check if user is replying to NSFW Meme confirmation (YES / NO)
-      const User = require("../../models/User");
-      const { requestOwnerMemeApproval } = require("../../services/memeService");
-      const userDoc = await User.findOne({ telegramId: chatId });
-
-      if (userDoc && userDoc.awaitingMemeConfirmation) {
-        const cleanText = userMessage.toLowerCase().trim();
-        const isYes = /\b(yes|haan|ha|yeah|yep|y|pakka|18\+|ok|sure|show)\b/i.test(cleanText);
-        const isNo = /\b(no|nahi|na|nope|n|cancel|rehne do)\b/i.test(cleanText);
-
-        if (isYes) {
-          userDoc.awaitingMemeConfirmation = false;
-          await userDoc.save();
-
-          const waitMsg =
-            "Theek hai bhai, hold tight! ⏳ Finding the spiciest meme from Reddit for you...";
-
-          const sentMsg = await ctx.reply(waitMsg, {
-            reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
-          });
-
-          await History.create({ chatId, role: "user", content: userMessage, telegramMessageId: ctx.message.message_id });
-          await History.create({ chatId, role: "assistant", content: waitMsg, telegramMessageId: sentMsg.message_id });
-
-          // Send approval request to owner Telegram & Mission Control
-          try {
-            await requestOwnerMemeApproval(bot, {
-              chatId,
-              userName: ctx.from?.first_name || "Friend",
-              username: ctx.from?.username || "",
-            });
-          } catch (memeApprErr) {
-            console.error("Failed to request owner meme approval:", memeApprErr.message);
-          }
-          return;
-        } else if (isNo) {
-          userDoc.awaitingMemeConfirmation = false;
-          await userDoc.save();
-
-          const cancelText = "Good boy/girl! 😇 Sharafat me hi bhalai hai. Chalo wapas focus karo apne goals aur tasks pe! 🚀✨";
-
-          const sentMsg = await ctx.reply(cancelText, {
-            reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
-          });
-
-          await History.create({ chatId, role: "user", content: userMessage, telegramMessageId: ctx.message.message_id });
-          await History.create({ chatId, role: "assistant", content: cancelText, telegramMessageId: sentMsg.message_id });
-          return;
-        }
-      }
-
-      // 1.6 Check if user sent plain text requesting NSFW meme (e.g. "show nsfw", "nsfw meme", "send nsfw")
-      const isPlainMemeRequest = /\b(show nsfw|nsfw meme|nsfw memes|show meme|send nsfw|send meme)\b/i.test(userMessage);
-      if (isPlainMemeRequest) {
-        await User.findOneAndUpdate(
-          { telegramId: chatId },
-          { $set: { awaitingMemeConfirmation: true } },
-          { upsert: true }
-        );
-
-        const promptMsg =
-          "Ahem ahem! 🔞 Pakka dekhna hai random NSFW memes? Sach batao, are you 18+ and really wish to see it? 😏\n\n💬 *Type 'yes' or 'no' in chat!*";
-
-        const sentMsg = await ctx.reply(promptMsg, {
-          parse_mode: "Markdown",
-          reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
-        });
-
-        await History.create({ chatId, role: "user", content: userMessage, telegramMessageId: ctx.message.message_id });
-        await History.create({ chatId, role: "assistant", content: promptMsg, telegramMessageId: sentMsg.message_id });
-        return;
-      }
-
-      // 1.7 Check if user pasted a SpendWise API Key (starts with spw_live_ or awaiting key)
+      // 1.5 Check if user pasted a SpendWise API Key (starts with spw_live_ or awaiting key)
       const hasSpendWiseKeyPattern = /spw_live_[0-9a-fA-F]{16,}/i.test(userMessage);
       if (hasSpendWiseKeyPattern || (userDoc && userDoc.awaitingSpendwiseKey && /spw_live_/i.test(userMessage))) {
         const keyMatch = userMessage.match(/spw_live_[0-9a-fA-F]+/i);
@@ -317,7 +244,9 @@ module.exports = (bot) => {
       // 2. Check for Easter Eggs or NSFW triggers
       const detectedTrigger = checkEasterEggOrNsfw(userMessage);
       if (detectedTrigger) {
-        const easterEggReply = getRandomResponse();
+        const replyText = detectedTrigger.isNsfw
+          ? SFW_REFUSAL_MESSAGE
+          : getRandomResponse();
 
         await triggerAlertAndNotify({
           chatId,
@@ -328,7 +257,7 @@ module.exports = (bot) => {
           text: userMessage,
         });
 
-        const sentMsg = await ctx.reply(easterEggReply, {
+        const sentMsg = await ctx.reply(replyText, {
           reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
         });
 
@@ -341,7 +270,7 @@ module.exports = (bot) => {
         await History.create({
           chatId,
           role: "assistant",
-          content: easterEggReply,
+          content: replyText,
           telegramMessageId: sentMsg.message_id,
         });
         return;

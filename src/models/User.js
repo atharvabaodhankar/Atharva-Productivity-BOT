@@ -67,10 +67,6 @@ const userSchema = new mongoose.Schema(
         default: false,
       },
     },
-    awaitingMemeConfirmation: {
-      type: Boolean,
-      default: false,
-    },
     spendwiseApiKey: {
       type: String,
       default: "",

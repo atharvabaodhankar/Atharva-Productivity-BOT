@@ -662,62 +662,6 @@ exports.handler = async (event, context) => {
           };
         }
       }
-
-      // 1.6 ADMIN MEME APPROVAL / REJECTION ACTION
-      if (rawPath.endsWith("/api/admin/meme-action") && httpMethod === "POST") {
-        try {
-          const payload = typeof event.body === "string" ? JSON.parse(event.body || "{}") : event.body || {};
-          const { requestId, action } = payload;
-          const isApproved = action === "approve";
-
-          const { processMemeApproval } = require("../services/memeService");
-          const result = await processMemeApproval(bot, requestId, isApproved);
-
-          return {
-            statusCode: 200,
-            headers: CORS_HEADERS,
-            body: JSON.stringify({ ok: true, result }),
-          };
-        } catch (memeErr) {
-          console.error("Failed to process meme action:", memeErr);
-          return {
-            statusCode: 500,
-            headers: CORS_HEADERS,
-            body: JSON.stringify({ error: `Meme action failed: ${memeErr.message}` }),
-          };
-        }
-      }
-
-      // 1.7 DIRECT QUICK-CAST RANDOM MEME API
-      if (rawPath.endsWith("/api/admin/send-random-meme") && httpMethod === "POST") {
-        try {
-          const payload = typeof event.body === "string" ? JSON.parse(event.body || "{}") : event.body || {};
-          const { targetChatId } = payload;
-          if (!targetChatId) {
-            return {
-              statusCode: 400,
-              headers: CORS_HEADERS,
-              body: JSON.stringify({ error: "targetChatId is required." }),
-            };
-          }
-
-          const { sendRandomMemeToChat } = require("../services/memeService");
-          const result = await sendRandomMemeToChat(bot, targetChatId);
-
-          return {
-            statusCode: 200,
-            headers: CORS_HEADERS,
-            body: JSON.stringify({ ok: true, result }),
-          };
-        } catch (memeErr) {
-          console.error("Failed to quick-cast random meme:", memeErr);
-          return {
-            statusCode: 500,
-            headers: CORS_HEADERS,
-            body: JSON.stringify({ error: `Quick-cast meme failed: ${memeErr.message}` }),
-          };
-        }
-      }
     }
 
     // -------------------------------------------------------------
