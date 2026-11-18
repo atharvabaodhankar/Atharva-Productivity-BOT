@@ -565,6 +565,44 @@ it("flags NSFW keyword queries and provides SFW refusal message", () => {
   assert.ok(SFW_REFUSAL_MESSAGE.includes("100% SFW"));
 });
 
+// 8. Casual Greetings & Text Handler Stability
+console.log("👋 8. Casual Greetings & Text Handler Stability:");
+
+const { isCasualGreeting } = require("../src/ai/aiService");
+
+it("recognizes casual greetings including elongated variants ('hii', 'hiii', 'heyy')", () => {
+  assert.strictEqual(isCasualGreeting("hi"), true);
+  assert.strictEqual(isCasualGreeting("hii"), true);
+  assert.strictEqual(isCasualGreeting("hiii"), true);
+  assert.strictEqual(isCasualGreeting("hey"), true);
+  assert.strictEqual(isCasualGreeting("heyyy"), true);
+  assert.strictEqual(isCasualGreeting("hello"), true);
+  assert.strictEqual(isCasualGreeting("hellooo"), true);
+  assert.strictEqual(isCasualGreeting("yo"), true);
+  assert.strictEqual(isCasualGreeting("wassup"), true);
+  assert.strictEqual(isCasualGreeting("sup"), true);
+  assert.strictEqual(isCasualGreeting("kaisa hai bro"), true);
+});
+
+it("does not false-positive on tasks, reminders, or financial inputs", () => {
+  assert.strictEqual(isCasualGreeting("Yesterday dinner 100"), false);
+  assert.strictEqual(isCasualGreeting("Spent 250 on lunch via UPI"), false);
+  assert.strictEqual(isCasualGreeting("Remind me at 5pm to call doctor"), false);
+  assert.strictEqual(isCasualGreeting("spw_live_0123456789abcdef"), false);
+});
+
+it("ensures textHandler registers without missing variables or ReferenceError", () => {
+  const registerTextHandler = require("../src/bot/handlers/textHandler");
+  let registeredHandler = null;
+  const mockBot = {
+    on: (event, handler) => {
+      if (event === "text") registeredHandler = handler;
+    },
+  };
+  registerTextHandler(mockBot);
+  assert.strictEqual(typeof registeredHandler, "function");
+});
+
 // Summary
 console.log(`\n========================================`);
 console.log(`Results: ${passed} / ${total} tests passed! ✨`);

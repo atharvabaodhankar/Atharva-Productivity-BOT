@@ -1,6 +1,7 @@
 const { askAI } = require("../../ai/aiService");
 const History = require("../../models/History");
 const GroupConfig = require("../../models/GroupConfig");
+const User = require("../../models/User");
 const {
   checkEasterEggOrNsfw,
   triggerAlertAndNotify,
@@ -105,9 +106,9 @@ module.exports = (bot) => {
       const mentionResult = checkBotMentionOrReply(ctx, rawMessage);
       let userMessage = mentionResult.cleanText || rawMessage.trim();
 
-      // 1.5 Check if user pasted a SpendWise API Key (starts with spw_live_ or awaiting key)
-      const hasSpendWiseKeyPattern = /spw_live_[0-9a-fA-F]{16,}/i.test(userMessage);
-      if (hasSpendWiseKeyPattern || (userDoc && userDoc.awaitingSpendwiseKey && /spw_live_/i.test(userMessage))) {
+      // 1.5 Check if user pasted a SpendWise API Key (starts with spw_live_)
+      const hasSpendWiseKeyPattern = /spw_live_[0-9a-fA-F]+/i.test(userMessage);
+      if (hasSpendWiseKeyPattern) {
         const keyMatch = userMessage.match(/spw_live_[0-9a-fA-F]+/i);
         if (keyMatch) {
           const rawKey = keyMatch[0].trim();
@@ -126,6 +127,15 @@ module.exports = (bot) => {
               reply_to_message_id: isGroup ? ctx.message.message_id : undefined,
             });
             return;
+          }
+
+          let userDoc = await User.findOne({ telegramId: chatId });
+          if (!userDoc) {
+            userDoc = await User.create({
+              telegramId: chatId,
+              firstName: ctx.from?.first_name || "Friend",
+              username: ctx.from?.username || "",
+            });
           }
 
           userDoc.spendwiseApiKey = rawKey;

@@ -77,6 +77,15 @@ const CASUAL_GREETINGS = new Set([
   "kesa he bro", "kaisa hai bro", "kaisa he", "who made you"
 ]);
 
+function isCasualGreeting(text) {
+  if (!text || typeof text !== "string") return false;
+  const clean = text.trim().toLowerCase().replace(/[!?.,]+$/, "");
+  if (CASUAL_GREETINGS.has(clean)) return true;
+  // Support variations/elongations like "hii", "hiii", "heyy", "helloo", "wassup"
+  if (/^(h+i+|h+e+y+|h+e+l+l+o+|y+o+|s+u+p+|w+a+s+s+u+p+)[!.]*$/i.test(clean)) return true;
+  return false;
+}
+
 /**
  * Detects whether the user is attempting to log an expense or income transaction
  * in SpendWise (e.g. "30rs aggarbatti", "10rs surfexcel", "spent 250 on lunch via UPI").
@@ -529,7 +538,7 @@ async function askAI({
   messages.push({ role: "user", content: userContent });
 
   const cleanInput = (message || "").trim().toLowerCase();
-  const isDirectChat = CASUAL_GREETINGS.has(cleanInput) || isGroup || !!base64ImageUrl;
+  const isDirectChat = isCasualGreeting(cleanInput) || isGroup || !!base64ImageUrl;
   const activeTools = isDirectChat ? undefined : getToolsForUser(user);
 
   const isExpenseIntent = isExpenseLoggingIntent(textPrompt);
@@ -663,5 +672,6 @@ module.exports = {
   askAI,
   sanitizeOutput,
   isExpenseLoggingIntent,
+  isCasualGreeting,
   executeToolHandler,
 };
